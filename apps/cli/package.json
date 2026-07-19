@@ -1,0 +1,27 @@
+{
+  "name": "@hazard-pay/cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "hazard-pay": "bin/hazard-pay"
+  },
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "type-check": "tsc --noEmit",
+    "lint": "eslint --cache --max-warnings=0 .",
+    "lint:fix": "eslint --cache --fix .",
+    "clean": "rm -rf .eslintcache"
+  },
+  "dependencies": {
+    "@hazard-pay/env": "workspace:*",
+    "cac": "^7.0.0"
+  },
+  "devDependencies": {
+    "@hazard-pay/config": "workspace:*",
+    "@types/node": "^22.10.0",
+    "eslint": "^9.39.4",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  }
+}

@@ -1,0 +1,24 @@
+.DS_Store
+
+.eslintcache
+node_modules/
+
+.env
+.env.local
+.env.production
+
+*.log
+
+.turbo/
+
+tsconfig.tsbuildinfo
+*.tsbuildinfo
+
+# Build output
+dist/
+
+.vscode
+
+# Local-only agent + workspace settings
+.claude/settings.local.json
+.humanlayer/workspace.local.json

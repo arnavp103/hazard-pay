@@ -1,0 +1,5 @@
+#!/usr/bin/env sh
+# Thin shim so `hazard-pay` runs the TypeScript entrypoint directly — packages
+# in this repo export raw TS source and are executed through tsx, with no build
+# step to keep in sync.
+exec pnpm exec tsx "$(dirname "$0")/../src/index.ts" "$@"

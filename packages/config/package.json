@@ -1,0 +1,29 @@
+{
+  "name": "@hazard-pay/config",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./eslint": "./eslint.config.js",
+    "./eslint-node": "./eslint.node.config.js",
+    "./eslint-tailwind": "./eslint.tailwind.config.js",
+    "./tsconfig": "./tsconfig.json",
+    "./tsconfig.json": "./tsconfig.json"
+  },
+  "scripts": {
+    "type-check": "tsc --noEmit",
+    "lint": "eslint --cache --max-warnings=0 .",
+    "lint:fix": "eslint --cache --fix .",
+    "clean": "rm -rf .eslintcache"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.4",
+    "@stylistic/eslint-plugin": "^5.7.1",
+    "eslint": "^9.39.4",
+    "eslint-plugin-better-tailwindcss": "^4.6.1",
+    "globals": "^16.5.0",
+    "tailwindcss": "^4.1.17",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.56.1"
+  }
+}

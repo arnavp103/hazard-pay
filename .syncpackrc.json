@@ -1,0 +1,14 @@
+{
+  "$schema": "https://unpkg.com/syncpack@14/dist/schema.json",
+  "source": ["package.json", "apps/*/package.json", "packages/*/package.json"],
+  "versionGroups": [
+    {
+      "label": "Internal packages must use workspace protocol",
+      "dependencies": ["@hazard-pay/**"],
+      "dependencyTypes": ["!local"],
+      "pinVersion": "workspace:*"
+    },
+    { "label": "Default — single version repo-wide", "dependencies": ["**"] }
+  ],
+  "semverGroups": [{ "label": "Caret everything", "range": "^" }]
+}

@@ -1,0 +1,2 @@
+pnpm exec syncpack fix
+pnpm exec lint-staged

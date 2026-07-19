@@ -1,0 +1,24 @@
+{
+  "disabled": false,
+  "pathTemplate": "~/.humanlayer/workspaces/{{ TASKSLUG }}/{{ REPOBASENAME }}",
+  "branchTemplate": "{{ TASKSLUG }}",
+  "sourceRef": "HEAD",
+  "setupCommand": "pnpm install",
+  "copyGlobs": [
+    ".env",
+    ".env.local",
+    ".env.development.local",
+    ".claude/settings.local.json",
+    ".humanlayer/workspace.local.json",
+    "**/.env",
+    "**/.env.local",
+    ".linear.toml"
+  ],
+  "repos": [
+    {
+      "localPath": ".",
+      "description": "hazard-pay monorepo",
+      "primary": true
+    }
+  ]
+}
