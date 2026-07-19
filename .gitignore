@@ -22,3 +22,9 @@ dist/
 # Local-only agent + workspace settings
 .claude/settings.local.json
 .humanlayer/workspace.local.json
+
+# Riptide artifacts (cloud-synced)
+.humanlayer/tasks/
+
+# Ephemeral local scratch space (handoffs, local-only notes)
+.scratch/

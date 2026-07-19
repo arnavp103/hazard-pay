@@ -68,3 +68,17 @@ non-conforming. `pre-commit` runs `syncpack fix` then `lint-staged`.
 3. `tsconfig.json` extends `@hazard-pay/config/tsconfig.json`.
 4. Scripts: `type-check`, `lint`, `lint:fix`, `clean` at minimum.
 5. `pnpm install` to link it.
+
+## Agent skills
+
+### Issue tracker
+
+Issues are tracked in GitHub Issues for `arnavp103/hazard-pay` via the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default label vocabulary (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`). See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: `CONTEXT.md` at the repo root plus `docs/adr/`. See `docs/agents/domain.md`.
