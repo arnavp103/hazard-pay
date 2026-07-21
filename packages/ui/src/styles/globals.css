@@ -1,0 +1,173 @@
+@import "tailwindcss";
+
+/*
+ * Explicit source root: Ladle's Vite root is its own internal app dir, so
+ * Tailwind's automatic source detection never sees this package. `@source`
+ * resolves relative to this file, so the same line also keeps this
+ * package's sources scanned when a consumer imports this CSS from outside.
+ * Consumers must add their own `@source` for their own source tree — see
+ * this package's AGENTS.md.
+ */
+@source "../";
+
+/*
+ * Hazard Pay design system — Direction B, "Street-Tech / Grime Market"
+ * (accepted on #13; reference: branch prototype/ui-foundation).
+ *
+ * Semantic tokens are registered once via @theme inline and resolve through
+ * CSS custom properties. Components only ever use the semantic utilities
+ * (bg-panel, text-accent, font-display…), so alternate scopes can restyle
+ * the same markup by re-declaring the custom properties.
+ *
+ * All custom classes live in @layer components so Tailwind utilities
+ * (which sit in the later `utilities` layer) can override them — e.g.
+ * `absolute` must beat a helper's `position: relative`. Un-layered rules
+ * would silently win over every utility.
+ */
+
+@theme inline {
+  --color-shell: var(--hp-shell);
+  --color-panel: var(--hp-panel);
+  --color-panel-2: var(--hp-panel-2);
+  --color-line: var(--hp-line);
+  --color-line-2: var(--hp-line-2);
+  --color-ink: var(--hp-ink);
+  --color-ink-dim: var(--hp-ink-dim);
+  --color-accent: var(--hp-accent);
+  --color-accent-2: var(--hp-accent-2);
+  --color-info: var(--hp-info);
+  --color-warn: var(--hp-warn);
+  --color-danger: var(--hp-danger);
+  --font-display: var(--hp-font-display);
+  --font-data: var(--hp-font-data);
+  --shadow-hard: 4px 4px 0 0 var(--hp-shadow-color);
+  --shadow-hard-lg: 8px 8px 0 0 var(--hp-shadow-color);
+  --shadow-hard-accent: 4px 4px 0 0 var(--hp-accent);
+}
+
+/*
+ * Default theme values on :root — warm plum-black, hot magenta accent vs
+ * acid chartreuse accent-2, condensed display type over mono data type.
+ */
+:root {
+  --hp-shell: #120b10;
+  --hp-panel: #1b1119;
+  --hp-panel-2: #251826;
+  --hp-line: #3d2939;
+  --hp-line-2: #573b51;
+  --hp-ink: #f0e7dc;
+  --hp-ink-dim: #927d89;
+  --hp-accent: #ff2e6c;
+  --hp-accent-2: #c8f031;
+  --hp-info: #2ed9ff;
+  --hp-warn: #ffab2e;
+  --hp-danger: #ff5330;
+  --hp-font-display: "Big Shoulders", sans-serif;
+  --hp-font-data: "Space Mono", monospace;
+  --hp-shadow-color: rgb(0 0 0 / 55%);
+  --hp-grain-opacity: 0.07;
+}
+
+/*
+ * Dense-surface tuning (legibility caveat from the #13 ruling): data-heavy
+ * scopes — admin tables, lane trace walls — turn grain and shadow DOWN,
+ * they do not abandon the system. Wrap the dense region in .hp-dense.
+ */
+.hp-dense {
+  --hp-shadow-color: rgb(0 0 0 / 30%);
+  --hp-grain-opacity: 0.03;
+}
+
+/* ------------------------------------------------------------------ */
+/* Animation vocabulary                                                */
+/* ------------------------------------------------------------------ */
+
+@keyframes hp-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.25; }
+}
+
+@keyframes hp-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(7px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes hp-stamp {
+  0% {
+    opacity: 0;
+    transform: scale(1.25) rotate(1.5deg);
+  }
+
+  60% {
+    opacity: 1;
+    transform: scale(0.97) rotate(-0.5deg);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+@keyframes hp-stripe-scroll {
+  from { background-position: 0 0; }
+  to { background-position: 17px 0; }
+}
+
+@layer components {
+  .hp-blink {
+    animation: hp-blink 1.6s ease-in-out infinite;
+  }
+
+  .hp-anim-slide-in {
+    animation: hp-slide-in 0.45s ease-out both;
+  }
+
+  .hp-anim-stamp {
+    animation: hp-stamp 0.35s ease-out both;
+  }
+
+  /* Film-grain overlay via SVG turbulence. The element with the class gets
+     the texture; intensity comes from --hp-grain-opacity so dense scopes
+     can tune it down. */
+  .hp-noise {
+    position: relative;
+  }
+
+  .hp-noise::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: var(--hp-grain-opacity);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  /* Clipped top-right corner for stickers and stamp chips. */
+  .hp-clip {
+    clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%);
+  }
+
+  /* Diagonal hazard stripes — warn meters and danger edges. */
+  .hp-hazard {
+    background-image: repeating-linear-gradient(
+      -45deg,
+      var(--hp-warn),
+      var(--hp-warn) 6px,
+      transparent 6px,
+      transparent 12px
+    );
+  }
+
+  /* Scrolling hazard stripes for live meters. */
+  .hp-hazard-anim {
+    animation: hp-stripe-scroll 0.9s linear infinite;
+  }
+}

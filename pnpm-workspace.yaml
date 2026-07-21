@@ -10,3 +10,8 @@ allowBuilds:
   # Transitive of @opentelemetry/sdk-node (OTLP exporters we never construct);
   # its postinstall only patches version mismatches — deliberately skipped.
   protobufjs: false
+  # Transitives of @ladle/react (packages/ui workbench): postinstalls only
+  # fetch optional native/service-worker placeholders — everything runs
+  # without them (verified on the #13 prototype). Deliberately skipped.
+  "@swc/core": false
+  msw: false
