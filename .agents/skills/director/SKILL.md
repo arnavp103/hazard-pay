@@ -169,6 +169,19 @@ Environment facts agents keep rediscovering; brief them or fix them:
 - lint-staged autofixes at commit time make committed files drift from any
   scratchpad staging copies; after committing, treat the worktree (via
   `git show`/`git diff`), not your staging copies, as truth.
+- `gh api` with `-f`/`--raw-field` params defaults to **POST** — always pass
+  `-X GET` on query-param reads or you'll accidentally try to create resources.
+- `mergeable`/`mergeStateStatus` read `UNKNOWN` for a few seconds after any
+  push while GitHub recomputes — treat UNKNOWN as not-conflicting, re-poll.
+- commitlint's scope universe is read at hook load: a new package's scope is
+  invalid until its directory exists (draft-PR empty commits use `repo`).
+- CONFLICTING can arrive AFTER a PR went ready — every main merge re-dirties
+  the other open PRs; the director re-checks (or has the agent re-check) merge
+  state per open PR after every merge.
+- agent-browser output paths are daemon-cwd-relative — require absolute paths.
+- `hazard-pay worktree clean` removes trees but not dev servers started from
+  them — orphaned processes squat ports (Ladle :61000) and confuse the next
+  session; kill by port when a capture probe 404s unexpectedly.
 - A bare `#N` in commit body prose makes commitlint emit **misleading** footer
   errors (`footer-leading-blank`, phantom blank lines) — the fix is always
   "move the ref to the trailing `Refs:` footer", whatever the error says.
