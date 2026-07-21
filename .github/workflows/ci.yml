@@ -1,4 +1,6 @@
 name: CI
+# Trivial comment-only edit (issue #40) to get a second, warm-cache CI
+# datapoint for before/after timing comparison — no behavior change.
 
 on:
   push:
