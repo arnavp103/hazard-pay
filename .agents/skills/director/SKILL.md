@@ -80,6 +80,10 @@ Be tactical per dispatch — the model is a dial, not an identity:
 - Before merging: CI green **on the merged ref**, `gh pr list --base <branch>`
   empty (retarget dependents to main first — GitHub auto-closes PRs whose base
   branch is deleted).
+- **A CONFLICTING PR gets zero `pull_request` CI runs, silently.** Pushes to a
+  DIRTY-merge-state PR create no runs and no failure signal; the only tell is
+  `mergeStateStatus: DIRTY`. Check merge state before trusting an absence of CI
+  failures, and reconcile promptly after every main advance.
 - Conflicts: send the PR's own agent to reconcile (`git merge origin/main`).
   Standing rule for `pnpm-lock.yaml`: never hand-merge — take main's version,
   rerun `pnpm install`, regenerate. Shared-file conflicts keep both sides'
@@ -109,8 +113,15 @@ Be tactical per dispatch — the model is a dial, not an identity:
 - Collect retros as report sections; synthesize across several agents before
   changing the harness — one agent's anecdote is noise, three agents' repetition
   is signal.
-- Lessons land in version-controlled places (skills, CLI output, AGENTS.md),
-  never only in the director's head or chat log.
+- Lessons land in version-controlled places, never only in the director's head
+  or chat log — and the target is the **whole harness**, not one skill: workflow
+  skills (/implement, /tdd, /code-review prompt tweaks), CLI commands (context
+  surfaces, watchers, task lists), CI/infra (caching, cycle time), AGENTS.md.
+  When the fix isn't a quick edit, **file it as a harness issue** so it enters
+  the normal dispatch loop; a retro finding that never becomes an edit or an
+  issue is lost.
+- After any substantive harness change, run a **one-ticket canary** on a
+  mid-tier model before dispatching the full wave.
 
 ## Harness facts (living — extend from each retro round)
 
@@ -145,3 +156,16 @@ Environment facts agents keep rediscovering; brief them or fix them:
 - Secrets: the root `.env` is loaded via `@hazard-pay/env`'s checkout-root
   resolution (worktree-safe). Agents never read or print `.env` contents;
   presence checks only.
+- Background Bash compounds of the shape `sleep N; gh ...` (and multi-step
+  `gh run watch` chains) can complete with empty output; poll in the foreground
+  instead. `gh pr checks` misattributes runs — resolve the PR's head SHA and
+  match runs via `gh run view --json headSha`.
+- The scratchpad directory is shared across agent sessions of one conversation:
+  stage files under a per-task subdirectory (`stage-issue-<n>/`), never at the
+  scratchpad root, or you'll clobber another agent's staging tree.
+- The Skill tool serves `.claude/skills/*` symlinked skills fine despite the
+  file-tool read-deny on that tree — the deny applies to Read/Edit/Write, not
+  skill invocation.
+- lint-staged autofixes at commit time make committed files drift from any
+  scratchpad staging copies; after committing, treat the worktree (via
+  `git show`/`git diff`), not your staging copies, as truth.
