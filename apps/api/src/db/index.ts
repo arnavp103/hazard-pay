@@ -8,7 +8,7 @@
  */
 export { createDb } from "@hazard-pay/db";
 export { pingDb } from "./ping.ts";
-export { findPlayerByUserId } from "./players.ts";
+export { findPlayerByUserId, type PlayerRow, updatePlayerHandle } from "./players.ts";
 export {
   latestTick,
   recordDueTicks,

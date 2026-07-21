@@ -1,6 +1,16 @@
 import { oc } from "@orpc/contract";
 import { z } from "zod";
 
+import { playerContract } from "./player.ts";
+
+export {
+  handleSchema,
+  playerSchema,
+  renamePlayerInputSchema,
+  type Player,
+  type RenamePlayerInput,
+} from "./player.ts";
+
 /**
  * The contract-first typed-client seam (ADR 0002 §2): route contracts are
  * defined once here in zod; `src/server.ts` implements them and
@@ -68,6 +78,7 @@ export const contract = {
     .route({ method: "GET", path: "/overworld/tick" })
     .errors({ SERVICE_UNAVAILABLE: { status: 503 } })
     .output(overworldTickSchema),
+  ...playerContract,
 };
 
 export type ApiContract = typeof contract;

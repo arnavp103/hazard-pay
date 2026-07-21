@@ -2,6 +2,7 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
+import { defaultHandle } from "@hazard-pay/auth";
 import { createTestDatabase } from "@hazard-pay/db/testing";
 import env from "@hazard-pay/env";
 import { createLogger } from "@hazard-pay/observability";
@@ -140,6 +141,21 @@ test("POST /telemetry rejects a malformed payload with 400", async () => {
   }
 });
 
+/** Signs in anonymously and returns the pieces the player tests need: the new user id and a `cookie` header good for a follow-up request. */
+async function signInAnonymously(baseUrl: string): Promise<{ userId: string; cookieHeader: string }> {
+  const response = await fetch(`${baseUrl}/api/auth/sign-in/anonymous`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: "{}",
+  });
+  const body = (await response.json()) as { user: { id: string } };
+  const cookies = response.headers.getSetCookie();
+  return {
+    userId: body.user.id,
+    cookieHeader: cookies.map((cookie) => cookie.split(";")[0]).join("; "),
+  };
+}
+
 test("anonymous sign-in round-trips better-auth and creates the player row", async () => {
   const server = await startTestServer();
   try {
@@ -166,6 +182,116 @@ test("anonymous sign-in round-trips better-auth and creates the player row", asy
     expect(session.status).toBe(200);
     const sessionBody = (await session.json()) as { user: { id: string } } | null;
     expect(sessionBody?.user.id).toBe(body.user.id);
+  } finally {
+    await server.close();
+  }
+});
+
+test("GET /player/me requires a session", async () => {
+  const server = await startTestServer();
+  try {
+    const response = await fetch(`${server.baseUrl}/player/me`);
+    expect(response.status).toBe(401);
+    const body = (await response.json()) as { code: string };
+    expect(body.code).toBe("UNAUTHORIZED");
+  } finally {
+    await server.close();
+  }
+});
+
+test("GET /player/me returns the session's own player, default handle included", async () => {
+  const server = await startTestServer();
+  try {
+    const { userId, cookieHeader } = await signInAnonymously(server.baseUrl);
+
+    const response = await fetch(`${server.baseUrl}/player/me`, {
+      headers: { cookie: cookieHeader },
+    });
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { userId: string; handle: string };
+    expect(body.userId).toBe(userId);
+    expect(body.handle).toBe(defaultHandle(userId));
+  } finally {
+    await server.close();
+  }
+});
+
+test("POST /player/rename requires a session", async () => {
+  const server = await startTestServer();
+  try {
+    const response = await fetch(`${server.baseUrl}/player/rename`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ handle: "night-runner" }),
+    });
+    expect(response.status).toBe(401);
+  } finally {
+    await server.close();
+  }
+});
+
+test("POST /player/rename persists a new handle for the session's own player", async () => {
+  const server = await startTestServer();
+  try {
+    const { userId, cookieHeader } = await signInAnonymously(server.baseUrl);
+
+    const rename = await fetch(`${server.baseUrl}/player/rename`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "cookie": cookieHeader },
+      body: JSON.stringify({ handle: "night-runner" }),
+    });
+
+    expect(rename.status).toBe(200);
+    const body = (await rename.json()) as { handle: string };
+    expect(body.handle).toBe("night-runner");
+
+    const row = await findPlayerByUserId(server.db, userId);
+    expect(row._unsafeUnwrap()?.handle).toBe("night-runner");
+  } finally {
+    await server.close();
+  }
+});
+
+test("POST /player/rename rejects a handle outside the length/charset constraints", async () => {
+  const server = await startTestServer();
+  try {
+    const { cookieHeader } = await signInAnonymously(server.baseUrl);
+
+    const response = await fetch(`${server.baseUrl}/player/rename`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "cookie": cookieHeader },
+      body: JSON.stringify({ handle: "a!" }),
+    });
+
+    expect(response.status).toBeGreaterThanOrEqual(400);
+    expect(response.status).toBeLessThan(500);
+  } finally {
+    await server.close();
+  }
+});
+
+test("POST /player/rename maps an already-taken handle to 409", async () => {
+  const server = await startTestServer();
+  try {
+    const first = await signInAnonymously(server.baseUrl);
+    const second = await signInAnonymously(server.baseUrl);
+
+    const claim = await fetch(`${server.baseUrl}/player/rename`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "cookie": first.cookieHeader },
+      body: JSON.stringify({ handle: "claimed-handle" }),
+    });
+    expect(claim.status).toBe(200);
+
+    const conflict = await fetch(`${server.baseUrl}/player/rename`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "cookie": second.cookieHeader },
+      body: JSON.stringify({ handle: "claimed-handle" }),
+    });
+    expect(conflict.status).toBe(409);
+    const body = (await conflict.json()) as { code: string };
+    expect(body.code).toBe("CONFLICT");
   } finally {
     await server.close();
   }

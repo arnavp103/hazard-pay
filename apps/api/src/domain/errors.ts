@@ -10,4 +10,26 @@ export interface DbUnreachableError {
   message: string;
 }
 
-export type ApiError = DbUnreachableError;
+/** No active better-auth session on the request (#50: session-authenticated player routes). */
+export interface UnauthenticatedError {
+  type: "unauthenticated";
+  message: string;
+}
+
+/** A session's user has no 1:1 player row — should not happen (the auth hook guarantees it), kept as a defensive edge. */
+export interface PlayerNotFoundError {
+  type: "player_not_found";
+  message: string;
+}
+
+/** A rename targeted a handle another player already holds (`player.handle` is unique). */
+export interface HandleTakenError {
+  type: "handle_taken";
+  message: string;
+}
+
+export type ApiError
+  = | DbUnreachableError
+    | UnauthenticatedError
+    | PlayerNotFoundError
+    | HandleTakenError;
