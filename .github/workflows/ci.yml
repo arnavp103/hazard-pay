@@ -1,6 +1,4 @@
 name: CI
-# Trivial comment-only edit (issue #40) to get a second, warm-cache CI
-# datapoint for before/after timing comparison — no behavior change.
 
 on:
   push:
@@ -38,7 +36,7 @@ jobs:
           # Keyed on lockfile + turbo config content rather than the commit
           # sha: commits that don't touch either hit this cache exactly
           # instead of always missing and writing a fresh entry (issue #40).
-          key: turbo-static-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'turbo.json', '**/turbo.json') }}
+          key: turbo-static-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', '**/turbo.json') }}
           restore-keys: |
             turbo-static-${{ runner.os }}-
 
@@ -82,7 +80,7 @@ jobs:
           path: .turbo
           # See the static-checks job for why this is hash-keyed rather than
           # sha-keyed (issue #40).
-          key: turbo-test-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'turbo.json', '**/turbo.json') }}
+          key: turbo-test-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', '**/turbo.json') }}
           restore-keys: |
             turbo-test-${{ runner.os }}-
 
