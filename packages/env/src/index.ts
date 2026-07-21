@@ -13,7 +13,12 @@ import { z } from "zod";
 const env = createEnv({
   server: {
     NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
-    LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
+    // Full pino level set: `trace`/`fatal` for parity with the logger, and
+    // `silent` so tests and scripts can carry a real logger with output off
+    // (ADR 0002: tests build a hand-rolled ctx with a silent logger).
+    LOG_LEVEL: z
+      .enum(["trace", "debug", "info", "warn", "error", "fatal", "silent"])
+      .default("info"),
   },
   runtimeEnv: process.env,
   emptyStringAsUndefined: true,
