@@ -10,3 +10,8 @@ allowBuilds:
   # Transitive of @opentelemetry/sdk-node (OTLP exporters we never construct);
   # its postinstall only patches version mismatches — deliberately skipped.
   protobufjs: false
+
+minimumReleaseAgeExclude:
+  - '@ai-sdk/gateway@4.0.24'
+  - '@ai-sdk/google@4.0.19'
+  - ai@7.0.32
