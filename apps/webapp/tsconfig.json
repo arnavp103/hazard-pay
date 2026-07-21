@@ -1,0 +1,9 @@
+{
+  "extends": "@hazard-pay/config/tsconfig.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "types": ["vite/client"]
+  },
+  "include": ["src/**/*", "vite.config.ts"],
+  "exclude": ["node_modules", "dist"]
+}

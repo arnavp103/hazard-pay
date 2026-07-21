@@ -25,8 +25,10 @@ TypeScript from `src/` and run through `tsx`; there is no build step.
 ## Layout
 
 - `apps/cli` — cac-based dev CLI (`./apps/cli/bin/hazard-pay --help`)
+- `apps/webapp` — TanStack Start SPA, the player-facing client
 - `packages/config` — shared ESLint + tsconfig presets
 - `packages/env` — t3-env schema, default export
+- `packages/ui` — the design system (Ladle workbench, Tailwind v4, Base UI)
 
 Each package has its own AGENTS.md documenting that module's specific
 conventions — **read the nearest AGENTS.md before editing**. Per-package

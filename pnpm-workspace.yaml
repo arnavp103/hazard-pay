@@ -10,3 +10,14 @@ allowBuilds:
   # Transitive of @opentelemetry/sdk-node (OTLP exporters we never construct);
   # its postinstall only patches version mismatches — deliberately skipped.
   protobufjs: false
+  # Transitives of @ladle/react (packages/ui workbench): postinstalls only
+  # fetch optional native/service-worker placeholders — everything runs
+  # without them (verified on the #13 prototype). Deliberately skipped.
+  "@swc/core": false
+  msw: false
+
+# Auto-appended by pnpm when apps/webapp pinned a react-query release
+# younger than the configured minimum age; exact-version exceptions only.
+minimumReleaseAgeExclude:
+  - '@tanstack/query-core@5.101.3'
+  - '@tanstack/react-query@5.101.3'
