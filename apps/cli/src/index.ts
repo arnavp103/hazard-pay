@@ -1,5 +1,7 @@
 import { cac } from "cac";
 import env from "@hazard-pay/env";
+import { DEFAULT_TIMEOUT_MINUTES, prWatch } from "./pr-watch.ts";
+import { tasks } from "./tasks.ts";
 import { worktreeClean, worktreeNew } from "./worktree.ts";
 
 const cli = cac("hazard-pay");
@@ -43,6 +45,37 @@ cli
         console.error(`hazard-pay worktree: unknown action "${action}" (expected "new" or "clean")`);
         process.exit(1);
     }
+  });
+
+cli
+  .command("pr <action> [number]", "Manage PRs (actions: watch [number])")
+  .option("--timeout <minutes>", "With watch: give up after this many minutes", { default: DEFAULT_TIMEOUT_MINUTES })
+  .example("hazard-pay pr watch")
+  .example("hazard-pay pr watch 42 --timeout 20")
+  .action((action: string, number: string | undefined, options: { timeout: number }) => {
+    switch (action) {
+      case "watch": {
+        const parsedNumber = number === undefined ? undefined : Number(number);
+        if (parsedNumber !== undefined && !Number.isInteger(parsedNumber)) {
+          console.error(`hazard-pay pr watch: invalid PR number "${number}"`);
+          process.exit(1);
+        }
+        void prWatch({ number: parsedNumber, timeoutMinutes: Number(options.timeout) });
+        break;
+      }
+      default:
+        console.error(`hazard-pay pr: unknown action "${action}" (expected "watch")`);
+        process.exit(1);
+    }
+  });
+
+cli
+  .command("tasks", "List open issues grouped as frontier / blocked / in flight")
+  .option("--json", "Emit the raw grouped structure as JSON instead of a table")
+  .example("hazard-pay tasks")
+  .example("hazard-pay tasks --json")
+  .action((options: { json?: boolean }) => {
+    tasks({ json: options.json === true });
   });
 
 cli.help();

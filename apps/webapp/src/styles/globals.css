@@ -1,0 +1,12 @@
+/*
+ * The design-system CSS brings Tailwind itself plus tokens, scopes, and
+ * component classes — do not @import "tailwindcss" again here.
+ */
+@import "@hazard-pay/ui/globals.css";
+
+/*
+ * Consumer-side source registration (see packages/ui/AGENTS.md): Tailwind
+ * must scan THIS app's sources too; the design system's own `@source`
+ * only covers packages/ui. Path is relative to this file.
+ */
+@source "../";
