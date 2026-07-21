@@ -2,31 +2,36 @@ import { createScorer, evalite } from "evalite";
 import { toolCallAccuracy } from "evalite/scorers/deterministic";
 
 import { createHelloLeader } from "./hello-leader.ts";
-import { runSession } from "./testing/session-harness.ts";
+import { runEvalScript } from "./testing/eval-harness.ts";
 import { scriptedModel, textTurn, toolCallTurn } from "./testing/mock-model.ts";
-import type { SessionResult } from "./testing/session-harness.ts";
+import type { EvalResult } from "./testing/eval-harness.ts";
 
 /**
- * Mock-model evals for the hello leader (issue #25): proves the session
+ * Mock-model evals for the hello leader (issue #25): proves the eval
  * harness surfaces correct log shapes, tool usage, and obligation discharge
- * for scripted sessions — the "one hello eval proving the harness runs in
- * CI" from #25's issue body. `scriptedModel` canned turns are the whole
- * input, no API key anywhere near this file, so it is the suite `pnpm eval`
- * always runs.
+ * for scripted turn sequences — the "one hello eval proving the harness
+ * runs in CI" from #25's issue body. `scriptedModel` canned turns are the
+ * whole input, no API key anywhere near this file, so it is the suite
+ * `pnpm eval` always runs.
  *
  * Scorers are deliberately structural, not semantic: the log's event-type
- * sequence, which tools ran in what order, and whether every wake finished
- * quiescent with no obligations left open. Only `evalite/scorers/deterministic`
- * is imported here — never the LLM-judge scorers in `evalite/scorers` — so
- * "no judge in the mock suite" is enforced by the import path, not just
- * convention. Semantic/LLM-judge scoring is the promptfoo/adversarial-eval
- * follow-up flagged in #5's resolution, not this file.
+ * sequence, which tools ran in what order, whether every wake finished
+ * quiescent with no obligations left open, and whether the lane's stamped
+ * `config_hash` matches the leader's own content hash (ADR 0003 §3 — the
+ * key that makes traces comparable across runs). Only
+ * `evalite/scorers/deterministic` is imported here — never the LLM-judge
+ * scorers in `evalite/scorers` — so "no judge in the mock suite" is
+ * enforced by the import path, not just convention. Semantic/LLM-judge
+ * scoring is the promptfoo/adversarial-eval follow-up flagged in #5's
+ * resolution, not this file.
  */
+
+const helloLeader = createHelloLeader();
 
 // `unknown` for TInput/TExpected slots this file's two data shapes (a single
 // string input and a two-turn string[] input) don't both need — a scorer
 // reused across `evalite()` calls must accept the widest shape it's handed.
-const eventTypesMatch = createScorer<unknown, SessionResult, string[]>({
+const eventTypesMatch = createScorer<unknown, EvalResult, string[]>({
   name: "log shape",
   description: "the lane_event type sequence matches exactly",
   scorer: ({ output, expected }) => {
@@ -40,7 +45,7 @@ const eventTypesMatch = createScorer<unknown, SessionResult, string[]>({
   },
 });
 
-const obligationsDischarged = createScorer<unknown, SessionResult, unknown>({
+const obligationsDischarged = createScorer<unknown, EvalResult, unknown>({
   name: "obligation discharge",
   description: "every wake ended quiescent with no open obligations left",
   scorer: ({ output }) => {
@@ -48,6 +53,12 @@ const obligationsDischarged = createScorer<unknown, SessionResult, unknown>({
     const noOpenObligations = output.snapshot.openObligations.length === 0;
     return allQuiescent && noOpenObligations ? 1 : 0;
   },
+});
+
+const configHashStable = createScorer<unknown, EvalResult, unknown>({
+  name: "config hash stability",
+  description: "the lane's stamped config_hash matches the leader's content hash (ADR 0003 §3)",
+  scorer: ({ output }) => (output.configHash === helloLeader.configHash ? 1 : 0),
 });
 
 evalite("hello leader (mock): status report", {
@@ -63,8 +74,8 @@ evalite("hello leader (mock): status report", {
       toolCallTurn([{ toolCallId: "c2", toolName: "record_tick", input: {} }]),
       textTurn("All quiet: 0 ticks so far, visit recorded."),
     ]);
-    return runSession({
-      leader: createHelloLeader(),
+    return runEvalScript({
+      leader: helloLeader,
       model,
       turns: [{ author: "eval", content: input }],
     });
@@ -72,6 +83,7 @@ evalite("hello leader (mock): status report", {
   scorers: [
     eventTypesMatch,
     obligationsDischarged,
+    configHashStable,
     {
       name: "tool usage",
       scorer: ({ output }) =>
@@ -84,7 +96,7 @@ evalite("hello leader (mock): status report", {
   ],
 });
 
-evalite("hello leader (mock): two-turn session", {
+evalite("hello leader (mock): two-turn script", {
   data: () => [
     {
       input: ["status report please", "thanks!"],
@@ -107,11 +119,11 @@ evalite("hello leader (mock): two-turn session", {
       textTurn("All quiet: 0 ticks so far, visit recorded."),
       textTurn("Anytime!"),
     ]);
-    return runSession({
-      leader: createHelloLeader(),
+    return runEvalScript({
+      leader: helloLeader,
       model,
       turns: input.map((content) => ({ author: "eval", content })),
     });
   },
-  scorers: [eventTypesMatch, obligationsDischarged],
+  scorers: [eventTypesMatch, obligationsDischarged, configHashStable],
 });

@@ -12,12 +12,15 @@ import type { LaneEventRow } from "../store.ts";
 import type { LanguageModel } from "ai";
 
 /**
- * The eval session harness (issue #25): drives one leader through a
- * scripted multi-turn session on its own template-clone db, then hands back
- * the artifacts evals score against. Evalite has no first-class multi-turn
+ * The eval harness (issue #25): drives one leader through a scripted
+ * sequence of turns on its own template-clone db, then hands back the
+ * artifacts evals score against. Evalite has no first-class multi-turn
  * runner (#5's resolution) — this is the thin in-house harness that fills
  * that gap, shared by both the mock and live `.eval.ts` suites so neither
  * duplicates db-clone/runtime-boot plumbing.
+ *
+ * Vocabulary: CONTEXT.md avoids "session"/"thread"/"run" as synonyms for
+ * "lane", so this module and its exports say "script"/"eval" instead.
  *
  * Per ADR 0003 §3, leaders are content-hashed precisely so traces are
  * comparable: `configHash` and the raw `events` log are the harness's
@@ -37,7 +40,7 @@ export interface ScriptedTurn {
   data?: JsonValue;
 }
 
-export interface SessionScript {
+export interface EvalScript {
   leader: DefinedLeader;
   model: LanguageModel;
   /** Appended and woken in order — each entry is one appendInput + one wake. */
@@ -45,14 +48,14 @@ export interface SessionScript {
   maxModelRetries?: number;
 }
 
-/** A tool call recorded by any model turn in the session, in log order. */
+/** A tool call recorded by any model turn while the script ran, in log order. */
 export interface RecordedToolCall {
   toolCallId: string;
   toolName: string;
   input: JsonValue;
 }
 
-export interface SessionResult {
+export interface EvalResult {
   laneId: string;
   /** The lane's stamped config hash — ADR 0003 §3's cross-trace comparison key. */
   configHash: string;
@@ -60,7 +63,7 @@ export interface SessionResult {
   snapshot: LaneSnapshot;
   /** The raw ordered lane_event log — the comparable trace artifact. */
   events: LaneEventRow[];
-  /** Every tool call any model turn made this session, across all wakes. */
+  /** Every tool call any model turn made while the script ran, across all wakes. */
   toolCalls: RecordedToolCall[];
   /** One wake report per scripted turn, in order. */
   wakeReports: WakeReport[];
@@ -87,13 +90,13 @@ function finalAssistantText(snapshot: LaneSnapshot): string {
 }
 
 /**
- * Runs a scripted multi-turn session against a fresh template-clone db and
- * tears it down again — every session owns its own db, never shares one.
- * Each scripted turn is one `appendInput` followed by one `wake`, in the
- * order given. Unwraps `ResultAsync` failures as throws (evalite reports a
- * thrown task as a failed eval, same as an unhandled test exception).
+ * Runs a scripted turn sequence against a fresh template-clone db and tears
+ * it down again — every eval script owns its own db, never shares one. Each
+ * scripted turn is one `appendInput` followed by one `wake`, in the order
+ * given. Unwraps `ResultAsync` failures as throws (evalite reports a thrown
+ * task as a failed eval, same as an unhandled test exception).
  */
-export async function runSession(script: SessionScript): Promise<SessionResult> {
+export async function runEvalScript(script: EvalScript): Promise<EvalResult> {
   await ensureTemplateDatabase();
   const tdb = await createTestDatabase();
   try {
