@@ -1,0 +1,31 @@
+{
+  "name": "@hazard-pay/auth",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "type-check": "tsc --noEmit",
+    "lint": "eslint --cache --max-warnings=0 .",
+    "lint:fix": "eslint --cache --fix .",
+    "clean": "rm -rf .eslintcache",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@better-auth/drizzle-adapter": "^1.6.23",
+    "@hazard-pay/db": "workspace:*",
+    "@hazard-pay/env": "workspace:*",
+    "better-auth": "^1.6.23",
+    "drizzle-orm": "^0.45.2"
+  },
+  "devDependencies": {
+    "@hazard-pay/config": "workspace:*",
+    "@types/node": "^22.10.0",
+    "eslint": "^9.39.4",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.10"
+  }
+}

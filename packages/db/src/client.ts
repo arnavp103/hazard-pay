@@ -1,9 +1,12 @@
 import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
 import pg from "pg";
 
+import * as authSchema from "./auth-schema.ts";
 import * as schema from "./schema.ts";
 
-export type Db = NodePgDatabase<typeof schema>;
+const fullSchema = { ...authSchema, ...schema };
+
+export type Db = NodePgDatabase<typeof fullSchema>;
 
 export interface DbHandle {
   db: Db;
@@ -17,6 +20,6 @@ export interface DbHandle {
  */
 export function createDb(connectionString: string): DbHandle {
   const pool = new pg.Pool({ connectionString });
-  const db = drizzle(pool, { schema });
+  const db = drizzle(pool, { schema: fullSchema });
   return { db, close: () => pool.end() };
 }

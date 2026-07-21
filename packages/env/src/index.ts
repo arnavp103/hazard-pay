@@ -26,6 +26,10 @@ const env = createEnv({
       .enum(["trace", "debug", "info", "warn", "error", "fatal", "silent"])
       .default("info"),
     DATABASE_URL: z.url().default("postgres://postgres:postgres@localhost:5433/hazard_pay"),
+    // better-auth's session/cookie signing secret (packages/auth). Dev-stub
+    // only — real auth flows are out of scope for this map (wayfinder #1),
+    // so this default is deliberately checked in and insecure.
+    BETTER_AUTH_SECRET: z.string().default("dev-only-insecure-secret-do-not-use-in-production"),
     GEMINI_API_KEY: z.string().optional(),
   },
   runtimeEnv: process.env,
