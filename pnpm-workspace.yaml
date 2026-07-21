@@ -5,5 +5,7 @@ packages:
 # pnpm 11 replaced `onlyBuiltDependencies` with an explicit allow/deny map.
 # Each entry is a postinstall script we have deliberately reviewed and approved.
 allowBuilds:
+  '@swc/core': false
   esbuild: true
+  msw: false
   unrs-resolver: true

@@ -1,0 +1,152 @@
+@import "tailwindcss";
+
+/*
+ * Explicit source root: Ladle's vite root is its own internal app dir, so
+ * Tailwind's automatic source detection never sees this package (and the
+ * worktree path contains hidden segments the scanner skips). Point the
+ * scanner at src/ directly.
+ */
+@source "../";
+
+/*
+ * PROTOTYPE — THROWAWAY (issue #13).
+ *
+ * Semantic tokens are registered once via @theme inline and resolve through
+ * per-direction scopes: `.hp-a` (Terminal HUD) and `.hp-b` (Street-Tech).
+ * Components only ever use the semantic utilities (bg-panel, text-accent…),
+ * so the same markup restyles completely under either scope.
+ */
+
+@theme inline {
+  --color-shell: var(--hp-shell);
+  --color-panel: var(--hp-panel);
+  --color-panel-2: var(--hp-panel-2);
+  --color-line: var(--hp-line);
+  --color-line-2: var(--hp-line-2);
+  --color-ink: var(--hp-ink);
+  --color-ink-dim: var(--hp-ink-dim);
+  --color-accent: var(--hp-accent);
+  --color-accent-2: var(--hp-accent-2);
+  --color-info: var(--hp-info);
+  --color-warn: var(--hp-warn);
+  --color-danger: var(--hp-danger);
+  --font-display: var(--hp-font-display);
+  --font-data: var(--hp-font-data);
+}
+
+/* ------------------------------------------------------------------ */
+/* Direction A — "Terminal HUD / Signal Discipline"                    */
+/* Cold blue-black, hairline rules, one phosphor accent. The neon is   */
+/* in the data, never in the chrome.                                   */
+/* ------------------------------------------------------------------ */
+
+.hp-a {
+  --hp-shell: #070b0e;
+  --hp-panel: #0c1116;
+  --hp-panel-2: #111821;
+  --hp-line: #1c2733;
+  --hp-line-2: #2d3c4c;
+  --hp-ink: #c3cfd9;
+  --hp-ink-dim: #5d7080;
+  --hp-accent: #4df0a0;
+  --hp-accent-2: #4fc4e0;
+  --hp-info: #4fc4e0;
+  --hp-warn: #e8b44c;
+  --hp-danger: #f2635e;
+  --hp-font-display: "Chakra Petch", sans-serif;
+  --hp-font-data: "IBM Plex Mono", monospace;
+}
+
+/* Faint plotting-grid over the shell background. */
+.hpa-grid-bg {
+  background-image:
+    linear-gradient(to right, color-mix(in oklab, var(--hp-line) 42%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in oklab, var(--hp-line) 42%, transparent) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+/* Corner tick brackets on panels: two pseudo-elements draw four Ls. */
+.hpa-corners {
+  position: relative;
+}
+
+.hpa-corners::before,
+.hpa-corners::after {
+  content: "";
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  pointer-events: none;
+}
+
+.hpa-corners::before {
+  top: -1px;
+  left: -1px;
+  border-top: 1px solid var(--hp-line-2);
+  border-left: 1px solid var(--hp-line-2);
+}
+
+.hpa-corners::after {
+  right: -1px;
+  bottom: -1px;
+  border-right: 1px solid var(--hp-line-2);
+  border-bottom: 1px solid var(--hp-line-2);
+}
+
+.hpa-corners-live::before,
+.hpa-corners-live::after {
+  border-color: var(--hp-accent);
+}
+
+/* ------------------------------------------------------------------ */
+/* Direction B — "Street-Tech / Grime Market"                          */
+/* Warm plum-black, noise, hard offset shadows, taped-on labels.       */
+/* Hot magenta vs acid chartreuse; hardware someone re-flashed.        */
+/* ------------------------------------------------------------------ */
+
+.hp-b {
+  --hp-shell: #120b10;
+  --hp-panel: #1b1119;
+  --hp-panel-2: #251826;
+  --hp-line: #3d2939;
+  --hp-line-2: #573b51;
+  --hp-ink: #f0e7dc;
+  --hp-ink-dim: #927d89;
+  --hp-accent: #ff2e6c;
+  --hp-accent-2: #c8f031;
+  --hp-info: #2ed9ff;
+  --hp-warn: #ffab2e;
+  --hp-danger: #ff5330;
+  --hp-font-display: "Big Shoulders", sans-serif;
+  --hp-font-data: "Space Mono", monospace;
+}
+
+/* Film-grain overlay via SVG turbulence. Parent gets the texture. */
+.hpb-noise {
+  position: relative;
+}
+
+.hpb-noise::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.08;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Clipped top-right corner for tags and chips. */
+.hpb-clip {
+  clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%);
+}
+
+/* Diagonal hazard stripes — warn meters and danger edges. */
+.hpb-hazard {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    var(--hp-warn),
+    var(--hp-warn) 6px,
+    transparent 6px,
+    transparent 12px
+  );
+}
