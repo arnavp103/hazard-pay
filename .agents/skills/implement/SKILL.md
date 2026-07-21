@@ -121,7 +121,9 @@ including a raw git-workflow-friction retro section — and end.
 - **Base every PR on `main`.** A stacked PR is auto-closed unrecoverably when its
   base branch is deleted on merge; open a fresh PR instead of stacking.
 - **Issue refs in commit bodies go in a trailing `Refs: #<n>` footer**, not in body
-  prose — keeps commitlint's footer parsing happy.
+  prose. `commit-msg` now checks this directly and fails fast with a clear,
+  actionable message if you get it wrong — no need to reverse-engineer a
+  confusing commitlint parser error anymore.
 - No AI attribution in PR titles, bodies, or commit messages.
 - On a projectCards GraphQL error from `gh pr view` / `gh issue view` / `gh pr edit`,
   switch to the REST equivalents (`gh api repos/{owner}/{repo}/...`) — don't retry.
