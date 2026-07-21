@@ -12,6 +12,7 @@ import {
   TraceChip,
 } from "@hazard-pay/ui";
 
+import { DevLoginPanel } from "../dev-login/panel.tsx";
 import { apiClient } from "../lib/api.ts";
 import { useTickStream, type TickStreamStatus } from "../lib/use-tick-stream.ts";
 
@@ -108,6 +109,7 @@ function OverworldScreen() {
             </p>
           </div>
           <div className="flex items-center gap-4 font-data text-[10px] uppercase">
+            <DevLoginPanel />
             <StatusChip tone={overworldTick === undefined ? "warn" : "acid"} stamped>
               {overworldTick === undefined ? "link …" : "link ok"}
             </StatusChip>
