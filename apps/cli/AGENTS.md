@@ -8,7 +8,8 @@ cac-based dev CLI. Runs from source, no build: `./apps/cli/bin/hazard-pay`
 - `bin/hazard-pay` — executable entry; keep it a launcher, no logic.
 - `src/index.ts` — cac program: command registration and dispatch.
 - `src/worktree.ts` — `worktree new <branch>` / `worktree clean` for the
-  agent-worktree workflow under `.claude/worktrees/`.
+  agent-worktree workflow. New worktrees go under `.worktrees/`; clean also
+  sweeps the legacy `.claude/worktrees/`.
 - `src/output.ts` — end-of-command summary/reminder helper; commands route
   their closing checklist through it so reminders can grow per-command.
 

@@ -3,8 +3,16 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import { printSummary } from "./output.ts";
 
-/** Repo-relative directory that holds agent worktrees. */
-export const WORKTREES_DIR = ".claude/worktrees";
+/** Where `worktree new` creates agent worktrees (repo-relative). */
+export const WORKTREES_DIR = ".worktrees";
+
+/**
+ * All roots `worktree clean` sweeps. `.claude/worktrees/` is the legacy
+ * location (still used by the harness's own auto-isolation); `.worktrees/`
+ * is the current one — the `.claude/` tree is deny-listed for agent file
+ * tools, so worktrees now live outside it.
+ */
+export const MANAGED_WORKTREE_DIRS = [".worktrees", ".claude/worktrees"] as const;
 
 /**
  * Validate a branch/worktree name. Full branch names are accepted as-is
@@ -66,6 +74,18 @@ export function parseWorktreeList(porcelain: string): WorktreeEntry[] {
   return entries;
 }
 
+/** Parse `git ls-remote --heads` output into a set of refs. Pure — exported for tests. */
+export function parseRemoteHeads(output: string): Set<string> {
+  const refs = new Set<string>();
+  for (const line of output.split("\n")) {
+    const ref = line.split("\t")[1];
+    if (ref !== undefined && ref !== "") {
+      refs.add(ref);
+    }
+  }
+  return refs;
+}
+
 function fail(message: string): never {
   console.error(`hazard-pay worktree: ${message}`);
   process.exit(1);
@@ -99,7 +119,12 @@ function run(command: string, args: string[], cwd: string): void {
   }
 }
 
-/** The main checkout root: parent of the git common dir, from any worktree. */
+/**
+ * The main checkout root: parent of the git common dir, from any worktree.
+ * Deliberately not `resolveCheckoutRoot` from `@hazard-pay/env`: that one
+ * falls back to a workspace-marker search when git is missing, while the
+ * worktree commands are git operations and must fail fast instead.
+ */
 function checkoutRoot(): string {
   const commonDir = tryGit(["rev-parse", "--path-format=absolute", "--git-common-dir"]);
   if (commonDir === undefined) {
@@ -124,13 +149,20 @@ function isMergedIntoOriginMain(root: string, branch: string): boolean {
   }
 }
 
-function upstreamGone(root: string, branch: string): boolean {
-  return tryGit(["for-each-ref", "--format=%(upstream:track)", `refs/heads/${branch}`], root) === "[gone]";
+/**
+ * A branch's remote counterpart is "gone" when the branch has an upstream
+ * configured but that ref no longer exists on origin. Checked against a
+ * single `git ls-remote` snapshot so `--dry-run` needs no `fetch --prune`
+ * (which would mutate remote-tracking refs).
+ */
+function upstreamGone(root: string, branch: string, remoteHeads: Set<string>): boolean {
+  const upstreamRef = tryGit(["config", `branch.${branch}.merge`], root);
+  return upstreamRef !== undefined && upstreamRef !== "" && !remoteHeads.has(upstreamRef);
 }
 
 /**
  * `hazard-pay worktree new <branch>`: fetch origin, create `<branch>` off
- * `origin/main`, add a worktree at `.claude/worktrees/<branch>`, install
+ * `origin/main`, add a worktree at `.worktrees/<branch>`, install
  * dependencies, and print the PR-flow checklist.
  */
 export function worktreeNew(name: string | undefined): void {
@@ -156,62 +188,64 @@ export function worktreeNew(name: string | undefined): void {
     "push incrementally — progress is tracked from outside via `gh pr list`",
     "green gate before review: `pnpm type-check && pnpm lint && pnpm test`",
     "mark ready with `gh pr ready` — the orchestrator merges, not you",
+    "finish with a report that includes a raw git-workflow-friction retro section",
   ]);
 }
 
 /**
- * `hazard-pay worktree clean`: remove worktrees under `.claude/worktrees/`
- * whose branch is merged into `origin/main` or whose remote branch is gone,
- * then delete their local branches and prune. Skips (with a warning) the main
- * checkout, the current worktree, and anything dirty, locked, or detached.
+ * `hazard-pay worktree clean`: remove worktrees under the managed roots
+ * (`.worktrees/`, `.claude/worktrees/`) whose branch is merged into
+ * `origin/main` or whose remote branch is gone, then delete their local
+ * branches and prune. Skips (with a warning) the main checkout, the current
+ * worktree, and anything dirty, locked, or detached.
  */
 export function worktreeClean(options: { dryRun: boolean }): void {
   const { dryRun } = options;
   const root = checkoutRoot();
-  console.log("Fetching origin (pruning stale remote refs)...");
-  run("git", ["fetch", "--prune", "origin"], root);
+  console.log("Fetching origin...");
+  run("git", ["fetch", "origin"], root);
+  const remoteHeads = parseRemoteHeads(git(["ls-remote", "--heads", "origin"], root));
 
   const entries = parseWorktreeList(git(["worktree", "list", "--porcelain"], root));
-  const managedPrefix = path.join(root, WORKTREES_DIR) + path.sep;
+  const managedPrefixes = MANAGED_WORKTREE_DIRS.map((dir) => path.join(root, dir) + path.sep);
   const currentTop = tryGit(["rev-parse", "--show-toplevel"]);
   let removed = 0;
   let kept = 0;
+  const skip = (label: string, reason: string): void => {
+    console.warn(`skip ${label}: ${reason}`);
+    kept += 1;
+  };
 
   for (const entry of entries) {
     const worktreePath = path.resolve(entry.path);
-    if (!worktreePath.startsWith(managedPrefix)) {
-      continue; // never the main checkout, never anything outside .claude/worktrees
+    if (!managedPrefixes.some((prefix) => worktreePath.startsWith(prefix))) {
+      continue; // never the main checkout, never anything outside the managed roots
     }
     const label = path.relative(root, worktreePath);
     if (entry.detached || entry.branch === undefined) {
-      console.warn(`skip ${label}: detached HEAD`);
-      kept += 1;
+      skip(label, "detached HEAD");
       continue;
     }
     const branch = entry.branch;
     if (branch === "main") {
-      console.warn(`skip ${label}: has main checked out`);
-      kept += 1;
+      skip(label, "has main checked out");
       continue;
     }
     if (entry.locked) {
-      console.warn(`skip ${label}: locked`);
-      kept += 1;
+      skip(label, "locked");
       continue;
     }
     if (currentTop !== undefined && path.resolve(currentTop) === worktreePath) {
-      console.warn(`skip ${label}: it is the current worktree`);
-      kept += 1;
+      skip(label, "it is the current worktree");
       continue;
     }
     const status = tryGit(["status", "--porcelain"], worktreePath);
     if (status === undefined || status !== "") {
-      console.warn(`skip ${label}: uncommitted changes`);
-      kept += 1;
+      skip(label, "uncommitted changes");
       continue;
     }
     const merged = isMergedIntoOriginMain(root, branch);
-    const gone = upstreamGone(root, branch);
+    const gone = upstreamGone(root, branch, remoteHeads);
     if (!merged && !gone) {
       console.log(`keep ${label}: branch "${branch}" not merged and its remote branch still exists`);
       kept += 1;
@@ -225,8 +259,7 @@ export function worktreeClean(options: { dryRun: boolean }): void {
     }
     console.log(`removing ${label} and deleting branch "${branch}" (${reason})`);
     if (!tryRun("git", ["worktree", "remove", worktreePath], root)) {
-      console.warn(`skip ${label}: git worktree remove failed`);
-      kept += 1;
+      skip(label, "git worktree remove failed");
       continue;
     }
     if (!tryRun("git", ["branch", "-D", branch], root)) {

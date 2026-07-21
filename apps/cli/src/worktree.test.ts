@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { parseWorktreeList, validateBranchName } from "./worktree.ts";
+import { parseRemoteHeads, parseWorktreeList, validateBranchName } from "./worktree.ts";
 
 test("validateBranchName accepts typical branch names", () => {
   assert.equal(validateBranchName("issue-23-agent"), undefined);
@@ -43,7 +43,7 @@ test("parseWorktreeList parses main checkout, branch worktrees, and detached", (
     "HEAD 1111111111111111111111111111111111111111",
     "branch refs/heads/main",
     "",
-    "worktree /repo/.claude/worktrees/issue-9-thing",
+    "worktree /repo/.worktrees/issue-9-thing",
     "HEAD 2222222222222222222222222222222222222222",
     "branch refs/heads/issue-9-thing",
     "",
@@ -64,7 +64,7 @@ test("parseWorktreeList parses main checkout, branch worktrees, and detached", (
     locked: false,
   });
   assert.deepEqual(entries[1], {
-    path: "/repo/.claude/worktrees/issue-9-thing",
+    path: "/repo/.worktrees/issue-9-thing",
     head: "2222222222222222222222222222222222222222",
     branch: "issue-9-thing",
     detached: false,
@@ -76,12 +76,12 @@ test("parseWorktreeList parses main checkout, branch worktrees, and detached", (
 
 test("parseWorktreeList reads locked worktrees (with and without reason)", () => {
   const porcelain = [
-    "worktree /repo/.claude/worktrees/locked-one",
+    "worktree /repo/.worktrees/locked-one",
     "HEAD 4444444444444444444444444444444444444444",
     "branch refs/heads/locked-one",
     "locked",
     "",
-    "worktree /repo/.claude/worktrees/locked-two",
+    "worktree /repo/.worktrees/locked-two",
     "HEAD 5555555555555555555555555555555555555555",
     "branch refs/heads/locked-two",
     "locked agent still running",
@@ -97,4 +97,23 @@ test("parseWorktreeList reads locked worktrees (with and without reason)", () =>
 
 test("parseWorktreeList returns no entries for empty output", () => {
   assert.deepEqual(parseWorktreeList(""), []);
+});
+
+test("parseRemoteHeads builds a set of remote refs", () => {
+  const output = [
+    "6666666666666666666666666666666666666666\trefs/heads/main",
+    "7777777777777777777777777777777777777777\trefs/heads/issue-9-thing",
+    "",
+  ].join("\n");
+
+  const heads = parseRemoteHeads(output);
+
+  assert.equal(heads.size, 2);
+  assert.ok(heads.has("refs/heads/main"));
+  assert.ok(heads.has("refs/heads/issue-9-thing"));
+  assert.ok(!heads.has("refs/heads/deleted-branch"));
+});
+
+test("parseRemoteHeads returns an empty set for empty output", () => {
+  assert.equal(parseRemoteHeads("").size, 0);
 });

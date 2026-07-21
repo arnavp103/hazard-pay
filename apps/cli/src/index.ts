@@ -4,14 +4,17 @@ import { worktreeClean, worktreeNew } from "./worktree.ts";
 
 const cli = cac("hazard-pay");
 
+/** Env vars whose values must never be printed, only shown as "[set]". */
+function isSecretName(name: string): boolean {
+  return /KEY|SECRET|TOKEN|PASSWORD/i.test(name);
+}
+
 cli
   .command("env", "Print the resolved environment (secret values redacted)")
   .action(() => {
     const redacted = Object.fromEntries(Object.entries(env).map(([key, value]) => [
       key,
-      /KEY|SECRET|TOKEN|PASSWORD/i.test(key) && typeof value === "string" && value !== ""
-        ? "[set]"
-        : value,
+      isSecretName(key) && typeof value === "string" && value !== "" ? "[set]" : value,
     ]));
     console.log(JSON.stringify(redacted, null, 2));
   });
@@ -19,7 +22,7 @@ cli
 cli
   .command(
     "worktree <action> [name]",
-    "Manage agent worktrees under .claude/worktrees (actions: new <branch>, clean)",
+    "Manage agent worktrees (actions: new <branch>, clean)",
   )
   .option("--dry-run", "With clean: only report what would be removed")
   .example("hazard-pay worktree new issue-42-fix-thing")
@@ -30,6 +33,10 @@ cli
         worktreeNew(name);
         break;
       case "clean":
+        if (name !== undefined) {
+          console.error(`hazard-pay worktree: clean takes no name argument (got "${name}")`);
+          process.exit(1);
+        }
         worktreeClean({ dryRun: options.dryRun === true });
         break;
       default:
