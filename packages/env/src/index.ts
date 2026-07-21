@@ -19,6 +19,7 @@ const env = createEnv({
     LOG_LEVEL: z
       .enum(["trace", "debug", "info", "warn", "error", "fatal", "silent"])
       .default("info"),
+    DATABASE_URL: z.url().default("postgres://postgres:postgres@localhost:5433/hazard_pay"),
   },
   runtimeEnv: process.env,
   emptyStringAsUndefined: true,
