@@ -65,9 +65,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     services:
-      # Keep the image major in sync with the root docker-compose.yml (issue
-      # #14) — the compose file is the source of truth for the Postgres
-      # version across dev, test, and CI.
+      # Postgres for packages/db tests (issue #14): tests connect to whatever
+      # DATABASE_URL points at (issue #8). Once the root docker-compose.yml
+      # lands it becomes the source of truth for the Postgres version — keep
+      # this image major in sync with it.
       postgres:
         image: postgres:18
         env:
