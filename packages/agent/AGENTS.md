@@ -77,6 +77,51 @@ leader config, lane event (always qualified — never bare "event"). No
   (exit 0) when `GEMINI_API_KEY` is absent — CI stays green. Never read or
   print `.env` contents; key presence is checked via the env schema only.
 
+## Evals (evalite)
+
+Per #5's research resolution: `evalite@beta`, per-package, with a thin
+in-house eval harness — evalite's unit is one `task(input) -> output` and
+has no first-class multi-turn runner, so `src/testing/eval-harness.ts`
+fills that gap.
+
+- **Run**: `pnpm --filter @hazard-pay/agent eval` — mock-model suite
+  (`src/hello-leader.mock.eval.ts`), keyless, always green. `pnpm --filter
+  @hazard-pay/agent eval:live` — the one live suite
+  (`src/hello-leader.live.eval.ts`) against real `gemini-2.5-flash`.
+- **`eval` is not part of the repo gate.** `pnpm test` runs `vitest run`
+  only; vitest's default include glob (`*.test.ts`/`*.spec.ts`) never
+  matches `*.eval.ts`, so evals and tests never collide. Evalite is its own
+  runner (Vitest-based internally, but not the `vitest` CLI this package's
+  `test` script invokes) — `eval`/`eval:live` are manual/opt-in scripts, not
+  wired into any turbo task CI runs, and must stay that way.
+- **The eval harness** (`runEvalScript({ leader, model, turns, maxModelRetries? })`,
+  `src/testing/eval-harness.ts`): clones its own template db
+  (`ensureTemplateDatabase()` then `createTestDatabase()` — not vitest, so
+  it clones exactly like `scripts/live-smoke.ts` does), boots a runtime for
+  one leader, and replays `turns` as `appendInput` + `wake` pairs in order.
+  Returns the artifacts evals score against: `configHash` and the raw
+  ordered `events` log (ADR 0003 §3 — the cross-trace comparison key and
+  the comparable trace artifact), the folded `snapshot`, every `toolCalls`
+  entry the script triggered, and `finalText`. Drops its db in `finally`.
+- **Scorers stay honest**: the mock suite only imports from
+  `evalite/scorers/deterministic` (never the LLM-judge scorers in
+  `evalite/scorers`) plus hand-rolled structural scorers over the log
+  shape, obligation discharge, and `config_hash` stability (both suites
+  assert `output.configHash` against the leader's own content hash — ADR
+  0003 §3's comparison key, actually exercised, not just carried through).
+  The live suite's behavioral scorer is a substring assertion, also from
+  `evalite/scorers/deterministic` — no LLM-judge scoring yet; that is the
+  promptfoo/adversarial-eval follow-up #5 flagged, not this package.
+- **Live-gating** mirrors the smoke: `hello-leader.live.eval.ts` checks
+  `GEMINI_API_KEY` via `@hazard-pay/env` at module load (never reads or
+  prints `.env` contents) and registers itself with `evalite.skip` plus a
+  loud console banner when absent. `eval:live` deliberately passes no
+  `--threshold` flag — evalite treats a null average score (the skip case)
+  as an automatic threshold failure whenever `--threshold` is present at
+  all, so the flag must be absent for a clean skip to exit 0; that also
+  means a keyed run is scored but not threshold-gated (informational, given
+  the free-tier key). Keep total model calls in this file to a handful.
+
 ## Boundaries
 
 - No queue code here — agents never touch pg-boss (ADR 0003 §2).
