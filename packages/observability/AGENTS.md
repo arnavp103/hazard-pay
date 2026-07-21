@@ -10,7 +10,9 @@ grep/jq/DuckDB queries — lives in this package's `README.md`. Read it first.
   `/browser`); pino and `@opentelemetry/*` appear in this package.json and
   nowhere else. SDK churn stays inside this package.
 - **Surface is fixed**: `initObservability` (from `/init`), `createLogger`,
-  `withSpan`, `emitEvent`, and `ingestTelemetryLines` (the server side of
+  `withSpan`, `emitEvent`, `traceparentOf` (the Node-side W3C header for
+  envelope/fetch propagation — ADR 0005 §6, added for the tick transport,
+  #20), and `ingestTelemetryLines` (the server side of
   the browser ingest contract, added for the api's dev-only `POST
   /telemetry` route — #15/#28); the `/browser` entry adds
   `currentTraceparent` (ADR 0005 §6 — the header rides fetch and the

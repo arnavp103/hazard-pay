@@ -16,3 +16,10 @@ export {
   tallyLaneEvents,
 } from "./lanes.ts";
 export type { LaneEventRow, LaneEventTally, LaneRow } from "./lanes.ts";
+export {
+  latestTick,
+  recordDueTicks,
+  TICK_CHANNEL,
+  ticksAfter,
+  type TickRow,
+} from "./ticks.ts";

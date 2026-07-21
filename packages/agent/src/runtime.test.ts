@@ -126,7 +126,9 @@ describe("wake", () => {
           inputSchema: z.object({}),
           execute: (ctx) =>
             ResultAsync.fromPromise(
-              ctx.tx.insert(tick).values({}),
+              // Placeholder tick_number: a scratch game write, not the real
+              // tick writer.
+              ctx.tx.insert(tick).values({ tickNumber: Date.now() }),
               () => ({ tag: "insert_failed" }),
             ).andThen(() => errAsync({ tag: "deliberate_failure" })),
         },

@@ -11,12 +11,15 @@ import Fastify, {
 } from "fastify";
 
 import { respond } from "./adapters/respond.ts";
-import { contract } from "./contract/index.ts";
+import { contract, type OverworldTick } from "./contract/index.ts";
 import type { AppCtx } from "./context.ts";
+import { createTickListener } from "./db/listen.ts";
 import { checkHealth } from "./domain/health.ts";
 import { getLaneTrace, listLanes } from "./domain/lanes.ts";
+import { getLatestTick, toTickSnapshot } from "./domain/tick.ts";
 import { registerAuthRoutes } from "./routes/auth.ts";
 import { registerTelemetryRoute } from "./routes/telemetry.ts";
+import { registerTickStreamRoute } from "./routes/tick-stream.ts";
 
 /**
  * The server half of the pre-cut process seam (ADR 0002 §3): everything
@@ -65,11 +68,24 @@ export const router = os.router({
     events: os.lanes.events.handler(({ context, input }) =>
       respond(context.log, getLaneTrace({ db: context.db }, input))),
   },
+  overworldTick: os.overworldTick.handler(({ context }) =>
+    respond(
+      context.log,
+      getLatestTick({ db: context.db }).map((row): OverworldTick => ({
+        latestTick: row === null ? null : toTickSnapshot(row),
+        intervalMs: context.env.TICK_INTERVAL,
+      })),
+    )),
 });
 
 export interface BuildServerOptions {
   /** Redirect ingested telemetry away from `var/telemetry/` (tests). */
   telemetryDir?: string;
+  /**
+   * Where the shared LISTEN connection dials (tests point it at a
+   * template-cloned database). Defaults to `env.DATABASE_URL`.
+   */
+  listenConnectionString?: string;
 }
 
 export async function buildServer(
@@ -107,6 +123,20 @@ export async function buildServer(
 
   registerTelemetryRoute(app, ctx, { telemetryDir: options.telemetryDir });
   registerAuthRoutes(app, ctx);
+
+  // The shared LISTEN nudge (ADR 0004 §5): one connection per server
+  // process, owned by the server lifecycle. A failed dial retries in the
+  // background rather than failing boot — until it lands, connected SSE
+  // clients are covered by their safety re-poll.
+  const listener = createTickListener(
+    options.listenConnectionString ?? ctx.env.DATABASE_URL,
+    ctx.logger,
+  );
+  await listener.start();
+  app.addHook("onClose", async () => {
+    await listener.close();
+  });
+  registerTickStreamRoute(app, ctx, listener);
 
   const contractHandler = new OpenAPIHandler(router);
   app.all("/*", async (request, reply) => {

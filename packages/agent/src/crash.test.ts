@@ -46,7 +46,9 @@ describe("kill mid-wake", () => {
             ResultAsync.fromSafePromise(
               (async () => {
                 executions += 1;
-                await ctx.tx.insert(tick).values({});
+                // Placeholder tick_number: a scratch game write, not the
+                // real tick writer.
+                await ctx.tx.insert(tick).values({ tickNumber: Date.now() });
                 if (executions === 1) {
                   throw new Error("simulated crash between game write and tool_result");
                 }
