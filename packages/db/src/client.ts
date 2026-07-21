@@ -1,10 +1,11 @@
 import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
 import pg from "pg";
 
+import * as agentSchema from "./agent-schema.ts";
 import * as authSchema from "./auth-schema.ts";
 import * as schema from "./schema.ts";
 
-const fullSchema = { ...authSchema, ...schema };
+const fullSchema = { ...agentSchema, ...authSchema, ...schema };
 
 export type Db = NodePgDatabase<typeof fullSchema>;
 
