@@ -18,7 +18,7 @@ export { createLogger } from "./logger.ts";
 export type { CreateLoggerOptions } from "./logger.ts";
 export { emitEvent } from "./events.ts";
 export type { DomainEventAttributes } from "./events.ts";
-export { withSpan } from "./span.ts";
+export { traceparentOf, withSpan } from "./span.ts";
 export { ingestTelemetryLines } from "./ingest.ts";
 export type {
   IngestTelemetryOptions,

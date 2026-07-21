@@ -25,7 +25,10 @@ function readTickCount(ctx: ToolExecutionCtx): ResultAsync<JsonValue, ToolError>
 
 function recordTick(ctx: ToolExecutionCtx): ResultAsync<JsonValue, ToolError> {
   return ResultAsync.fromPromise(
-    ctx.tx.insert(tick).values({}).returning({ id: tick.id }),
+    // Placeholder tick_number (ms epoch): this is the hello tool's scratch
+    // game write, not the real tick writer — the worker's cron derives real
+    // numbers as floor(time / TICK_INTERVAL) (ADR 0004 §4).
+    ctx.tx.insert(tick).values({ tickNumber: Date.now() }).returning({ id: tick.id }),
     (cause): ToolError => ({ tag: "tick_write_failed", detail: String(cause) }),
   ).map(([row]) => ({ recorded: true, tickId: row?.id ?? null }));
 }

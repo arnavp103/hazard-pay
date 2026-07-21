@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 
 import {
   Button,
@@ -11,19 +12,20 @@ import {
   TraceChip,
 } from "@hazard-pay/ui";
 
+import { apiClient } from "../lib/api.ts";
+import { useTickStream, type TickStreamStatus } from "../lib/use-tick-stream.ts";
+
 export const Route = createFileRoute("/")({
   component: OverworldScreen,
 });
 
 /**
- * Placeholder overworld snapshot. There is no api yet (apps/api lands
- * separately) — this local queryFn exists to exercise the real data path
- * the overworld will use: TanStack Query stale-while-revalidate, keyed
- * per surface, resolved asynchronously.
+ * Tick state is real (#20): the tick counter, next-tick countdown, and the
+ * Uplink feed come from apps/api — the counter/countdown over the overworld
+ * polling tier, the feed over the live SSE uplink. The rest of the snapshot
+ * (credits, heat, crew, missions) is still canned until those systems exist.
  */
-interface OverworldSnapshot {
-  tick: number;
-  nextTickIn: string;
+interface CannedOverworldSnapshot {
   credits: { value: string; delta: string };
   heat: number;
   crew: { label: string; pct: number };
@@ -38,9 +40,7 @@ interface OverworldSnapshot {
   }[];
 }
 
-const snapshot: OverworldSnapshot = {
-  tick: 1024,
-  nextTickIn: "00:12:36",
+const cannedSnapshot: CannedOverworldSnapshot = {
   credits: { value: "12,480", delta: "+340" },
   heat: 62,
   crew: { label: "4/6", pct: 66 },
@@ -52,18 +52,35 @@ const snapshot: OverworldSnapshot = {
   ],
 };
 
-function fetchOverworldSnapshot(): Promise<OverworldSnapshot> {
-  return Promise.resolve(snapshot);
+function fetchCannedSnapshot(): Promise<CannedOverworldSnapshot> {
+  return Promise.resolve(cannedSnapshot);
 }
+
+const STREAM_STATUS_LABEL: Record<TickStreamStatus, string> = {
+  connecting: "linking…",
+  live: "live",
+  reconnecting: "relinking…",
+};
 
 function OverworldScreen() {
   const { data } = useQuery({
     queryKey: ["overworld", "snapshot"],
-    queryFn: fetchOverworldSnapshot,
+    queryFn: fetchCannedSnapshot,
     // Overworld surfaces poll (stale-while-revalidate); the interval is a
     // per-surface decision, set at the query site.
     refetchInterval: 30_000,
   });
+
+  // The overworld polling tier, for real (ADR 0004 §4): TanStack Query
+  // stale-while-revalidate against the typed contract route. The tick
+  // stream's invalidation of ["overworld"] refreshes this between polls.
+  const { data: overworldTick } = useQuery({
+    queryKey: ["overworld", "tick"],
+    queryFn: () => apiClient.overworldTick(),
+    refetchInterval: 15_000,
+  });
+
+  const uplink = useTickStream();
 
   if (data === undefined) {
     return (
@@ -74,6 +91,8 @@ function OverworldScreen() {
       </main>
     );
   }
+
+  const latestTick = overworldTick?.latestTick ?? null;
 
   return (
     <main className="hp-noise min-h-screen p-8">
@@ -89,15 +108,25 @@ function OverworldScreen() {
             </p>
           </div>
           <div className="flex items-center gap-4 font-data text-[10px] uppercase">
-            <StatusChip tone="acid" stamped>link ok</StatusChip>
+            <StatusChip tone={overworldTick === undefined ? "warn" : "acid"} stamped>
+              {overworldTick === undefined ? "link …" : "link ok"}
+            </StatusChip>
             <span className="text-ink-dim">
               next tick
-              <span className="ml-2 font-bold text-ink tabular-nums">{data.nextTickIn}</span>
+              <span className="ml-2 font-bold text-ink tabular-nums">
+                <NextTickCountdown
+                  tickNumber={latestTick?.tickNumber ?? null}
+                  intervalMs={overworldTick?.intervalMs ?? null}
+                />
+              </span>
             </span>
           </div>
         </header>
 
-        <Panel title="Overworld" meta={`tick ${data.tick.toLocaleString("en-US")}`}>
+        <Panel
+          title="Overworld"
+          meta={latestTick === null ? "tick —" : `tick ${latestTick.tickNumber.toLocaleString("en-US")}`}
+        >
           <div className="grid grid-cols-2 gap-6 md:grid-cols-4">
             <StatReadout label="Credits" value={data.credits.value} unit="¤" delta={{ text: data.credits.delta, tone: "ok" }} />
             <StatReadout label="Heat" value={String(data.heat)} unit="%" meter={{ value: data.heat, tone: "warn", animated: true }} />
@@ -136,11 +165,28 @@ function OverworldScreen() {
               </div>
             </Panel>
 
-            <Panel title="Uplink" meta="placeholder">
+            <Panel title="Uplink" meta={STREAM_STATUS_LABEL[uplink.status]}>
               <div className="flex flex-col gap-2">
-                <TraceChip seq="0141" kind="tool_result" summary="scout_district → 2 patrols, heat +4" />
+                {uplink.ticks.length === 0
+                  ? (
+                      <p className="hp-blink font-data text-[10px] text-ink-dim uppercase">
+                        awaiting next tick on the live uplink…
+                      </p>
+                    )
+                  : (
+                      uplink.ticks.map((envelope) => (
+                        <TraceChip
+                          key={envelope.tick.id}
+                          seq={String(envelope.tick.tickNumber).slice(-4).padStart(4, "0")}
+                          kind="input"
+                          summary={`tick ${envelope.tick.tickNumber} → overworld advanced`}
+                          payload={JSON.stringify(envelope, null, 2)}
+                        />
+                      ))
+                    )}
                 <p className="font-data text-[10px] leading-relaxed text-ink-dim uppercase">
-                  canned snapshot — real overworld polling lands with apps/api
+                  tick counter, countdown and this feed are live from apps/api —
+                  credits, heat, crew and missions are still canned
                 </p>
               </div>
             </Panel>
@@ -149,4 +195,36 @@ function OverworldScreen() {
       </div>
     </main>
   );
+}
+
+/**
+ * Counts down to the next tick's wall-clock boundary. Tick numbers are
+ * `floor(time / interval)` (ADR 0004 §4), so the next tick is due at
+ * `(tickNumber + 1) * intervalMs` — not `completedAt + interval`, which
+ * would drift by the cron's firing delay. A tick landing resets this
+ * through the polling query and the stream's invalidation; an overdue tick
+ * pins at 00:00 until the next one arrives.
+ */
+function NextTickCountdown({
+  tickNumber,
+  intervalMs,
+}: {
+  tickNumber: number | null;
+  intervalMs: number | null;
+}) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 1_000);
+    return () => clearInterval(timer);
+  }, []);
+
+  if (tickNumber === null || intervalMs === null) {
+    return <>--:--</>;
+  }
+  const dueAt = (tickNumber + 1) * intervalMs;
+  const remaining = Math.max(0, dueAt - now);
+  const totalSeconds = Math.floor(remaining / 1_000);
+  const minutes = String(Math.floor(totalSeconds / 60)).padStart(2, "0");
+  const seconds = String(totalSeconds % 60).padStart(2, "0");
+  return <>{`${minutes}:${seconds}`}</>;
 }

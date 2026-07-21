@@ -120,6 +120,9 @@ importers:
       neverthrow:
         specifier: ^8.2.0
         version: 8.2.0
+      pg:
+        specifier: ^8.22.0
+        version: 8.22.0
       pg-boss:
         specifier: ^12.26.1
         version: 12.26.1
@@ -133,6 +136,9 @@ importers:
       '@types/node':
         specifier: ^22.10.0
         version: 22.20.1
+      '@types/pg':
+        specifier: ^8.20.0
+        version: 8.20.0
       eslint:
         specifier: ^9.39.4
         version: 9.39.5(jiti@2.7.0)
@@ -173,9 +179,24 @@ importers:
 
   apps/webapp:
     dependencies:
+      '@hazard-pay/api':
+        specifier: workspace:*
+        version: link:../api
+      '@hazard-pay/observability':
+        specifier: workspace:*
+        version: link:../../packages/observability
       '@hazard-pay/ui':
         specifier: workspace:*
         version: link:../../packages/ui
+      '@orpc/client':
+        specifier: ^1.14.8
+        version: 1.14.8(@opentelemetry/api@1.9.1)
+      '@orpc/contract':
+        specifier: ^1.14.8
+        version: 1.14.8(@opentelemetry/api@1.9.1)
+      '@orpc/openapi-client':
+        specifier: ^1.14.8
+        version: 1.14.8(@opentelemetry/api@1.9.1)
       '@tanstack/react-query':
         specifier: ^5.101.3
         version: 5.101.3(react@19.2.7)
@@ -194,6 +215,9 @@ importers:
       react-dom:
         specifier: ^19.2.7
         version: 19.2.7(react@19.2.7)
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
     devDependencies:
       '@hazard-pay/config':
         specifier: workspace:*
