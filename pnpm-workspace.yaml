@@ -15,3 +15,7 @@ allowBuilds:
   # without them (verified on the #13 prototype). Deliberately skipped.
   "@swc/core": false
   msw: false
+
+minimumReleaseAgeExclude:
+  - '@tanstack/query-core@5.101.3'
+  - '@tanstack/react-query@5.101.3'
