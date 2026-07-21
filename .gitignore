@@ -28,3 +28,6 @@ dist/
 
 # Ephemeral local scratch space (handoffs, local-only notes)
 .scratch/
+
+# Agent worktrees (see .agents/skills/implement)
+.claude/worktrees/
