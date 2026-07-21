@@ -10,8 +10,12 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  lint:
-    name: Lint
+  static-checks:
+    # Lint and type-check share one job (one checkout/pnpm-setup/install)
+    # since neither needs Postgres — see issue #40. Test stays separate: it
+    # needs the service container, which lint/type-check would otherwise pay
+    # for on every run.
+    name: Static checks
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -29,36 +33,14 @@ jobs:
       - uses: actions/cache@v6
         with:
           path: .turbo
-          key: turbo-lint-${{ runner.os }}-${{ github.sha }}
+          # Keyed on lockfile + turbo config content rather than the commit
+          # sha: commits that don't touch either hit this cache exactly
+          # instead of always missing and writing a fresh entry (issue #40).
+          key: turbo-static-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', '**/turbo.json') }}
           restore-keys: |
-            turbo-lint-${{ runner.os }}-
+            turbo-static-${{ runner.os }}-
 
-      - run: pnpm lint
-
-  type-check:
-    name: Type-check
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: pnpm/action-setup@v6 # version comes from packageManager in package.json
-
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 22
-          cache: pnpm
-
-      - run: pnpm install --frozen-lockfile
-
-      - uses: actions/cache@v6
-        with:
-          path: .turbo
-          key: turbo-type-check-${{ runner.os }}-${{ github.sha }}
-          restore-keys: |
-            turbo-type-check-${{ runner.os }}-
-
-      - run: pnpm type-check
+      - run: pnpm turbo run lint type-check
 
   test:
     name: Test
@@ -66,9 +48,8 @@ jobs:
     timeout-minutes: 15
     services:
       # Postgres for packages/db tests (issue #14): tests connect to whatever
-      # DATABASE_URL points at (issue #8). Once the root docker-compose.yml
-      # lands it becomes the source of truth for the Postgres version — keep
-      # this image major in sync with it.
+      # DATABASE_URL points at (issue #8). Keep this image major in sync with
+      # the root docker-compose.yml, which is the source of truth.
       postgres:
         image: postgres:18
         env:
@@ -97,7 +78,9 @@ jobs:
       - uses: actions/cache@v6
         with:
           path: .turbo
-          key: turbo-test-${{ runner.os }}-${{ github.sha }}
+          # See the static-checks job for why this is hash-keyed rather than
+          # sha-keyed (issue #40).
+          key: turbo-test-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', '**/turbo.json') }}
           restore-keys: |
             turbo-test-${{ runner.os }}-
 

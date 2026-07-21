@@ -1,0 +1,36 @@
+{
+  "name": "@hazard-pay/agent",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "type-check": "tsc --noEmit",
+    "lint": "eslint --cache --max-warnings=0 .",
+    "lint:fix": "eslint --cache --fix .",
+    "test": "vitest run",
+    "smoke": "tsx scripts/live-smoke.ts",
+    "clean": "rm -rf .eslintcache"
+  },
+  "dependencies": {
+    "@hazard-pay/db": "workspace:*",
+    "@hazard-pay/observability": "workspace:*",
+    "ai": "^7.0.32",
+    "drizzle-orm": "^0.45.2",
+    "neverthrow": "^8.2.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@ai-sdk/google": "^4.0.19",
+    "@hazard-pay/config": "workspace:*",
+    "@hazard-pay/env": "workspace:*",
+    "@types/node": "^22.10.0",
+    "eslint": "^9.39.4",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.10"
+  }
+}

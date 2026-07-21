@@ -74,6 +74,9 @@ gh pr create --draft --head "<branch>" \
 
 Open it early because the orchestrator tracks parallel work via `gh pr list` — a PR
 that appears only at the end makes parallel streams invisible until they land.
+If your commit's package directory doesn't exist yet (new-package tickets),
+commitlint won't know its scope — use `repo` for the draft-PR commit; the real
+scope becomes valid the moment the directory exists.
 `Fixes #N` auto-closes the ticket on merge. If the merge does *not* itself resolve
 the ticket (audit/prepare-only work), use a non-closing `Refs #N` instead.
 
@@ -95,9 +98,18 @@ review the work and address what it finds.
 
 ## 5. Mark ready — you do not merge
 
+Wait for CI with the CLI (foreground, exits with a `verdict:` line — never
+background `sleep`-and-poll compounds, they return empty):
+
 ```bash
+./apps/cli/bin/hazard-pay pr watch <number>
 gh pr ready <number>
 ```
+
+Re-check `gh pr view <n> --json mergeStateStatus` right after marking ready —
+main may have moved while you gated, and a CONFLICTING PR silently gets no CI
+runs. If DIRTY: merge `origin/main` (lockfile conflicts: take main's version,
+rerun `pnpm install`), re-gate, push, re-watch.
 
 The **orchestrator** merges, cleans up the worktree (`hazard-pay worktree clean`),
 and deletes the branch. Do not babysit CI, do not merge, do not
