@@ -3,7 +3,7 @@ import type { ResultAsync } from "neverthrow";
 
 import type { TickSnapshot } from "../contract/index.ts";
 import type { AppCtx } from "../context.ts";
-import { latestTick, recordDueTicks, type TickRow } from "../db/index.ts";
+import { latestTick, recordDueTicks, type TickOutbox, type TickRow } from "../db/index.ts";
 import type { ApiError } from "./errors.ts";
 
 /**
@@ -13,13 +13,21 @@ import type { ApiError } from "./errors.ts";
  * domain fact (`tick.completed`), and the span's traceparent is stored on
  * the rows so the trace follows the tick through transport to render
  * (ADR 0005 §6).
+ *
+ * `tickOutbox` (issue #52, ADR 0003 §6) rides the same transaction: when
+ * the worker has leader wiring, the leaders' lane inputs and doorbell jobs
+ * commit atomically with the tick rows. Absent (keyless boot, HTTP-only
+ * callers), the tick still ticks — graceful degradation.
  */
-export function runTick(ctx: Pick<AppCtx, "db" | "logger" | "env">): ResultAsync<void, ApiError> {
+export function runTick(
+  ctx: Pick<AppCtx, "db" | "logger" | "env"> & { tickOutbox?: TickOutbox },
+): ResultAsync<void, ApiError> {
   return withSpan("tick.run", (span) =>
     recordDueTicks(ctx.db, {
       now: new Date(),
       intervalMs: ctx.env.TICK_INTERVAL,
       traceparent: traceparentOf(span),
+      outbox: ctx.tickOutbox,
     }).map((recorded) => {
       span.setAttribute("tick.recorded_count", recorded.length);
       for (const row of recorded) {

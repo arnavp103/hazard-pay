@@ -7,6 +7,7 @@
  * another app actually duplicates it.
  */
 export { createDb } from "@hazard-pay/db";
+export { insertLeaderNote } from "./leader-notes.ts";
 export { pingDb } from "./ping.ts";
 export { findPlayerByUserId } from "./players.ts";
 export {
@@ -14,5 +15,6 @@ export {
   recordDueTicks,
   TICK_CHANNEL,
   ticksAfter,
+  type TickOutbox,
   type TickRow,
 } from "./ticks.ts";

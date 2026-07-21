@@ -1,18 +1,26 @@
 import { okAsync, type ResultAsync } from "neverthrow";
 
 import { jobHandler } from "./adapters/job-handler.ts";
+import { wakeLeaderLane } from "./domain/leader-wake.ts";
+import { runTick } from "./domain/tick.ts";
+import {
+  LEADER_DOORBELL_QUEUE,
+  LEADER_DOORBELL_QUEUE_OPTIONS,
+  leaderTickOutbox,
+  setupLeaders,
+} from "./leaders/wiring.ts";
 import type { AppCtx } from "./context.ts";
 import type { ApiError } from "./domain/errors.ts";
-import { runTick } from "./domain/tick.ts";
 
 /**
  * The worker half of the pre-cut process seam (ADR 0002 §3): pg-boss
- * registrations and tick scheduling. It shares only the db and observability
- * handles with the server. Splitting it out is a second entrypoint that
- * calls `startWorker` alone — not a refactor.
+ * registrations, tick scheduling, and the leader doorbell (ADR 0003 §6).
+ * It shares only the db and observability handles with the server.
+ * Splitting it out is a second entrypoint that calls `startWorker` alone —
+ * not a refactor.
  *
  * What lands here next: the per-`(match, phase)` delayed resolution
- * singletons (ADR 0004 §3) and ADR 0003's doorbell/outbox agent jobs.
+ * singletons (ADR 0004 §3).
  */
 export const HEARTBEAT_QUEUE = "worker.heartbeat";
 
@@ -53,10 +61,26 @@ export async function startWorker(
     HEARTBEAT_QUEUE,
     jobHandler({ logger: ctx.logger }, (jobCtx) => heartbeat(jobCtx)),
   );
+  // Leader wiring (issue #52): key-gated at this edge. Undefined means a
+  // keyless boot — ticks still run, no inputs are appended, no doorbells
+  // ring (setupLeaders already logged why, once).
+  const wiring = await setupLeaders(ctx);
+  await ctx.boss.createQueue(LEADER_DOORBELL_QUEUE, LEADER_DOORBELL_QUEUE_OPTIONS);
+  if (wiring !== undefined) {
+    await ctx.boss.work<{ laneId: string }>(
+      LEADER_DOORBELL_QUEUE,
+      jobHandler({ logger: ctx.logger, runtime: wiring.runtime }, (jobCtx, job) =>
+        wakeLeaderLane(jobCtx, job.data)),
+    );
+  }
+  const tickOutbox = wiring === undefined
+    ? undefined
+    : leaderTickOutbox({ boss: ctx.boss, wiring });
   await ctx.boss.createQueue(TICK_QUEUE);
   await ctx.boss.work(
     TICK_QUEUE,
-    jobHandler({ db: ctx.db, env: ctx.env, logger: ctx.logger }, (jobCtx) => runTick(jobCtx)),
+    jobHandler({ db: ctx.db, env: ctx.env, logger: ctx.logger }, (jobCtx) =>
+      runTick({ ...jobCtx, tickOutbox })),
   );
   await ctx.boss.schedule(TICK_QUEUE, tickCron(ctx.env.TICK_INTERVAL));
   // Eager boot catch-up (ADR 0004 §4): don't wait out the first cron window —
