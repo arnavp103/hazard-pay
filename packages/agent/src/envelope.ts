@@ -70,6 +70,13 @@ export const modelTurnPayloadSchema = z.object({
   kind: z.literal("model_turn"),
   /** sha-256 over the canonical JSON of what the model was asked. */
   fingerprint: z.string(),
+  /**
+   * The leader config hash the fingerprint was computed under. Optional
+   * (added with issue #52's foreground-lane restamp): a long-lived lane can
+   * outlive config edits, so each turn names its own config; turns recorded
+   * before this field existed verify against the lane's stamped hash.
+   */
+  configHash: z.string().optional(),
   model: z.object({ provider: z.string(), modelId: z.string() }),
   content: z.array(modelTurnPartSchema),
   finishReason: z.string(),

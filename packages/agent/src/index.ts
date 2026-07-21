@@ -31,5 +31,5 @@ export type {
 } from "./envelope.ts";
 export { contentHash, canonicalJson } from "./hash.ts";
 export type { AgentError } from "./errors.ts";
-export type { LaneEventRow, LaneRow } from "./store.ts";
+export type { DbLike, LaneEventRow, LaneRow } from "./store.ts";
 export { createHelloLeader } from "./hello-leader.ts";

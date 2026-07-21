@@ -71,7 +71,7 @@ evalite("hello leader (mock): status report", {
   task: async (input) => {
     const model = scriptedModel([
       toolCallTurn([{ toolCallId: "c1", toolName: "read_tick_count", input: {} }]),
-      toolCallTurn([{ toolCallId: "c2", toolName: "record_tick", input: {} }]),
+      toolCallTurn([{ toolCallId: "c2", toolName: "record_visit", input: {} }]),
       textTurn("All quiet: 0 ticks so far, visit recorded."),
     ]);
     return runEvalScript({
@@ -89,7 +89,7 @@ evalite("hello leader (mock): status report", {
       scorer: ({ output }) =>
         toolCallAccuracy({
           actualCalls: output.toolCalls.map((call) => ({ toolName: call.toolName, input: call.input })),
-          expectedCalls: [{ toolName: "read_tick_count" }, { toolName: "record_tick" }],
+          expectedCalls: [{ toolName: "read_tick_count" }, { toolName: "record_visit" }],
           mode: "exact",
         }),
     },
@@ -115,7 +115,7 @@ evalite("hello leader (mock): two-turn script", {
   task: async (input) => {
     const model = scriptedModel([
       toolCallTurn([{ toolCallId: "c1", toolName: "read_tick_count", input: {} }]),
-      toolCallTurn([{ toolCallId: "c2", toolName: "record_tick", input: {} }]),
+      toolCallTurn([{ toolCallId: "c2", toolName: "record_visit", input: {} }]),
       textTurn("All quiet: 0 ticks so far, visit recorded."),
       textTurn("Anytime!"),
     ]);
