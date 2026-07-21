@@ -9,3 +9,10 @@
 export { createDb } from "@hazard-pay/db";
 export { pingDb } from "./ping.ts";
 export { findPlayerByUserId } from "./players.ts";
+export {
+  latestTick,
+  recordDueTicks,
+  TICK_CHANNEL,
+  ticksAfter,
+  type TickRow,
+} from "./ticks.ts";
