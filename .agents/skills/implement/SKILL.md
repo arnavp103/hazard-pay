@@ -21,24 +21,44 @@ and `pnpm install` in one step, then prints the PR-flow checklist:
 
 ```bash
 ./apps/cli/bin/hazard-pay worktree new <branch>
-cd .claude/worktrees/<branch>
+cd .worktrees/<branch>
 ```
 
 Fallback (manual git), if the CLI is unavailable:
 
 ```bash
 git fetch origin
-git worktree add .claude/worktrees/<branch> -b <branch> origin/main
-cd .claude/worktrees/<branch>
+git worktree add .worktrees/<branch> -b <branch> origin/main
+cd .worktrees/<branch>
 pnpm install
 ```
 
 Branch naming: `issue-<n>-<short-slug>` when working a ticket (e.g.
 `issue-14-scaffold-db`), otherwise `<type>/<short-slug>` matching the commit type
-you expect to lead with. `.claude/worktrees/` is gitignored; never commit anything
-under it from the parent checkout. Lifecycle: `hazard-pay worktree clean` removes
-worktrees whose branch is merged into `origin/main` or whose remote branch is gone
-— the orchestrator runs it, not you.
+you expect to lead with. `.worktrees/` is gitignored; never commit anything under
+it from the parent checkout. Worktrees live at the repo root — not under
+`.claude/` — because the `.claude/` tree is deny-listed for agent file tools.
+Lifecycle: `hazard-pay worktree clean` removes worktrees (in `.worktrees/` and
+legacy `.claude/worktrees/`) whose branch is merged into `origin/main` or whose
+remote branch is gone — the orchestrator runs it, not you.
+
+## Agent constraints
+
+Session quirks that bite implementation agents; work with them, not against them:
+
+- Your session cwd is pinned; `cd <dir> && cmd` compounds get denied. Always use
+  flag forms — `git -C <path>`, `pnpm -C <path>` / `--filter` — and absolute
+  paths everywhere. EnterWorktree does not work from a repo-root session; don't
+  try it.
+- If Skill invocation fails, this file is readable directly at
+  `.agents/skills/implement/SKILL.md`.
+- Don't spawn background sub-agents for the main implementation thread —
+  coordination with a stopped parent breaks silently. If you must delegate, use
+  synchronous (`run_in_background: false`) sub-agents.
+- `gh issue view N --comments` sometimes prints nothing with exit 0; fall back
+  to `--json` fields or `gh api repos/{owner}/{repo}/issues/N/comments`.
+- The shell is fish: bare `echo ===`-style separators error; avoid decorative
+  separators in compound commands.
 
 ## 2. Open a draft PR before the work
 
@@ -81,8 +101,8 @@ gh pr ready <number>
 
 The **orchestrator** merges, cleans up the worktree (`hazard-pay worktree clean`),
 and deletes the branch. Do not babysit CI, do not merge, do not
-`git worktree remove` your own worktree. Mark the PR ready, write your report,
-and end.
+`git worktree remove` your own worktree. Mark the PR ready, write your report —
+including a raw git-workflow-friction retro section — and end.
 
 ## Known hazards
 
