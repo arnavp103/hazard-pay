@@ -68,16 +68,6 @@
   --hp-grain-opacity: 0.07;
 }
 
-/*
- * Dense-surface tuning (legibility caveat from the #13 ruling): data-heavy
- * scopes — admin tables, lane trace walls — turn grain and shadow DOWN,
- * they do not abandon the system. Wrap the dense region in .hp-dense.
- */
-.hp-dense {
-  --hp-shadow-color: rgb(0 0 0 / 30%);
-  --hp-grain-opacity: 0.03;
-}
-
 /* ------------------------------------------------------------------ */
 /* Animation vocabulary                                                */
 /* ------------------------------------------------------------------ */
@@ -85,18 +75,6 @@
 @keyframes hp-blink {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.25; }
-}
-
-@keyframes hp-slide-in {
-  from {
-    opacity: 0;
-    transform: translateY(7px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
 }
 
 @keyframes hp-stamp {
@@ -122,12 +100,19 @@
 }
 
 @layer components {
-  .hp-blink {
-    animation: hp-blink 1.6s ease-in-out infinite;
+  /*
+   * Dense-surface tuning (legibility caveat from the #13 ruling):
+   * data-heavy scopes — admin tables, lane trace walls — turn grain and
+   * shadow DOWN, they do not abandon the system. Wrap the dense region
+   * in .hp-dense.
+   */
+  .hp-dense {
+    --hp-shadow-color: rgb(0 0 0 / 30%);
+    --hp-grain-opacity: 0.03;
   }
 
-  .hp-anim-slide-in {
-    animation: hp-slide-in 0.45s ease-out both;
+  .hp-blink {
+    animation: hp-blink 1.6s ease-in-out infinite;
   }
 
   .hp-anim-stamp {

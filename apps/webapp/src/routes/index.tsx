@@ -60,6 +60,9 @@ function OverworldScreen() {
   const { data } = useQuery({
     queryKey: ["overworld", "snapshot"],
     queryFn: fetchOverworldSnapshot,
+    // Overworld surfaces poll (stale-while-revalidate); the interval is a
+    // per-surface decision, set at the query site.
+    refetchInterval: 30_000,
   });
 
   if (data === undefined) {

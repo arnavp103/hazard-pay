@@ -22,7 +22,7 @@ export interface ListRowProps extends HTMLAttributes<HTMLLIElement> {
 
 /** Mission/lane row: ordinal, title over mono meta, stamped status chip. */
 export function ListRow({ status, index, title, meta, trailing, className, ...props }: ListRowProps) {
-  const s = statusChip[status];
+  const chip = statusChip[status];
   return (
     <li
       className={cn(
@@ -43,7 +43,7 @@ export function ListRow({ status, index, title, meta, trailing, className, ...pr
         )}
       </span>
       <span className="flex flex-col items-end gap-1">
-        <StatusChip tone={s.tone}>{s.text}</StatusChip>
+        <StatusChip tone={chip.tone}>{chip.text}</StatusChip>
         {trailing !== undefined && (
           <span className="font-data text-[10px] text-ink-dim tabular-nums">{trailing}</span>
         )}

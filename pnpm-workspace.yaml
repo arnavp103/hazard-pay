@@ -16,6 +16,8 @@ allowBuilds:
   "@swc/core": false
   msw: false
 
+# Auto-appended by pnpm when apps/webapp pinned a react-query release
+# younger than the configured minimum age; exact-version exceptions only.
 minimumReleaseAgeExclude:
   - '@tanstack/query-core@5.101.3'
   - '@tanstack/react-query@5.101.3'

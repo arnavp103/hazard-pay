@@ -30,11 +30,11 @@ export interface TraceChipProps {
 
 export function TraceChip({ kind, summary, seq, payload, defaultExpanded = false, className }: TraceChipProps) {
   const [expanded, setExpanded] = useState(defaultExpanded);
-  const k = kindStyle[kind];
+  const style = kindStyle[kind];
   const header = (
     <>
       <span className="text-[10px] text-ink-dim/70 tabular-nums">{seq}</span>
-      <StatusChip tone={k.tone} className="shrink-0 px-1.5 tracking-[0.12em]">{k.tag}</StatusChip>
+      <StatusChip tone={style.tone} className="shrink-0 px-1.5 tracking-[0.12em]">{style.tag}</StatusChip>
       <span className="truncate text-[11px] text-ink">{summary}</span>
     </>
   );

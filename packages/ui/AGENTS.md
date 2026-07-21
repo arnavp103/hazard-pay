@@ -64,8 +64,7 @@ full alternate themes would work the same way.
 - cva for variants, `cn()` for merging; Base UI for unstyled primitives
   (Meter today). Base UI is pinned at `1.0.0-rc.0` (caret-normalized).
 - Signature custom classes: `hp-noise` (grain), `hp-clip` (clipped corner),
-  `hp-hazard`(+`-anim`) (stripes), `hp-blink`, `hp-anim-stamp`,
-  `hp-anim-slide-in`.
+  `hp-hazard`(+`-anim`) (stripes), `hp-blink`, `hp-anim-stamp`.
 - Story names use the domain vocabulary (CONTEXT.md): lanes, missions,
   wakes, ticks, phases, moves, leaders.
 
