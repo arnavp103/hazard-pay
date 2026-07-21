@@ -19,6 +19,8 @@
     "lint:fix": "turbo run lint:fix",
     "test": "turbo run test",
     "clean": "turbo run clean",
+    "db:up": "docker compose up -d --wait",
+    "db:down": "docker compose down",
     "syncpack:lint": "syncpack lint",
     "syncpack:fix": "syncpack fix"
   },
