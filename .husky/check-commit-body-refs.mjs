@@ -52,10 +52,15 @@ const BARE_REF = /#\d+(?=[\s,;)\]]|$)/;
 const TRAILER_LINE
   = /^(?:[A-Za-z][\w-]*:\s+\S|(?:close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved)\s+#\d+)/i;
 
+// Only strips genuine git scaffolding comments (`# Please enter the commit
+// message...`), which always have a space after the `#` (or are a lone `#`).
+// A line like `#43 also affects the queue path...` — a bare ref sitting at
+// the very start of a line, exactly the shape this check exists to catch —
+// must NOT be swept up here just because it also starts with `#`.
 function stripCommentLines(raw) {
   return raw
     .split(/\r?\n/)
-    .filter((line) => !line.startsWith("#"))
+    .filter((line) => line !== "#" && !line.startsWith("# "))
     .join("\n");
 }
 
@@ -96,15 +101,24 @@ export function findBareRef(message) {
   const hasTrailingFooter = last !== undefined && isTrailerParagraph(last);
   const toScan = hasTrailingFooter ? paragraphs.slice(0, -1) : paragraphs;
 
+  // A disqualified last paragraph (some line in it doesn't look like a
+  // trailer) still gets scanned, since it's not a clean footer. But when it
+  // contains BOTH a properly-formatted trailer line (e.g. `Refs: #43`) and a
+  // genuinely bare ref elsewhere (e.g. a stray "Also noting #1..." line),
+  // report the actual offender — not the line that was already correctly
+  // formatted — by preferring a match on a non-trailer-shaped line first.
+  let trailerShapedMatch = null;
   for (const paragraph of toScan) {
     for (const line of paragraph) {
       const match = BARE_REF.exec(line);
-      if (match) {
+      if (!match) continue;
+      if (!TRAILER_LINE.test(line)) {
         return match[0];
       }
+      trailerShapedMatch ??= match[0];
     }
   }
-  return null;
+  return trailerShapedMatch;
 }
 
 function main() {

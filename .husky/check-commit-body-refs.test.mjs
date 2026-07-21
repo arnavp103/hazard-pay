@@ -80,6 +80,48 @@ Fixes #43
   assert.equal(findBareRef(msg), null);
 });
 
+test("a bare ref that opens its own line is caught, not mistaken for a git comment", () => {
+  // Regression: stripCommentLines used to strip any line starting with "#",
+  // which silently swallowed body prose whose first character happens to be
+  // a bare ref (as opposed to genuine git scaffolding comments, which always
+  // have a space after the "#", e.g. "# Please enter the commit message...").
+  const msg = `fix(repo): case
+
+#43 also affects the queue path and needs a closer look before release.
+
+Refs: #43
+`;
+  assert.equal(findBareRef(msg), "#43");
+});
+
+test("a malformed trailing paragraph reports the true bare-ref offender, not the valid trailer next to it", () => {
+  // Regression: when the last paragraph mixes a properly-formatted trailer
+  // line with a stray non-trailer line containing its own bare ref, the
+  // whole paragraph is (rightly) disqualified as a clean footer — but the
+  // reported violation must point at the actual offending line, not the
+  // "Refs: #43" line that was already correctly formatted.
+  const msg = `fix(repo): case
+
+Some clean lead-in prose with no markers.
+
+Refs: #43
+Also noting #1 for context
+`;
+  assert.equal(findBareRef(msg), "#1");
+});
+
+test("real git scaffolding comment lines are still ignored", () => {
+  const msg = `fix(repo): case
+
+Adds a commit-msg pre-check for bare issue refs.
+
+Refs: #43
+# Please enter the commit message for your changes. Lines starting
+# with '#' will be ignored, and an empty message aborts the commit.
+`;
+  assert.equal(findBareRef(msg), null);
+});
+
 test(":NNNN bare in body prose passes — verified non-issue under this config", () => {
   // issuePrefixes is only ['#'] here (config-conventional's
   // conventional-changelog-conventionalcommits parserPreset), so a bare
