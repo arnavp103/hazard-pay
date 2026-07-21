@@ -137,4 +137,12 @@ fills that gap.
 - No queue code here — agents never touch pg-boss (ADR 0003 §2).
 - Payloads are the versioned envelope in `src/envelope.ts`, never
   provider-raw JSON; new part kinds are an envelope version bump.
+- `@hazard-pay/agent/envelope` is the browser-safe subpath (zod only, no
+  runtime imports) — it exists so read surfaces (the api contract, admin's
+  trace viewer) can name payload shapes without dragging in drizzle or the
+  AI SDK. Keep `envelope.ts` importing nothing but zod.
+- `@hazard-pay/agent/testing` exports the scripted mock model so other
+  packages' integration tests can seed real lane logs through the runtime
+  (apps/api's lane read routes do). Test-only surface — never import it
+  from production code.
 - Intra-package imports carry the `.ts` extension.

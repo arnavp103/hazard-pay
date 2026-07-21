@@ -10,6 +10,11 @@ export interface DbUnreachableError {
   message: string;
 }
 
+export interface LaneNotFoundError {
+  type: "lane_not_found";
+  message: string;
+}
+
 /**
  * A leader wake that failed for real (issue #52) — NOT the benign
  * `WakeClaimConflict` skip, which the wake domain function absorbs. Surfaced
@@ -20,4 +25,4 @@ export interface LeaderWakeFailedError {
   message: string;
 }
 
-export type ApiError = DbUnreachableError | LeaderWakeFailedError;
+export type ApiError = DbUnreachableError | LaneNotFoundError | LeaderWakeFailedError;

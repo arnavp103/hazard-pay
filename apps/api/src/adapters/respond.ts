@@ -15,6 +15,7 @@ import type { ApiError } from "../domain/errors.ts";
  */
 const HTTP_ERROR_FOR: Record<ApiError["type"], { code: string; status: number }> = {
   db_unreachable: { code: "SERVICE_UNAVAILABLE", status: 503 },
+  lane_not_found: { code: "NOT_FOUND", status: 404 },
   // Job-side only today (no route wakes a leader), but the table is total
   // over ApiError by construction — a variant without a row is a type error.
   leader_wake_failed: { code: "INTERNAL_SERVER_ERROR", status: 500 },

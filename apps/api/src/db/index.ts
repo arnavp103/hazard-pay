@@ -11,6 +11,13 @@ export { insertLeaderNote } from "./leader-notes.ts";
 export { pingDb } from "./ping.ts";
 export { findPlayerByUserId } from "./players.ts";
 export {
+  findLaneById,
+  listLaneEventsAfter,
+  listLaneRows,
+  tallyLaneEvents,
+} from "./lanes.ts";
+export type { LaneEventRow, LaneEventTally, LaneRow } from "./lanes.ts";
+export {
   latestTick,
   recordDueTicks,
   TICK_CHANNEL,
