@@ -19,6 +19,12 @@ export type { CreateLoggerOptions } from "./logger.ts";
 export { emitEvent } from "./events.ts";
 export type { DomainEventAttributes } from "./events.ts";
 export { withSpan } from "./span.ts";
+export { ingestTelemetryLines } from "./ingest.ts";
+export type {
+  IngestTelemetryOptions,
+  IngestTelemetryReport,
+  InvalidServiceError,
+} from "./ingest.ts";
 export type { InitObservabilityOptions, ObservabilityHandle } from "./init.ts";
 
 // Types apps need to talk about telemetry handles without importing the
