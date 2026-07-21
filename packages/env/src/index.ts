@@ -14,7 +14,7 @@ const env = createEnv({
   server: {
     NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
     LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
-    DATABASE_URL: z.url().default("postgres://postgres:postgres@localhost:5432/hazard_pay"),
+    DATABASE_URL: z.url().default("postgres://postgres:postgres@localhost:5433/hazard_pay"),
   },
   runtimeEnv: process.env,
   emptyStringAsUndefined: true,
