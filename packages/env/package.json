@@ -11,6 +11,7 @@
     "type-check": "tsc --noEmit",
     "lint": "eslint --cache --max-warnings=0 .",
     "lint:fix": "eslint --cache --fix .",
+    "test": "node --import tsx --test src/load-env.test.ts",
     "clean": "rm -rf .eslintcache"
   },
   "dependencies": {
@@ -21,6 +22,7 @@
     "@hazard-pay/config": "workspace:*",
     "@types/node": "^22.10.0",
     "eslint": "^9.39.4",
+    "tsx": "^4.21.0",
     "typescript": "^5.9.3"
   }
 }
