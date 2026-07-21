@@ -16,7 +16,10 @@ Ladle serves on http://localhost:61000.
 ## Layout
 
 - `src/components/` — one file per component (button, panel, sticker,
-  hazard-meter, stat-readout, list-row, trace-chip)
+  hazard-meter, stat-readout, list-row, trace-chip, json-inspector).
+  Trace-chip + json-inspector are the progressive-disclosure pair (#11
+  rider via #24): summary chips by default, one deep-dive at a time. Both
+  stay payload-agnostic — envelope semantics live in the consuming app.
 - `src/stories/` — Ladle stories: one file per component + `overview`
 - `src/styles/globals.css` — the single Tailwind v4 entry (tokens, scopes,
   custom classes)

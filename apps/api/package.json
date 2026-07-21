@@ -15,6 +15,7 @@
     "clean": "rm -rf .eslintcache"
   },
   "dependencies": {
+    "@hazard-pay/agent": "workspace:*",
     "@hazard-pay/auth": "workspace:*",
     "@hazard-pay/db": "workspace:*",
     "@hazard-pay/env": "workspace:*",

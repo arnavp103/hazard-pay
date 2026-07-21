@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 
 import {
   Button,
@@ -59,6 +59,7 @@ function fetchAdminSnapshot(): Promise<AdminSnapshot> {
 }
 
 function AdminScreen() {
+  const navigate = useNavigate();
   const { data } = useQuery({
     queryKey: ["admin", "snapshot"],
     queryFn: fetchAdminSnapshot,
@@ -131,16 +132,15 @@ function AdminScreen() {
             </ListRowGroup>
           </Panel>
 
-          <Panel title="Lane trace" meta="#24" tone="magenta">
+          <Panel title="Lane trace" meta="live" tone="magenta">
             <div className="flex flex-col gap-3">
               <p className="font-data text-[10px] leading-relaxed text-ink-dim uppercase">
-                canned snapshot above — real lane/leader data lands with
-                apps/api. the full lane-event log viewer is a later ticket
-                (#24), once the agent event store shape exists. this
-                scaffold only leaves the seam — the button below is inert
-                on purpose.
+                the leaders/lanes snapshot above is still canned — but the
+                lane trace viewer is real (#24): lane index and per-lane
+                transcripts served by apps/api from the agent runtime&apos;s
+                lane event log, progressive disclosure per lane event.
               </p>
-              <Button variant="ghost" size="sm" disabled title="Lands with #24">
+              <Button variant="primary" size="sm" onClick={() => void navigate({ to: "/lanes" })}>
                 Open lane trace
               </Button>
             </div>
