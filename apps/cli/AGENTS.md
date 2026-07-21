@@ -12,6 +12,13 @@ cac-based dev CLI. Runs from source, no build: `./apps/cli/bin/hazard-pay`
   sweeps the legacy `.claude/worktrees/`.
 - `src/output.ts` — end-of-command summary/reminder helper; commands route
   their closing checklist through it so reminders can grow per-command.
+- `src/gh.ts` — shared `gh` exec wrapper (`gh`/`ghJson`/`ghApiGet`), mirroring
+  `worktree.ts`'s `git()`/`tryGit()` pattern.
+- `src/pr-watch.ts` — `pr watch [number]`: polls CI for a PR's exact head
+  SHA and blocks until it concludes, surfacing the silent no-CI states
+  (CONFLICTING/DIRTY, no runs after a grace period) instead of hanging.
+- `src/tasks.ts` — `tasks`: open issues grouped as frontier / blocked /
+  in flight, joined against open PRs.
 
 ## Conventions
 

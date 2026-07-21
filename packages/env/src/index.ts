@@ -26,6 +26,11 @@ const env = createEnv({
       .enum(["trace", "debug", "info", "warn", "error", "fatal", "silent"])
       .default("info"),
     DATABASE_URL: z.url().default("postgres://postgres:postgres@localhost:5433/hazard_pay"),
+    // apps/api listen port and its public origin. `API_BASE_URL` is what
+    // better-auth uses for cookies/redirects (#19: real `baseURL`); keep the
+    // two in sync when overriding either.
+    PORT: z.coerce.number().int().min(1).max(65535).default(3000),
+    API_BASE_URL: z.url().default("http://localhost:3000"),
     // better-auth's session/cookie signing secret (packages/auth). Dev-stub
     // only — real auth flows are out of scope for this map (wayfinder #1),
     // so this default is deliberately checked in and insecure.
