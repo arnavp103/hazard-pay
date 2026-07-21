@@ -19,6 +19,7 @@
     "lint:fix": "turbo run lint:fix",
     "test": "turbo run test",
     "clean": "turbo run clean",
+    "telemetry:clean": "rm -rf var/telemetry",
     "db:up": "docker compose up -d --wait",
     "db:down": "docker compose down",
     "syncpack:lint": "syncpack lint",
