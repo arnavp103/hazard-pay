@@ -19,6 +19,7 @@
     "lint:fix": "turbo run lint:fix",
     "test": "turbo run test",
     "clean": "turbo run clean",
+    "telemetry:clean": "rm -rf var/telemetry",
     "syncpack:lint": "syncpack lint",
     "syncpack:fix": "syncpack fix"
   },
