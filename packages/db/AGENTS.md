@@ -66,6 +66,11 @@ predicted.
   corpse, and `drop` uses `WITH (FORCE)` so corpses never block reruns.
 - Tests hit whatever `DATABASE_URL` points at — compose locally, the CI
   service container in CI. No testcontainers, no PGlite.
+- **The template database is shared, cross-worktree mutable state.** A test
+  run in another worktree (on a different migration set) can rebuild
+  `hazard_pay_template` under you mid-session. Any non-vitest consumer
+  (smokes, scripts) must call `ensureTemplateDatabase()` immediately before
+  each clone rather than assuming an earlier check still holds.
 - With Postgres down, the suite fails loudly and names the fix
   (`docker compose up -d`).
 
