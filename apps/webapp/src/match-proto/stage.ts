@@ -19,6 +19,7 @@
 
 import { AnimatedSprite, Application, BufferImageSource, Sprite, Texture } from "pixi.js";
 
+import { idleBobArtPixels } from "./idle.ts";
 import {
   buildCharacterFrames,
   characters,
@@ -33,6 +34,15 @@ export const STAGE_HEIGHT = 270;
 /** Integer art-pixel scale — keep it whole for crisp nearest-neighbor. */
 const SCALE = 6;
 const FLOOR_Y = 240;
+
+/**
+ * Full teardown, shared by both destroy paths: removeView detaches the
+ * canvas from the host; children/texture/textureSource free the scene
+ * graph and the GPU-side sprite frames.
+ */
+function destroyApplication(app: Application): void {
+  app.destroy({ removeView: true }, { children: true, texture: true, textureSource: true });
+}
 
 export interface MatchStageHandle {
   /**
@@ -93,7 +103,7 @@ export function mountMatchStage(host: HTMLElement): MatchStageHandle {
     if (destroyed) {
       // React cleanup won the race (StrictMode dev double-mount, or a
       // fast route change): never attach, free the GPU context.
-      candidate.destroy({ removeView: true }, { children: true, texture: true, textureSource: true });
+      destroyApplication(candidate);
       return;
     }
     app = candidate;
@@ -143,10 +153,7 @@ export function mountMatchStage(host: HTMLElement): MatchStageHandle {
     app.ticker.add((ticker) => {
       elapsedMS += ticker.deltaMS;
       for (const f of fighters) {
-        // One-art-pixel breathing bob, quantized to the integer scale so
-        // sprites never land between device pixels.
-        const bob = Math.round(Math.sin(elapsedMS / 480 + f.phase) * 1.2) * SCALE;
-        f.sprite.y = f.baseY + bob;
+        f.sprite.y = f.baseY + idleBobArtPixels(elapsedMS, f.phase) * SCALE;
       }
     });
 
@@ -159,9 +166,7 @@ export function mountMatchStage(host: HTMLElement): MatchStageHandle {
       if (destroyed) { return; }
       destroyed = true;
       if (app !== undefined) {
-        // removeView detaches the canvas from `host`; children+texture(+
-        // Source) free the scene graph and the GPU-side sprite frames.
-        app.destroy({ removeView: true }, { children: true, texture: true, textureSource: true });
+        destroyApplication(app);
         app = undefined;
       }
       // If init is still in flight, the race check above finishes the job.

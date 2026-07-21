@@ -18,6 +18,8 @@ const fake = vi.hoisted(() => {
     /** When set, init() parks until the test releases it. */
     gateInit: false,
     pendingInits: [] as (() => void)[],
+    /** Options every BufferImageSource was constructed with. */
+    bufferSources: [] as { scaleMode?: string }[],
   };
 
   class FakePoint {
@@ -71,11 +73,18 @@ const fake = vi.hoisted(() => {
     static WHITE = Object.create(FakeTexture.prototype) as FakeTexture;
   }
 
+  class FakeBufferImageSource {
+    constructor(options: { scaleMode?: string }) {
+      state.bufferSources.push(options);
+    }
+  }
+
   return {
     state,
     FakeApplication,
     FakeSprite,
     FakeTexture,
+    FakeBufferImageSource,
   };
 });
 
@@ -84,7 +93,7 @@ vi.mock("pixi.js", () => ({
   Sprite: fake.FakeSprite,
   AnimatedSprite: class extends fake.FakeSprite {},
   Texture: fake.FakeTexture,
-  BufferImageSource: class {},
+  BufferImageSource: fake.FakeBufferImageSource,
 }));
 
 // Import after the mock so stage.ts binds the fakes.
@@ -110,6 +119,7 @@ afterEach(() => {
   fake.state.apps.length = 0;
   fake.state.gateInit = false;
   fake.state.pendingInits.length = 0;
+  fake.state.bufferSources.length = 0;
 });
 
 describe("mountMatchStage lifecycle", () => {
@@ -177,10 +187,16 @@ describe("mountMatchStage lifecycle", () => {
     const stage = mountMatchStage(host);
     await stage.ready;
     expect(appAt(0).initOptions).toMatchObject({
+      resolution: globalThis.devicePixelRatio || 1,
       autoDensity: true,
       roundPixels: true,
       antialias: false,
     });
+    // Every sprite-frame texture asks for nearest-neighbor sampling.
+    expect(fake.state.bufferSources.length).toBeGreaterThan(0);
+    for (const source of fake.state.bufferSources) {
+      expect(source.scaleMode).toBe("nearest");
+    }
     stage.destroy();
   });
 });

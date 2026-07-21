@@ -22,9 +22,15 @@ export const Route = createFileRoute("/match-proto")({
  * ../match-proto/stage.ts); the automated lifecycle proof lives in
  * ../match-proto/stage.test.ts.
  */
+const feedChip = {
+  linking: { tone: "neutral", label: "linking…" },
+  live: { tone: "acid", label: "render loop live" },
+  failed: { tone: "warn", label: "renderer down" },
+} as const;
+
 function MatchProtoScreen() {
   const hostRef = useRef<HTMLDivElement | null>(null);
-  const [feed, setFeed] = useState<"linking" | "live" | "failed">("linking");
+  const [feed, setFeed] = useState<keyof typeof feedChip>("linking");
 
   useEffect(() => {
     const host = hostRef.current;
@@ -52,8 +58,8 @@ function MatchProtoScreen() {
           </span>
         </div>
         <div className="flex items-center gap-4 font-data text-[10px] uppercase">
-          <StatusChip tone={feed === "live" ? "acid" : feed === "failed" ? "warn" : "neutral"} stamped={feed === "live"}>
-            {feed === "live" ? "render loop live" : feed === "failed" ? "renderer down" : "linking…"}
+          <StatusChip tone={feedChip[feed].tone} stamped={feed === "live"}>
+            {feedChip[feed].label}
           </StatusChip>
           <Link
             to="/"
