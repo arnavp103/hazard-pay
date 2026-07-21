@@ -15,10 +15,20 @@ to `main` directly.
 ## 1. Worktree first
 
 Before any other work, set up an isolated worktree (skip if you're already inside
-one — check whether `git rev-parse --git-common-dir` differs from `.git`):
+one — check whether `git rev-parse --git-common-dir` differs from `.git`).
+Preferred path — the dev CLI does fetch, branch off `origin/main`, worktree add,
+and `pnpm install` in one step, then prints the PR-flow checklist:
 
 ```bash
-git worktree add .claude/worktrees/<branch> -b <branch> main
+./apps/cli/bin/hazard-pay worktree new <branch>
+cd .claude/worktrees/<branch>
+```
+
+Fallback (manual git), if the CLI is unavailable:
+
+```bash
+git fetch origin
+git worktree add .claude/worktrees/<branch> -b <branch> origin/main
 cd .claude/worktrees/<branch>
 pnpm install
 ```
@@ -26,7 +36,9 @@ pnpm install
 Branch naming: `issue-<n>-<short-slug>` when working a ticket (e.g.
 `issue-14-scaffold-db`), otherwise `<type>/<short-slug>` matching the commit type
 you expect to lead with. `.claude/worktrees/` is gitignored; never commit anything
-under it from the parent checkout.
+under it from the parent checkout. Lifecycle: `hazard-pay worktree clean` removes
+worktrees whose branch is merged into `origin/main` or whose remote branch is gone
+— the orchestrator runs it, not you.
 
 ## 2. Open a draft PR before the work
 
@@ -67,9 +79,10 @@ review the work and address what it finds.
 gh pr ready <number>
 ```
 
-The **orchestrator** merges, cleans up the worktree, and deletes the branch. Do not
-babysit CI, do not merge, do not `git worktree remove` your own worktree. Mark the
-PR ready, write your report, and end.
+The **orchestrator** merges, cleans up the worktree (`hazard-pay worktree clean`),
+and deletes the branch. Do not babysit CI, do not merge, do not
+`git worktree remove` your own worktree. Mark the PR ready, write your report,
+and end.
 
 ## Known hazards
 
