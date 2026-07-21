@@ -150,14 +150,12 @@ function isMergedIntoOriginMain(root: string, branch: string): boolean {
 }
 
 /**
- * A branch's remote counterpart is "gone" when the branch has an upstream
- * configured but that ref no longer exists on origin. Checked against a
- * single `git ls-remote` snapshot so `--dry-run` needs no `fetch --prune`
- * (which would mutate remote-tracking refs).
+ * The remote-side ref this branch pushes to (e.g. `refs/heads/foo`), or
+ * undefined when the branch has never been pushed with an upstream.
  */
-function upstreamGone(root: string, branch: string, remoteHeads: Set<string>): boolean {
-  const upstreamRef = tryGit(["config", `branch.${branch}.merge`], root);
-  return upstreamRef !== undefined && upstreamRef !== "" && !remoteHeads.has(upstreamRef);
+function upstreamRef(root: string, branch: string): string | undefined {
+  const ref = tryGit(["config", `branch.${branch}.merge`], root);
+  return ref === undefined || ref === "" ? undefined : ref;
 }
 
 /**
@@ -244,8 +242,21 @@ export function worktreeClean(options: { dryRun: boolean }): void {
       skip(label, "uncommitted changes");
       continue;
     }
+    // A branch that was never pushed is never cleaned: a freshly created
+    // worktree (zero commits) points at origin/main and would otherwise be
+    // classified as "merged" and removed from under its agent. The PR flow
+    // always pushes with an upstream, so finished work is unaffected.
+    const upstream = upstreamRef(root, branch);
+    if (upstream === undefined) {
+      console.log(`keep ${label}: branch "${branch}" was never pushed (no upstream)`);
+      kept += 1;
+      continue;
+    }
     const merged = isMergedIntoOriginMain(root, branch);
-    const gone = upstreamGone(root, branch, remoteHeads);
+    // "Gone" = the upstream ref no longer exists on origin, checked against
+    // one `git ls-remote` snapshot so --dry-run needs no `fetch --prune`
+    // (which would mutate remote-tracking refs).
+    const gone = !remoteHeads.has(upstream);
     if (!merged && !gone) {
       console.log(`keep ${label}: branch "${branch}" not merged and its remote branch still exists`);
       kept += 1;
