@@ -4,7 +4,7 @@ import { cn } from "../lib/cn.ts";
 
 const meterTone = {
   acid: "bg-accent-2",
-  warn: "hpb-hazard",
+  warn: "hpb-hazard hpb-hazard-anim",
   danger: "bg-danger",
 } as const;
 

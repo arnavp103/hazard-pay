@@ -72,7 +72,7 @@ export const Overview: Story = () => (
             <div className="flex flex-col gap-1.5">
               <TraceChip seq="0139" kind="input" summary="tick 1,024 results · 3 domain events" />
               <TraceChip seq="0140" kind="model_turn" summary="planning extraction route (1.2k tok)" />
-              <TraceChip seq="0141" kind="tool_result" summary="scout_district → 2 patrols, heat +4" payload={payload} />
+              <TraceChip seq="0141" kind="tool_result" summary="scout_district → 2 patrols, heat +4" payload={payload} defaultExpanded />
               <TraceChip seq="0142" kind="compaction" summary="folded 214 lane events → summary" />
             </div>
           </Panel>
@@ -178,7 +178,7 @@ export const TraceChips: Story = () => (
     <div className="flex max-w-xl flex-col gap-1.5">
       <TraceChip seq="0139" kind="input" summary="tick 1,024 results · 3 domain events" />
       <TraceChip seq="0140" kind="model_turn" summary="planning extraction route (1.2k tok)" />
-      <TraceChip seq="0141" kind="tool_result" summary="scout_district → 2 patrols, heat +4" payload={payload} />
+      <TraceChip seq="0141" kind="tool_result" summary="scout_district → 2 patrols, heat +4" payload={payload} defaultExpanded />
       <TraceChip seq="0142" kind="compaction" summary="folded 214 lane events → summary" />
     </div>
   </Frame>
