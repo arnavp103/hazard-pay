@@ -11,5 +11,6 @@ export {
   stickerVariants,
   type StickerProps,
 } from "./components/sticker.tsx";
+export { JsonInspector, type JsonInspectorProps, type JsonLike } from "./components/json-inspector.tsx";
 export { TraceChip, type TraceChipProps } from "./components/trace-chip.tsx";
 export { cn } from "./lib/cn.ts";
