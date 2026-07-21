@@ -1,0 +1,44 @@
+{
+  "name": "@hazard-pay/observability",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./init": "./src/init.ts",
+    "./browser": "./src/browser/index.ts"
+  },
+  "scripts": {
+    "type-check": "tsc --noEmit",
+    "lint": "eslint --cache --max-warnings=0 .",
+    "lint:fix": "eslint --cache --fix .",
+    "test": "vitest run",
+    "clean": "rm -rf .eslintcache"
+  },
+  "dependencies": {
+    "@fastify/otel": "^0.20.1",
+    "@hazard-pay/env": "workspace:*",
+    "@opentelemetry/api": "^1.9.1",
+    "@opentelemetry/core": "^2.9.0",
+    "@opentelemetry/instrumentation": "^0.220.0",
+    "@opentelemetry/instrumentation-http": "^0.220.0",
+    "@opentelemetry/instrumentation-pg": "^0.72.0",
+    "@opentelemetry/instrumentation-pino": "^0.66.0",
+    "@opentelemetry/instrumentation-undici": "^0.30.0",
+    "@opentelemetry/resources": "^2.9.0",
+    "@opentelemetry/sdk-node": "^0.220.0",
+    "@opentelemetry/sdk-trace-base": "^2.9.0",
+    "@opentelemetry/semantic-conventions": "^1.43.0",
+    "neverthrow": "^8.2.0",
+    "pino": "^10.3.1"
+  },
+  "devDependencies": {
+    "@hazard-pay/config": "workspace:*",
+    "@types/node": "^22.10.0",
+    "eslint": "^9.39.4",
+    "globals": "^16.5.0",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.10"
+  }
+}

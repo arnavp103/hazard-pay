@@ -33,3 +33,6 @@ dist/
 # legacy location still used by the harness's auto-isolation
 .worktrees/
 .claude/worktrees/
+
+# Local telemetry JSONL (see packages/observability; clean with `pnpm telemetry:clean`)
+var/telemetry/

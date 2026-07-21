@@ -1,0 +1,28 @@
+name: hazard-pay
+
+services:
+  postgres:
+    # Single source of truth for the Postgres version across dev, test, and CI
+    # (keep .github/workflows/ci.yml on the same major).
+    # Pinned major; bump deliberately, never implicitly.
+    image: postgres:18
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: hazard_pay
+    ports:
+      # Host port 5433 to avoid colliding with other local Postgres instances;
+      # inside the container Postgres still listens on 5432.
+      - "5433:5432"
+    volumes:
+      # postgres:18+ images keep data in versioned subdirectories under
+      # /var/lib/postgresql — mount the parent, not .../data.
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d hazard_pay"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
+volumes:
+  postgres-data:
