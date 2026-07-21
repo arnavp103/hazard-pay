@@ -60,3 +60,11 @@ helpers (same template database, same migrations) via its own
 `globalSetup`. One test exercises the real `auth.api.signInAnonymous()`
 call end-to-end and asserts the player row it should have triggered exists
 — the strongest proof that the schema and the hook wiring agree.
+
+**Known gap**: `relinkPlayer` is unit-tested directly, and the anonymous
+plugin's `onLinkAccount` option is wired to it in `createAuth`, but no test
+drives the full "anonymous user links to a real account" flow through
+better-auth's own plugin machinery — that requires a real second auth
+method (email/password or OAuth) live, which this package deliberately
+doesn't enable. Whoever turns on the first real auth method should add that
+end-to-end test at the same time.
