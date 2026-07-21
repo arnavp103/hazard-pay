@@ -29,7 +29,9 @@ dist/
 # Ephemeral local scratch space (handoffs, local-only notes)
 .scratch/
 
-# Agent worktrees (see .agents/skills/implement)
+# Agent worktrees (see .agents/skills/implement); .claude/worktrees is the
+# legacy location still used by the harness's auto-isolation
+.worktrees/
 .claude/worktrees/
 
 # Local telemetry JSONL (see packages/observability; clean with `pnpm telemetry:clean`)

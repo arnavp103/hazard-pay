@@ -11,6 +11,7 @@
     "type-check": "tsc --noEmit",
     "lint": "eslint --cache --max-warnings=0 .",
     "lint:fix": "eslint --cache --fix .",
+    "test": "node --import tsx --test src/worktree.test.ts",
     "clean": "rm -rf .eslintcache"
   },
   "dependencies": {
