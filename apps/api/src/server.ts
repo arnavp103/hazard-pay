@@ -14,6 +14,7 @@ import { respond } from "./adapters/respond.ts";
 import { contract } from "./contract/index.ts";
 import type { AppCtx } from "./context.ts";
 import { checkHealth } from "./domain/health.ts";
+import { getLaneTrace, listLanes } from "./domain/lanes.ts";
 import { registerAuthRoutes } from "./routes/auth.ts";
 import { registerTelemetryRoute } from "./routes/telemetry.ts";
 
@@ -58,6 +59,12 @@ const os = implement(contract).$context<RequestCtx>();
  */
 export const router = os.router({
   health: os.health.handler(({ context }) => respond(context.log, checkHealth({ db: context.db }))),
+  lanes: {
+    list: os.lanes.list.handler(({ context }) =>
+      respond(context.log, listLanes({ db: context.db }))),
+    events: os.lanes.events.handler(({ context, input }) =>
+      respond(context.log, getLaneTrace({ db: context.db }, input))),
+  },
 });
 
 export interface BuildServerOptions {

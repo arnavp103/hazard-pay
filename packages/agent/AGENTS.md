@@ -86,4 +86,8 @@ leader config, lane event (always qualified — never bare "event"). No
   runtime imports) — it exists so read surfaces (the api contract, admin's
   trace viewer) can name payload shapes without dragging in drizzle or the
   AI SDK. Keep `envelope.ts` importing nothing but zod.
+- `@hazard-pay/agent/testing` exports the scripted mock model so other
+  packages' integration tests can seed real lane logs through the runtime
+  (apps/api's lane read routes do). Test-only surface — never import it
+  from production code.
 - Intra-package imports carry the `.ts` extension.

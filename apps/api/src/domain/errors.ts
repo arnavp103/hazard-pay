@@ -10,4 +10,9 @@ export interface DbUnreachableError {
   message: string;
 }
 
-export type ApiError = DbUnreachableError;
+export interface LaneNotFoundError {
+  type: "lane_not_found";
+  message: string;
+}
+
+export type ApiError = DbUnreachableError | LaneNotFoundError;

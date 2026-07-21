@@ -90,6 +90,9 @@ importers:
 
   apps/api:
     dependencies:
+      '@hazard-pay/agent':
+        specifier: workspace:*
+        version: link:../../packages/agent
       '@hazard-pay/auth':
         specifier: workspace:*
         version: link:../../packages/auth
