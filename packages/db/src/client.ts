@@ -9,6 +9,16 @@ const fullSchema = { ...agentSchema, ...authSchema, ...schema };
 
 export type Db = NodePgDatabase<typeof fullSchema>;
 
+/** The transaction handle Drizzle passes to `db.transaction` callbacks. */
+export type DbTx = Parameters<Parameters<Db["transaction"]>[0]>[0];
+
+/**
+ * Both the pool-backed `Db` and an open transaction satisfy the query API —
+ * the parameter type for query helpers that run either standalone or inside
+ * a caller's transaction (e.g. a leader tool's open tool transaction).
+ */
+export type DbLike = Db | DbTx;
+
 export interface DbHandle {
   db: Db;
   /** Closes the underlying pool. Call once, at shutdown. */

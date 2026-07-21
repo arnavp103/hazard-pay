@@ -35,6 +35,9 @@ leader config, lane event (always qualified — never bare "event"). No
   (`foldLaneEvents`, pure — no clock, randomness, or env) derives messages,
   open obligations, and quiescence from it. External writers append
   `input` events only; the loop alone writes `model_turn`/`tool_result`.
+  `appendInput` accepts an optional open transaction (`tx`) — the outbox
+  seam (issue #52): a host commits the input atomically with its cause
+  (e.g. the tick write plus the pg-boss doorbell enqueue).
 - **Wake** = guarded claim (`open → waking`, stale claims reclaimable) →
   fold → discharge unresolved obligations → batch pending inputs into model
   turns until quiescence under the leader's `maxTurnsPerWake` → release.
@@ -52,9 +55,16 @@ leader config, lane event (always qualified — never bare "event"). No
   the full config JSON is stored once in `leader_config`, lanes stamp
   `config_hash`. Real leaders belong in `apps/api/src/leaders/`; the
   `hello` leader here is the fixture proving the tool-transaction rule.
-- **Fingerprints**: every `model_turn` records a request fingerprint;
-  `verifyFingerprints` replays the log and recomputes them (dev/CI drift
-  detection). Observability: wakes/turns/tools run inside `withSpan`;
+  Its mutating tool writes `leader_note` — the honest leader game write —
+  never `tick`, which belongs to the api worker's cron writer alone.
+  Hosts get the long-lived lane via `runtime.ensureForegroundLane`
+  (idempotent; a config edit re-stamps the lane's `config_hash` rather
+  than bricking wakes with `ConfigDrift`).
+- **Fingerprints**: every `model_turn` records a request fingerprint plus
+  the `configHash` it ran under (so a restamped foreground lane still
+  verifies across config edits); `verifyFingerprints` replays the log and
+  recomputes them (dev/CI drift detection). Observability: wakes/turns/
+  tools run inside `withSpan`;
   domain events `lane.created`, `lane.woke`, `mission.spawned`,
   `lane.message_sent`, `mission.cancelled` via `emitEvent`.
 

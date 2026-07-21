@@ -1,6 +1,6 @@
 import { createLogger } from "@hazard-pay/observability";
 import { createTestDatabase } from "@hazard-pay/db/testing";
-import { lane, laneEvent, tick } from "@hazard-pay/db";
+import { lane, laneEvent, leaderNote } from "@hazard-pay/db";
 import { ResultAsync, errAsync, okAsync } from "neverthrow";
 import { asc, count, eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, test } from "vitest";
@@ -30,8 +30,8 @@ function makeRuntime(model: LanguageModel, leaders: DefinedLeader[]) {
   return createRuntime({ db: tdb.db, model, logger, leaders });
 }
 
-async function tickCount(): Promise<number> {
-  const [row] = await tdb.db.select({ total: count() }).from(tick);
+async function noteCount(): Promise<number> {
+  const [row] = await tdb.db.select({ total: count() }).from(leaderNote);
   return row?.total ?? 0;
 }
 
@@ -69,10 +69,10 @@ describe("wake", () => {
   });
 
   test("hello leader: tools run in one transaction each, log converges, fingerprints verify", async () => {
-    const before = await tickCount();
+    const before = await noteCount();
     const model = scriptedModel([
       toolCallTurn([{ toolCallId: "c1", toolName: "read_tick_count", input: {} }]),
-      toolCallTurn([{ toolCallId: "c2", toolName: "record_tick", input: {} }]),
+      toolCallTurn([{ toolCallId: "c2", toolName: "record_visit", input: {} }]),
       textTurn("All quiet: 0 ticks so far, visit recorded."),
     ]);
     const runtime = makeRuntime(model, [createHelloLeader()]);
@@ -102,7 +102,7 @@ describe("wake", () => {
     ]);
 
     // The mutating tool committed its game write with its tool_result.
-    expect(await tickCount()).toBe(before + 1);
+    expect(await noteCount()).toBe(before + 1);
 
     const snapshot = (await runtime.foldLane({ laneId }))._unsafeUnwrap();
     expect(snapshot.openObligations).toEqual([]);
@@ -122,19 +122,21 @@ describe("wake", () => {
       maxTurnsPerWake: 4,
       tools: {
         write_then_fail: {
-          description: "writes a tick then fails",
+          description: "writes a note then fails",
           inputSchema: z.object({}),
           execute: (ctx) =>
             ResultAsync.fromPromise(
-              // Placeholder tick_number: a scratch game write, not the real
-              // tick writer.
-              ctx.tx.insert(tick).values({ tickNumber: Date.now() }),
+              ctx.tx.insert(leaderNote).values({
+                laneId: ctx.laneId,
+                leaderName: "rollback",
+                content: "this write must roll back",
+              }),
               () => ({ tag: "insert_failed" }),
             ).andThen(() => errAsync({ tag: "deliberate_failure" })),
         },
       },
     });
-    const before = await tickCount();
+    const before = await noteCount();
     const model = scriptedModel([
       toolCallTurn([{ toolCallId: "c1", toolName: "write_then_fail", input: {} }]),
       textTurn("that failed, moving on"),
@@ -148,7 +150,7 @@ describe("wake", () => {
     expect(report.quiescent).toBe(true);
 
     // The savepoint rolled the write back...
-    expect(await tickCount()).toBe(before);
+    expect(await noteCount()).toBe(before);
 
     // ...but the failure is a recorded lane event the model saw.
     const rows = await tdb.db
@@ -206,5 +208,74 @@ describe("wake", () => {
 
     const [row] = await tdb.db.select().from(lane).where(eq(lane.id, laneId));
     expect(row?.status).toBe("open");
+  });
+});
+
+describe("ensureForegroundLane", () => {
+  test("creates once, returns the same lane after, and a config edit restamps without breaking verification", async () => {
+    const v1 = defineLeader({ name: "boot", system: "v1", maxTurnsPerWake: 2, tools: {} });
+    const runtime = makeRuntime(scriptedModel([textTurn("hello")]), [v1]);
+
+    const first = (await runtime.ensureForegroundLane({ leader: "boot" }))._unsafeUnwrap();
+    expect(first.created).toBe(true);
+    const again = (await runtime.ensureForegroundLane({ leader: "boot" }))._unsafeUnwrap();
+    expect(again).toEqual({ laneId: first.laneId, configHash: v1.configHash, created: false });
+
+    // One model turn under v1: its fingerprint records v1's hash.
+    await runtime.appendInput({ laneId: first.laneId, author: "test", content: "hi" });
+    (await runtime.wake({ laneId: first.laneId }))._unsafeUnwrap();
+
+    // The config changes in git: ensure restamps the lane...
+    const v2 = defineLeader({ name: "boot", system: "v2", maxTurnsPerWake: 2, tools: {} });
+    expect(v2.configHash).not.toBe(v1.configHash);
+    const runtime2 = makeRuntime(scriptedModel([textTurn("hello again")]), [v2]);
+    const restamped = (await runtime2.ensureForegroundLane({ leader: "boot" }))._unsafeUnwrap();
+    expect(restamped.laneId).toBe(first.laneId);
+    expect(restamped.configHash).toBe(v2.configHash);
+
+    // ...wakes proceed under v2 without ConfigDrift...
+    await runtime2.appendInput({ laneId: first.laneId, author: "test", content: "again" });
+    (await runtime2.wake({ laneId: first.laneId }))._unsafeUnwrap();
+
+    // ...and the mixed-config log still verifies end to end: each
+    // model_turn carries the config hash it actually ran under.
+    const verified = (await runtime2.verifyFingerprints({ laneId: first.laneId }))
+      ._unsafeUnwrap();
+    expect(verified.verified).toBe(2);
+  });
+});
+
+describe("appendInput in a caller transaction (the outbox seam)", () => {
+  test("the input commits with the caller's write and vanishes with the caller's rollback", async () => {
+    const idle = defineLeader({ name: "outbox", system: "test", maxTurnsPerWake: 2, tools: {} });
+    const runtime = makeRuntime(scriptedModel([]), [idle]);
+    const { laneId } = (await runtime.ensureForegroundLane({ leader: "outbox" }))
+      ._unsafeUnwrap();
+
+    // Commit path: the append rides the caller's open transaction.
+    await tdb.db.transaction(async (tx) => {
+      (
+        await runtime.appendInput({ laneId, author: "tick", content: "tick 7 completed", tx })
+      )._unsafeUnwrap();
+    });
+
+    // Rollback path: the caller aborts after a successful append; the input
+    // must vanish with the transaction (atomic with its cause, or not at all).
+    await expect(
+      tdb.db.transaction(async (tx) => {
+        (
+          await runtime.appendInput({ laneId, author: "tick", content: "doomed", tx })
+        )._unsafeUnwrap();
+        throw new Error("abort the outbox transaction");
+      }),
+    ).rejects.toThrow("abort the outbox transaction");
+
+    const rows = await tdb.db
+      .select()
+      .from(laneEvent)
+      .where(eq(laneEvent.laneId, laneId))
+      .orderBy(asc(laneEvent.seq));
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.author).toBe("tick");
   });
 });

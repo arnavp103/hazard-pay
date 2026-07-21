@@ -2,6 +2,7 @@ import { tick, type Db } from "@hazard-pay/db";
 import { asc, desc, gt, max, sql } from "drizzle-orm";
 import { ResultAsync } from "neverthrow";
 
+import type { DbLike, DbTx } from "@hazard-pay/db";
 import type { DbUnreachableError } from "../domain/errors.ts";
 import { toDbUnreachable } from "./unreachable.ts";
 
@@ -23,11 +24,20 @@ export const TICK_CHANNEL = "tick_recorded";
  */
 const MAX_TICKS_PER_RUN = 1000;
 
+/**
+ * The outbox hook (ADR 0003 §6, issue #52): runs INSIDE the ticking
+ * transaction, after the rows are inserted, only when at least one tick was
+ * recorded. Whatever it writes — leader lane inputs, pg-boss doorbell jobs —
+ * commits atomically with the tick rows; a throw aborts the whole tick.
+ */
+export type TickOutbox = (tx: DbTx, recorded: TickRow[]) => Promise<void>;
+
 export interface RecordDueTicksArgs {
   now: Date;
   intervalMs: number;
   /** The ticking span's W3C context, stored on each row (ADR 0005 §6). */
   traceparent?: string | undefined;
+  outbox?: TickOutbox | undefined;
 }
 
 /**
@@ -64,6 +74,9 @@ export function recordDueTicks(
       const inserted = await tx.insert(tick).values(values).onConflictDoNothing().returning();
       if (inserted.length > 0) {
         await tx.execute(sql`select pg_notify(${TICK_CHANNEL}, '')`);
+        if (args.outbox !== undefined) {
+          await args.outbox(tx, inserted);
+        }
       }
       return inserted;
     }),
@@ -71,8 +84,11 @@ export function recordDueTicks(
   );
 }
 
-/** The overworld polling read (ADR 0004 §4): the single latest tick. */
-export function latestTick(db: Db): ResultAsync<TickRow | null, DbUnreachableError> {
+/**
+ * The overworld polling read (ADR 0004 §4): the single latest tick.
+ * `DbLike`: leader tools call this with their open tool transaction.
+ */
+export function latestTick(db: DbLike): ResultAsync<TickRow | null, DbUnreachableError> {
   return ResultAsync.fromPromise(
     db.select().from(tick).orderBy(desc(tick.id)).limit(1),
     toDbUnreachable,

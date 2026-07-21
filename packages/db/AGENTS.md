@@ -31,6 +31,11 @@ predicted.
   functions and the fold live there, not here.
 - `leader_config` — full config JSON stored once per content hash; lanes
   stamp `config_hash` for cross-model/cross-prompt trace comparison.
+- `leader_note` (`src/schema.ts` — game state, not runtime machinery) — a
+  short in-world note a leader records; the honest target for leader
+  mutating tools. Leaders never write `tick` (that table belongs to the
+  worker's cron writer alone); a note commits in the same transaction as
+  its `tool_result` lane event and links back via `lane_id`.
 
 ## Dev Postgres
 

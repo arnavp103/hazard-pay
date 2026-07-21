@@ -35,6 +35,11 @@ export function requestFingerprint(args: {
  * fold state just before it, comparing against the recorded one (ADR 0003
  * §5: fingerprints are verified in dev/CI). A mismatch means the fold no
  * longer reproduces what the model actually saw — determinism drift.
+ *
+ * Each turn verifies under the config hash recorded in its own payload,
+ * falling back to the lane's stamped hash for turns recorded before the
+ * per-turn field existed — so a foreground lane restamped across config
+ * edits (issue #52) still verifies end to end.
  */
 export function verifyLaneFingerprints(
   laneId: string,
@@ -50,7 +55,7 @@ export function verifyLaneFingerprints(
         return err({ tag: "EnvelopeInvalid", laneId, seq: row.seq, cause: parsed.error });
       }
       const expected = requestFingerprint({
-        configHash,
+        configHash: parsed.data.configHash ?? configHash,
         provider: parsed.data.model.provider,
         modelId: parsed.data.model.modelId,
         messages: snapshot.messages,

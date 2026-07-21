@@ -15,6 +15,7 @@
     "clean": "rm -rf .eslintcache"
   },
   "dependencies": {
+    "@ai-sdk/google": "^4.0.19",
     "@hazard-pay/agent": "workspace:*",
     "@hazard-pay/auth": "workspace:*",
     "@hazard-pay/db": "workspace:*",
@@ -23,6 +24,7 @@
     "@orpc/contract": "^1.14.8",
     "@orpc/openapi": "^1.14.8",
     "@orpc/server": "^1.14.8",
+    "ai": "^7.0.32",
     "drizzle-orm": "^0.45.2",
     "fastify": "^5.10.0",
     "neverthrow": "^8.2.0",

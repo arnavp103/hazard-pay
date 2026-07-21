@@ -16,12 +16,15 @@ import {
   claimWake,
   closeLane,
   ensureLeaderConfig,
+  findForegroundLane,
   insertLane,
   loadLane,
   loadLaneEvents,
   nextSeq,
   releaseWake,
+  restampLaneConfig,
 } from "./store.ts";
+import type { DbLike } from "./store.ts";
 import type { AgentError } from "./errors.ts";
 import type { JsonValue } from "./envelope.ts";
 import type { LaneSnapshot, Obligation } from "./fold.ts";
@@ -68,14 +71,29 @@ export interface Runtime {
     parentLaneId?: string;
   }) => ResultAsync<{ laneId: string; configHash: string }, AgentError>;
   /**
+   * Idempotent boot-time handle on a leader's single foreground lane
+   * (issue #52): returns the existing lane or creates it. If the leader's
+   * config changed since the lane was stamped, the lane is re-stamped to the
+   * current hash — the foreground lane carries the persona's continuity
+   * across config edits (each `model_turn` records the hash it actually ran
+   * under, so fingerprint verification survives the restamp).
+   */
+  ensureForegroundLane: (args: {
+    leader: string;
+  }) => ResultAsync<{ laneId: string; configHash: string; created: boolean }, AgentError>;
+  /**
    * Append an input lane event — the log doubles as the lane's inbox
    * (ADR 0003 §4): external writers append input-type events only.
+   * Pass `tx` to ride an already-open transaction (the outbox pattern:
+   * the input commits atomically with its cause, e.g. the tick write);
+   * without it the append runs in its own transaction.
    */
   appendInput: (args: {
     laneId: string;
     author: string;
     content: string;
     data?: JsonValue;
+    tx?: DbTx;
   }) => ResultAsync<{ seq: number }, AgentError>;
   /**
    * One activation of a lane (CONTEXT.md: Wake): guarded claim, fold,
@@ -175,31 +193,82 @@ export function createRuntime(options: CreateRuntimeOptions): Runtime {
         return created;
       }));
 
+  const ensureForegroundLane: Runtime["ensureForegroundLane"] = (args) =>
+    resolveLeader(args.leader).andThen((leader) =>
+      inTransaction(db, "ensureForegroundLane", async (tx) => {
+        await unwrapOrRollback(ensureLeaderConfig(tx, { hash: leader.configHash, config: leader.config }));
+        const existing = await unwrapOrRollback(findForegroundLane(tx, leader.name));
+        if (existing !== null) {
+          if (existing.configHash !== leader.configHash) {
+            await unwrapOrRollback(
+              restampLaneConfig(tx, { laneId: existing.id, configHash: leader.configHash }),
+            );
+          }
+          return { laneId: existing.id, configHash: leader.configHash, created: false };
+        }
+        const row = await unwrapOrRollback(
+          insertLane(tx, {
+            kind: "foreground",
+            leaderName: leader.name,
+            configHash: leader.configHash,
+          }),
+        );
+        return { laneId: row.id, configHash: row.configHash, created: true };
+      })
+        // Two hosts booting at once both miss the select and race the insert;
+        // the partial unique index makes the loser's insert a
+        // ForegroundLaneExists — resolve it by reading the winner's lane.
+        .orElse((error) =>
+          error.tag === "ForegroundLaneExists"
+            ? findForegroundLane(db, leader.name).andThen((row) =>
+                row === null
+                  ? errAsync<never, AgentError>(error)
+                  : okAsync({ laneId: row.id, configHash: row.configHash, created: false }))
+            : errAsync<never, AgentError>(error))
+        .map((ensured) => {
+          if (ensured.created) {
+            emitEvent("lane.created", {
+              laneId: ensured.laneId,
+              leader: leader.name,
+              kind: "foreground",
+              configHash: ensured.configHash,
+            });
+          }
+          return ensured;
+        }));
+
+  /**
+   * The append body, over either the pool handle or a caller's open
+   * transaction. Status is checked in the same context as the append so a
+   * concurrent cancel_lane cannot slip an input into a just-closed lane.
+   */
+  const appendInputTo = (
+    dbLike: DbLike,
+    args: { laneId: string; author: string; content: string; data?: JsonValue },
+  ): ResultAsync<{ seq: number }, AgentError> =>
+    loadLane(dbLike, args.laneId).andThen((row) =>
+      row.status === "closed"
+        ? errAsync<{ seq: number }, AgentError>({ tag: "LaneClosed", laneId: args.laneId })
+        : nextSeq(dbLike, args.laneId).andThen((seq) =>
+            appendLaneEvent(dbLike, {
+              laneId: args.laneId,
+              seq,
+              author: args.author,
+              type: "input",
+              payload: {
+                v: ENVELOPE_VERSION,
+                kind: "input",
+                content: args.content,
+                ...(args.data === undefined ? {} : { data: args.data }),
+              },
+            }).map(() => ({ seq }))));
+
   const appendInput: Runtime["appendInput"] = (args) =>
-    inTransaction(db, "appendInput", async (tx) => {
-      // Status is checked inside the transaction so a concurrent
-      // cancel_lane cannot slip an input into a just-closed lane.
-      const row = await unwrapOrRollback(loadLane(tx, args.laneId));
-      if (row.status === "closed") {
-        throw new TxRollback({ tag: "LaneClosed", laneId: args.laneId });
-      }
-      const seq = await unwrapOrRollback(nextSeq(tx, args.laneId));
-      await unwrapOrRollback(
-        appendLaneEvent(tx, {
-          laneId: args.laneId,
-          seq,
-          author: args.author,
-          type: "input",
-          payload: {
-            v: ENVELOPE_VERSION,
-            kind: "input",
-            content: args.content,
-            ...(args.data === undefined ? {} : { data: args.data }),
-          },
-        }),
-      );
-      return { seq };
-    });
+    args.tx !== undefined
+      // Outbox mode: the caller owns the transaction; an err here leaves the
+      // caller to abort (their commit must not outlive a failed append).
+      ? appendInputTo(args.tx, args)
+      : inTransaction(db, "appendInput", (tx) => unwrapOrRollback(appendInputTo(tx, args)));
 
   /**
    * Discharges one obligation: executes the tool and commits its effects
@@ -464,6 +533,7 @@ export function createRuntime(options: CreateRuntimeOptions): Runtime {
                           v: ENVELOPE_VERSION,
                           kind: "model_turn",
                           fingerprint,
+                          configHash: leader.configHash,
                           model: identity,
                           content: turn.parts,
                           finishReason: turn.finishReason,
@@ -507,5 +577,5 @@ export function createRuntime(options: CreateRuntimeOptions): Runtime {
       loadLaneEvents(db, args.laneId).andThen((rows) =>
         verifyLaneFingerprints(args.laneId, row.configHash, rows)));
 
-  return { createLane, appendInput, wake, foldLane, verifyFingerprints };
+  return { createLane, ensureForegroundLane, appendInput, wake, foldLane, verifyFingerprints };
 }
