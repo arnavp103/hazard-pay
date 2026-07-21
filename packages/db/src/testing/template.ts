@@ -23,8 +23,12 @@ export function withDatabase(url: string, database: string): string {
   return parsed.toString();
 }
 
-/** Connects to the maintenance database (whatever DATABASE_URL points at). */
-export async function connectMaintenance(): Promise<pg.Client> {
+/**
+ * Runs `fn` against a maintenance-database session (whatever DATABASE_URL
+ * points at), then releases any advisory locks and closes the connection —
+ * the shared shape of every template/clone DDL operation in this module.
+ */
+export async function withMaintenanceClient<T>(fn: (client: pg.Client) => Promise<T>): Promise<T> {
   const client = new pg.Client({ connectionString: env.DATABASE_URL });
   try {
     await client.connect();
@@ -35,7 +39,12 @@ export async function connectMaintenance(): Promise<pg.Client> {
       { cause: error },
     );
   }
-  return client;
+  try {
+    return await fn(client);
+  } finally {
+    await client.query("select pg_advisory_unlock_all()").catch(() => undefined);
+    await client.end();
+  }
 }
 
 async function migrationsHash(): Promise<string> {
@@ -57,8 +66,7 @@ async function migrationsHash(): Promise<string> {
  * untouched, so repeat test runs skip migration entirely.
  */
 export async function ensureTemplateDatabase(): Promise<void> {
-  const client = await connectMaintenance();
-  try {
+  await withMaintenanceClient(async (client) => {
     const hash = await migrationsHash();
     await client.query("select pg_advisory_lock($1)", [ADVISORY_LOCK_KEY]);
     const existing = await client.query<{ comment: string | null }>(
@@ -77,8 +85,5 @@ export async function ensureTemplateDatabase(): Promise<void> {
       await template.close();
     }
     await client.query(`comment on database "${TEMPLATE_DB}" is '${hash}'`);
-  } finally {
-    await client.query("select pg_advisory_unlock_all()").catch(() => undefined);
-    await client.end();
-  }
+  });
 }
