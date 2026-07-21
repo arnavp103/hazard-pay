@@ -22,15 +22,20 @@ interface TestServer {
   close: () => Promise<void>;
 }
 
-async function startTestServer(): Promise<TestServer> {
-  const testDb = await createTestDatabase();
+async function startTestServer(
+  options: { dbHandle?: ReturnType<typeof createDb> } = {},
+): Promise<TestServer> {
+  // Default: a template-cloned throwaway database. `dbHandle` overrides it
+  // for tests that need a broken pool.
+  const source = options.dbHandle ?? (await createTestDatabase());
+  const db = source.db;
   const telemetryDir = mkdtempSync(join(tmpdir(), "hazard-pay-api-test-"));
   const logger = createLogger("api-test", {
     level: "silent",
     telemetryDir,
     mirrorToStdout: false,
   });
-  const app = await buildServer({ db: testDb.db, logger, env }, { telemetryDir });
+  const app = await buildServer({ db, logger, env }, { telemetryDir });
   await app.listen({ port: 0, host: "127.0.0.1" });
   const address = app.server.address();
   if (address === null || typeof address === "string") {
@@ -39,10 +44,14 @@ async function startTestServer(): Promise<TestServer> {
   return {
     baseUrl: `http://127.0.0.1:${address.port}`,
     telemetryDir,
-    db: testDb.db,
+    db,
     close: async () => {
       await app.close();
-      await testDb.drop();
+      if ("drop" in source) {
+        await source.drop();
+      } else {
+        await source.close();
+      }
       rmSync(telemetryDir, { recursive: true, force: true });
     },
   };
@@ -60,28 +69,19 @@ test("GET /health proves a real db round-trip through the contract handler", asy
 });
 
 test("GET /health maps db_unreachable to 503 via the respond table", async () => {
-  const telemetryDir = mkdtempSync(join(tmpdir(), "hazard-pay-api-test-"));
-  const logger = createLogger("api-test", {
-    level: "silent",
-    telemetryDir,
-    mirrorToStdout: false,
-  });
+  // A deliberately unreachable connection string — the one place the "always
+  // read DATABASE_URL" rule (packages/db AGENTS.md) does not apply, because
+  // the point is a database that is NOT there: port 9 (discard) refuses
+  // connections immediately on any host.
   const dead = createDb("postgres://postgres:postgres@127.0.0.1:9/nowhere");
-  const app = await buildServer({ db: dead.db, logger, env }, { telemetryDir });
+  const server = await startTestServer({ dbHandle: dead });
   try {
-    await app.listen({ port: 0, host: "127.0.0.1" });
-    const address = app.server.address();
-    if (address === null || typeof address === "string") {
-      throw new Error("server did not bind a port");
-    }
-    const response = await fetch(`http://127.0.0.1:${address.port}/health`);
+    const response = await fetch(`${server.baseUrl}/health`);
     expect(response.status).toBe(503);
     const body = (await response.json()) as { code: string };
     expect(body.code).toBe("SERVICE_UNAVAILABLE");
   } finally {
-    await app.close();
-    await dead.close();
-    rmSync(telemetryDir, { recursive: true, force: true });
+    await server.close();
   }
 });
 

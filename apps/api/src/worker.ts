@@ -1,4 +1,3 @@
-import type { Logger } from "@hazard-pay/observability";
 import { okAsync, type ResultAsync } from "neverthrow";
 
 import { jobHandler } from "./adapters/job-handler.ts";
@@ -19,12 +18,13 @@ import type { ApiError } from "./domain/errors.ts";
 export const HEARTBEAT_QUEUE = "worker.heartbeat";
 
 /**
- * A real (if trivial) domain job function: the queue registration below is
- * the live demonstration of the `jobHandler` adapter shape every future job
- * follows.
+ * A real (if trivial) domain job function in the house shape — `fn(ctx)`
+ * with a narrowed ctx (ADR 0002 §5): the registration below is the live
+ * demonstration of the `jobHandler` adapter every future job follows.
+ * `ctx.logger` is the per-job child the adapter derived.
  */
-export function heartbeat(log: Logger): ResultAsync<void, ApiError> {
-  log.info("worker heartbeat");
+export function heartbeat(ctx: Pick<AppCtx, "logger">): ResultAsync<void, ApiError> {
+  ctx.logger.info("worker heartbeat");
   return okAsync(undefined);
 }
 
@@ -32,7 +32,10 @@ export async function startWorker(ctx: Pick<AppCtx, "boss" | "logger">): Promise
   ctx.boss.on("error", (error: Error) => ctx.logger.error({ err: error }, "pg-boss error"));
   await ctx.boss.start();
   await ctx.boss.createQueue(HEARTBEAT_QUEUE);
-  await ctx.boss.work(HEARTBEAT_QUEUE, jobHandler(ctx.logger, (log) => heartbeat(log)));
+  await ctx.boss.work(
+    HEARTBEAT_QUEUE,
+    jobHandler({ logger: ctx.logger }, (jobCtx) => heartbeat(jobCtx)),
+  );
   ctx.logger.info("worker started");
 }
 

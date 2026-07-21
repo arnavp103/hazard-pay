@@ -88,7 +88,10 @@ export async function buildServer(
   // 500 — mapped statuses only ever come from the `respond` table.
   app.setErrorHandler((error: FastifyError, request, reply) => {
     if (error.statusCode !== undefined && error.statusCode < 500) {
-      // Fastify's own client-facing errors (404 handler, body parse, etc.).
+      // Framework-origin client errors (body-parse failures, oversized
+      // payloads): Fastify raises these before any handler runs, so they are
+      // never a domain result sneaking past the `respond` table — pass them
+      // through with their own status.
       return reply.send(error);
     }
     request.log.error({ err: error }, "unhandled defect");
