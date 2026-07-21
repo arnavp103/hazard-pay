@@ -1,8 +1,12 @@
 ---
 name: implement
 description: "Implement a piece of work based on a spec or set of tickets."
-disable-model-invocation: true
 ---
+
+<!-- Deliberately model-invocable: implementation agents load this themselves.
+     If skill invocation is unavailable in your context, read this file directly
+     at .agents/skills/implement/SKILL.md (the .claude/skills path is read-denied
+     to agents). -->
 
 Implement the work described by the user in the spec or tickets. All implementation
 work happens in a dedicated git worktree and lands as a pull request — never commit
