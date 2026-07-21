@@ -10,14 +10,22 @@ import type { ApiError } from "./errors.ts";
  * The dev-login player surface's functional core (#50). Both procedures
  * start the same way — resolve the request's better-auth session to a user
  * id — then read or write that user's 1:1 player row. `auth.api.getSession`
- * itself never throws on a missing session (it resolves `null`); nothing
- * here needs a try/catch.
+ * resolves `null` on a missing session, but it still queries the db to
+ * validate a present session token, so a rejection here is a real failure
+ * mode (the db being unreachable) and is mapped through the same
+ * `db_unreachable` tag every other domain function uses, rather than
+ * bypassing the `respond` table via an assumed-safe promise.
  */
 export function requireSessionUserId(
-  auth: Auth,
-  headers: Headers,
+  ctx: { auth: Auth; headers: Headers },
 ): ResultAsync<string, ApiError> {
-  return ResultAsync.fromSafePromise(auth.api.getSession({ headers })).andThen((session) =>
+  return ResultAsync.fromPromise(
+    ctx.auth.api.getSession({ headers: ctx.headers }),
+    (cause): ApiError => ({
+      type: "db_unreachable",
+      message: cause instanceof Error ? cause.message : String(cause),
+    }),
+  ).andThen((session) =>
     session === null
       ? errAsync({ type: "unauthenticated" as const, message: "no active session" })
       : okAsync(session.user.id));

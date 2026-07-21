@@ -80,13 +80,13 @@ export const router = os.router({
   playerMe: os.playerMe.handler(({ context }) =>
     respond(
       context.log,
-      requireSessionUserId(context.auth, context.headers).andThen((userId) =>
+      requireSessionUserId(context).andThen((userId) =>
         getCurrentPlayer(context, userId)),
     )),
   renamePlayer: os.renamePlayer.handler(({ context, input }) =>
     respond(
       context.log,
-      requireSessionUserId(context.auth, context.headers).andThen((userId) =>
+      requireSessionUserId(context).andThen((userId) =>
         renamePlayerHandle(context, userId, input.handle)),
     )),
 });

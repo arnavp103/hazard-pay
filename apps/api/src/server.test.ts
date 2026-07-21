@@ -264,8 +264,11 @@ test("POST /player/rename rejects a handle outside the length/charset constraint
       body: JSON.stringify({ handle: "a!" }),
     });
 
-    expect(response.status).toBeGreaterThanOrEqual(400);
-    expect(response.status).toBeLessThan(500);
+    // oRPC's own input-schema validation rejects this before the handler
+    // (and therefore the respond table) ever runs.
+    expect(response.status).toBe(400);
+    const body = (await response.json()) as { code: string };
+    expect(body.code).toBe("BAD_REQUEST");
   } finally {
     await server.close();
   }
