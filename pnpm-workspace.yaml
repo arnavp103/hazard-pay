@@ -18,6 +18,11 @@ allowBuilds:
 
 # Auto-appended by pnpm when apps/webapp pinned a react-query release
 # younger than the configured minimum age; exact-version exceptions only.
+# The ai/@ai-sdk entries were auto-appended the same way when
+# packages/agent adopted the current AI SDK major (#23).
 minimumReleaseAgeExclude:
   - '@tanstack/query-core@5.101.3'
   - '@tanstack/react-query@5.101.3'
+  - '@ai-sdk/gateway@4.0.24'
+  - '@ai-sdk/google@4.0.19'
+  - ai@7.0.32

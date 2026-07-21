@@ -10,10 +10,13 @@ grep/jq/DuckDB queries — lives in this package's `README.md`. Read it first.
   `/browser`); pino and `@opentelemetry/*` appear in this package.json and
   nowhere else. SDK churn stays inside this package.
 - **Surface is fixed**: `initObservability` (from `/init`), `createLogger`,
-  `withSpan`, `emitEvent`; the `/browser` entry adds `currentTraceparent`
-  (ADR 0005 §6 — the header rides fetch and the match-transport envelope).
-  Growing it further is a design decision — take it to a ticket, not a PR
-  comment. `reset*ForTests` exports are test seams, not surface.
+  `withSpan`, `emitEvent`, and `ingestTelemetryLines` (the server side of
+  the browser ingest contract, added for the api's dev-only `POST
+  /telemetry` route — #15/#28); the `/browser` entry adds
+  `currentTraceparent` (ADR 0005 §6 — the header rides fetch and the
+  match-transport envelope). Growing it further is a design decision — take
+  it to a ticket, not a PR comment. `reset*ForTests` exports are test
+  seams, not surface.
 - **`createLogger` is the only pino constructor in the repo** (ADR 0002).
   Apps call it once at boot; request/job adapters derive `.child(...)`
   loggers. Never construct a second root.
