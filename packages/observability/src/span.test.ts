@@ -7,7 +7,7 @@ import {
 import { errAsync, okAsync } from "neverthrow";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
-import { withSpan } from "./span.ts";
+import { traceparentOf, withSpan } from "./span.ts";
 
 // An in-memory tracer provider — real spans, no NodeSDK, no bootstrap, no
 // auto-instrumentation. Tests never load the OTel bootstrap (ADR 0005 §6).
@@ -69,5 +69,31 @@ describe("withSpan", () => {
     );
     const [span] = exporter.getFinishedSpans();
     expect(span?.attributes).toMatchObject({ matchId: "m1", phase: 3 });
+  });
+});
+
+describe("traceparentOf", () => {
+  it("formats the active span's context as a W3C traceparent", async () => {
+    let header: string | undefined;
+    await withSpan("resolve-phase", (span) => {
+      header = traceparentOf(span);
+      return okAsync(null);
+    });
+    const [span] = exporter.getFinishedSpans();
+    expect(header).toBe(`00-${span?.spanContext().traceId}-${span?.spanContext().spanId}-01`);
+  });
+
+  it("returns undefined for a no-op tracer's invalid span context", async () => {
+    trace.disable();
+    try {
+      let header: string | undefined = "sentinel";
+      await withSpan("resolve-phase", (span) => {
+        header = traceparentOf(span);
+        return okAsync(null);
+      });
+      expect(header).toBeUndefined();
+    } finally {
+      trace.setGlobalTracerProvider(provider);
+    }
   });
 });

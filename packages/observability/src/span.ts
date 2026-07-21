@@ -1,4 +1,4 @@
-import { SpanStatusCode, trace } from "@opentelemetry/api";
+import { isSpanContextValid, SpanStatusCode, trace } from "@opentelemetry/api";
 import type { Attributes, Span } from "@opentelemetry/api";
 import { ResultAsync } from "neverthrow";
 
@@ -15,6 +15,23 @@ const TRACER_NAME = "@hazard-pay/observability";
  * Without the OTel SDK initialized (tests, scripts) the tracer is a no-op and
  * `withSpan` is pure pass-through — tests never load the bootstrap.
  */
+/**
+ * The W3C `traceparent` for a span, for propagation beyond process
+ * boundaries the SDK cannot cross by itself — fetch headers and the
+ * match-transport message envelope (ADR 0005 §6). Returns `undefined` when
+ * the span context is invalid (no-op tracer: tests, un-bootstrapped
+ * scripts), so callers can store "no trace" honestly instead of a
+ * zero-filled header.
+ */
+export function traceparentOf(span: Span): string | undefined {
+  const context = span.spanContext();
+  if (!isSpanContextValid(context)) {
+    return undefined;
+  }
+  const flags = context.traceFlags.toString(16).padStart(2, "0");
+  return `00-${context.traceId}-${context.spanId}-${flags}`;
+}
+
 export function withSpan<T, E>(
   name: string,
   fn: (span: Span) => ResultAsync<T, E>,
