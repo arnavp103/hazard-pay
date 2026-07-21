@@ -182,6 +182,21 @@ Environment facts agents keep rediscovering; brief them or fix them:
 - `hazard-pay worktree clean` removes trees but not dev servers started from
   them — orphaned processes squat ports (Ladle :61000) and confuse the next
   session; kill by port when a capture probe 404s unexpectedly.
+- A rate-limit kill mid-flight is fully recoverable: resume the agent via its
+  transcript with a "this was a limit, not a problem — re-verify worktree
+  state and continue" message. Push-early discipline is what makes this cheap.
+- Interruptions reset agents' file-state tracking AND their path habits: one
+  resumed agent wrote a batch of files into the MAIN checkout via
+  wrong-but-valid absolute paths. Brief resumed agents to re-Read before
+  editing, and the director should run `git status --short` on the main
+  checkout after any agent resumption — wrong-tree writes surface there
+  immediately.
+- Shared-literal registries (contract index, error tables, router import
+  blocks) conflict on every concurrent PR pair — but stay mechanical
+  "keep both rows" merges when the repo's add-an-endpoint pattern is
+  followed. If friction recurs, consider a self-registration ADR.
+- Under high parallel test-db load, Postgres teardown can flake a CI run
+  (`57P01` after all assertions passed) — rerun once before diagnosing.
 - A bare `#N` in commit body prose makes commitlint emit **misleading** footer
   errors (`footer-leading-blank`, phantom blank lines) — the fix is always
   "move the ref to the trailing `Refs:` footer", whatever the error says.
