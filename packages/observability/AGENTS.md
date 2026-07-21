@@ -35,11 +35,13 @@ grep/jq/DuckDB queries — lives in this package's `README.md`. Read it first.
 
 ## Layout
 
-- `src/index.ts` — Node facade exports
+- `src/index.ts` — Node facade exports (everything but the bootstrap)
+- `src/init.ts` — NodeSDK bootstrap, exported as `/init` only: the root entry
+  imports pino, and modules loaded before the ESM hook registers escape
+  instrumentation — bootstrap files must import `/init`
 - `src/browser/index.ts` — browser facade (buffered flush to `POST /telemetry`)
 - `src/redact.ts` — the shared redaction chokepoint
 - `src/logger.ts` / `src/events.ts` / `src/span.ts` — the three Node verbs
-- `src/init.ts` — NodeSDK bootstrap (dynamic imports; heavy deps load here only)
 - `src/otel/jsonl-span-exporter.ts` — flattened-JSONL SpanExporter
 - `src/paths.ts` — repo-root discovery + `var/telemetry/` layout
 

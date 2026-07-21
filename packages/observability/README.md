@@ -9,7 +9,7 @@ JSONL under `var/telemetry/` at the repo root.
 
 | Verb | What it does |
 | --- | --- |
-| `initObservability(service)` | OTel NodeSDK bootstrap for `node --import`. Curated instrumentations: fastify, http, undici, pg, pino. Returns `{ shutdown }`. |
+| `initObservability(service)` | OTel NodeSDK bootstrap for `node --import`, imported from **`@hazard-pay/observability/init`**. Curated instrumentations: fastify, http, undici, pg, pino. Returns `{ shutdown }`. |
 | `createLogger(service)` | The only pino constructor in the repo. Redacting JSONL to `var/telemetry/<service>.jsonl`; level from `LOG_LEVEL` (`@hazard-pay/env`). First call registers the root logger. |
 | `withSpan(name, fn, attrs?)` | Runs `fn(span)` in an active span. Neverthrow-aware: an `err()` marks span status ERROR without a throw; a throw is a defect — recorded and rethrown. |
 | `emitEvent(name, attrs?)` | A domain event: past-tense domain fact (`"match.completed"`), written as a log line with an `event` field and trace ids. Future product-analytics subscription point. |
@@ -17,8 +17,11 @@ JSONL under `var/telemetry/` at the repo root.
 ### Node bootstrap
 
 ```ts
-// apps/api/src/telemetry.ts — the only file that starts the SDK
-import { initObservability } from "@hazard-pay/observability";
+// apps/api/src/telemetry.ts — the only file that starts the SDK.
+// NOTE: import from /init, not the package root — the root entry loads pino,
+// and anything imported before the ESM loader hook registers escapes
+// instrumentation.
+import { initObservability } from "@hazard-pay/observability/init";
 
 await initObservability("api");
 ```
@@ -27,9 +30,11 @@ await initObservability("api");
 node --import ./src/telemetry.ts src/index.ts   # tsx accepts the same flag
 ```
 
-Boot order matters: the bootstrap must load before the app's module graph so
-auto-instrumentation can patch `pg`, `http`, `undici`, `pino`, and fastify on
-first import. Fastify then consumes the root logger (ADR 0002):
+Boot order matters: the bootstrap must finish before the app's module graph
+loads so auto-instrumentation can patch `pg`, `http`, `undici`, `pino`, and
+fastify on first import (`initObservability` registers OTel's
+import-in-the-middle ESM loader hook itself — apps never touch it). Fastify
+then consumes the root logger (ADR 0002):
 
 ```ts
 import { createLogger } from "@hazard-pay/observability";

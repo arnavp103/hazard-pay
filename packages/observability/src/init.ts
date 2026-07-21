@@ -25,6 +25,14 @@ export async function initObservability(
   service: string,
   options: InitObservabilityOptions = {},
 ): Promise<ObservabilityHandle> {
+  // The repo runs ESM (tsx, no build step), where require-in-the-middle never
+  // sees module loads — instrumentations that monkey-patch (pino, pg, http)
+  // need OTel's import-in-the-middle loader hook registered before the app's
+  // module graph loads. Registering here, from inside the `node --import`
+  // bootstrap, spares every app from knowing the hook exists.
+  const { register } = await import("node:module");
+  register("@opentelemetry/instrumentation/hook.mjs", import.meta.url);
+
   const [
     { NodeSDK },
     { resourceFromAttributes },
