@@ -38,10 +38,9 @@ against.
 placeholder lanes and leaders through a real `useQuery` (canned data, same
 pattern as webapp's overworld screen — see its AGENTS.md), clearly labeled
 as canned, plus an inert "Open lane trace" button pointing at #24. **Do not
-wire that button up or build a trace view here** — the session-log/lane-
-trace viewer is scoped to #24 and depends on the agent event store shape,
-which doesn't exist yet. This scaffold's job is the shell and the seam,
-nothing more.
+wire that button up or build a trace view here** — the lane-trace viewer
+is scoped to #24 and depends on the agent event store shape, which doesn't
+exist yet. This scaffold's job is the shell and the seam, nothing more.
 
 ## Query conventions
 

@@ -8,7 +8,6 @@ import {
   Panel,
   StatReadout,
   StatusChip,
-  TraceChip,
 } from "@hazard-pay/ui";
 
 export const Route = createFileRoute("/")({
@@ -132,29 +131,20 @@ function AdminScreen() {
             </ListRowGroup>
           </Panel>
 
-          <div className="flex flex-col gap-7">
-            <Panel title="Uplink" meta="placeholder">
-              <div className="flex flex-col gap-2">
-                <TraceChip seq="0141" kind="tool_result" summary="scout_district → 2 patrols, heat +4" />
-                <p className="font-data text-[10px] leading-relaxed text-ink-dim uppercase">
-                  canned snapshot — real lane/leader data lands with apps/api
-                </p>
-              </div>
-            </Panel>
-
-            <Panel title="Lane trace" meta="#24" tone="magenta">
-              <div className="flex flex-col gap-3">
-                <p className="font-data text-[10px] leading-relaxed text-ink-dim uppercase">
-                  the full lane-event log viewer is a later ticket (#24), once
-                  the agent event store shape exists. this scaffold only
-                  leaves the seam — the button below is inert on purpose.
-                </p>
-                <Button variant="ghost" size="sm" disabled title="Lands with #24">
-                  Open lane trace
-                </Button>
-              </div>
-            </Panel>
-          </div>
+          <Panel title="Lane trace" meta="#24" tone="magenta">
+            <div className="flex flex-col gap-3">
+              <p className="font-data text-[10px] leading-relaxed text-ink-dim uppercase">
+                canned snapshot above — real lane/leader data lands with
+                apps/api. the full lane-event log viewer is a later ticket
+                (#24), once the agent event store shape exists. this
+                scaffold only leaves the seam — the button below is inert
+                on purpose.
+              </p>
+              <Button variant="ghost" size="sm" disabled title="Lands with #24">
+                Open lane trace
+              </Button>
+            </div>
+          </Panel>
         </div>
       </div>
     </main>
