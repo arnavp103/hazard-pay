@@ -96,6 +96,10 @@ export async function setupLeaders(
  */
 export function leaderTickOutbox(deps: { boss: PgBoss; wiring: LeaderWiring }): TickOutbox {
   return async (tx, recorded) => {
+    // A backfill batch collapses to its latest tick deliberately: state
+    // being current is what matters (ADR 0004 §4 — older missed ticks are
+    // skipped, not replayed), and one input per doorbell is the free-tier
+    // discipline. The input's payload names the tick it reports.
     const latest = recorded.at(-1);
     if (latest === undefined) {
       return;

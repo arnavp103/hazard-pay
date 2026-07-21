@@ -1,7 +1,7 @@
 import { leaderNote } from "@hazard-pay/db";
-import { ResultAsync } from "neverthrow";
+import { errAsync, okAsync, ResultAsync } from "neverthrow";
 
-import type { DbLike } from "@hazard-pay/agent";
+import type { DbLike } from "@hazard-pay/db";
 import type { DbUnreachableError } from "../domain/errors.ts";
 import { toDbUnreachable } from "./unreachable.ts";
 
@@ -19,5 +19,13 @@ export function insertLeaderNote(
   return ResultAsync.fromPromise(
     db.insert(leaderNote).values(args).returning({ id: leaderNote.id }),
     toDbUnreachable,
-  ).map(([row]) => ({ id: row?.id ?? 0 }));
+  ).andThen(([row]) =>
+    // `returning()` yielding no row is driver-level impossibility — surface
+    // it, never fabricate an id the model would then be told about.
+    row === undefined
+      ? errAsync<{ id: number }, DbUnreachableError>({
+          type: "db_unreachable",
+          message: "leader_note insert returned no row",
+        })
+      : okAsync({ id: row.id }));
 }

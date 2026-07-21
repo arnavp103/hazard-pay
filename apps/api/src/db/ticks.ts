@@ -2,7 +2,7 @@ import { tick, type Db } from "@hazard-pay/db";
 import { asc, desc, gt, max, sql } from "drizzle-orm";
 import { ResultAsync } from "neverthrow";
 
-import type { DbLike, DbTx } from "@hazard-pay/agent";
+import type { DbLike, DbTx } from "@hazard-pay/db";
 import type { DbUnreachableError } from "../domain/errors.ts";
 import { toDbUnreachable } from "./unreachable.ts";
 

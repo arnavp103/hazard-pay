@@ -17,6 +17,7 @@ import {
   wireLeaderRuntime,
 } from "./wiring.ts";
 import type { TickRow } from "../db/index.ts";
+import type { LeaderWiring } from "./wiring.ts";
 
 /**
  * Honest integration tests for the leader wiring (issue #52): a
@@ -26,6 +27,15 @@ import type { TickRow } from "../db/index.ts";
  */
 
 const logger = createLogger("api-test", { level: "silent", mirrorToStdout: false });
+
+/** Mags' ensured foreground lane; wiring without it is a test defect. */
+function magsLaneId(wiring: LeaderWiring): string {
+  const laneId = wiring.foregroundLanes.get(MAGS);
+  if (laneId === undefined) {
+    throw new Error("mags foreground lane missing from wiring");
+  }
+  return laneId;
+}
 
 test("keyless boot degrades gracefully: no runtime, no lanes, ticks unaffected", async () => {
   const testDb = await createTestDatabase();
@@ -135,7 +145,7 @@ test("a failing outbox aborts the whole tick: no tick row, no lane input", async
   const testDb = await createTestDatabase();
   try {
     const wiring = await wireLeaderRuntime({ db: testDb.db, logger }, scriptedModel([]));
-    const laneId = wiring.foregroundLanes.get(MAGS) ?? "";
+    const laneId = magsLaneId(wiring);
 
     const ticked = await runTick({
       db: testDb.db,
@@ -168,7 +178,7 @@ test("a doorbell wakes mags: tools run, the dispatch note lands, the log converg
       textTurn("Board's updated. Move along."),
     ]);
     const wiring = await wireLeaderRuntime({ db: testDb.db, logger }, model);
-    const laneId = wiring.foregroundLanes.get(MAGS) ?? "";
+    const laneId = magsLaneId(wiring);
 
     (await runTick({ db: testDb.db, env, logger }))._unsafeUnwrap();
     (
@@ -208,7 +218,7 @@ test("a doorbell for a lane already waking is a benign skip, not a failure", asy
   try {
     const model = scriptedModel([]);
     const wiring = await wireLeaderRuntime({ db: testDb.db, logger }, model);
-    const laneId = wiring.foregroundLanes.get(MAGS) ?? "";
+    const laneId = magsLaneId(wiring);
     (
       await wiring.runtime.appendInput({ laneId, author: "tick", content: "pending" })
     )._unsafeUnwrap();
