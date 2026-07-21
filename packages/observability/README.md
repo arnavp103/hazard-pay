@@ -13,6 +13,7 @@ JSONL under `var/telemetry/` at the repo root.
 | `createLogger(service)` | The only pino constructor in the repo. Redacting JSONL to `var/telemetry/<service>.jsonl`; level from `LOG_LEVEL` (`@hazard-pay/env`). First call registers the root logger. |
 | `withSpan(name, fn, attrs?)` | Runs `fn(span)` in an active span. Neverthrow-aware: an `err()` marks span status ERROR without a throw; a throw is a defect — recorded and rethrown. |
 | `emitEvent(name, attrs?)` | A domain event: past-tense domain fact (`"match.completed"`), written as a log line with an `event` field and trace ids. Future product-analytics subscription point. |
+| `ingestTelemetryLines(service, lines, opts?)` | Server side of the browser ingest contract below, for the api's dev-only `POST /telemetry` route: re-redacts every line (client buffers are untrusted), routes by the `signal` discriminator (then strips it), stamps `service`, and appends to the per-service files. |
 
 ### Node bootstrap
 
