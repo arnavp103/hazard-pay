@@ -78,6 +78,15 @@ stamps span-accurate `trace_id`/`span_id` on every line.
 
 ## Routes outside the contract
 
+- `GET /ticks/stream` (`src/routes/tick-stream.ts`) — the match-tier SSE
+  transport, hello-world edition (ADR 0004 §2, §5). Frames are re-queries of
+  the tick table after the connection's cursor; the shared LISTEN connection
+  (`src/db/listen.ts`, one per server process, owned by `buildServer`) and a
+  60s safety re-poll decide when to look; `Last-Event-ID` resumes. The
+  `data:` envelope is `tickStreamEnvelopeSchema` from the contract — tick
+  snapshot plus the ticking span's `traceparent` (ADR 0005 §6). Swapping to
+  WebSocket later replaces this module and the webapp's `useTickStream`
+  hook, nothing else.
 - `POST /telemetry` (`src/routes/telemetry.ts`) — dev-only browser-telemetry
   ingest (ADR 0005 §6): `{ service, lines }`, `signal: "log" | "span"` per
   line. Not registered when `NODE_ENV === "production"` (the browser client
@@ -91,12 +100,22 @@ stamps span-accurate `trace_id`/`span_id` on every line.
   appears via the package's database hooks. Keep auth out of the oRPC
   contract — better-auth owns its route surface and client.
 
+## The tick (ADR 0004 §4)
+
+`worker.ts` schedules a pg-boss cron on the `tick` queue from
+`TICK_INTERVAL` (packages/env, 5m default) plus one eager catch-up send at
+boot. The writer (`src/db/ticks.ts`) backfills every due tick number in ONE
+transaction — idempotent on `tick_number`, so re-fires are no-ops — and the
+transaction's `NOTIFY tick_recorded` (payload-less, delivered post-commit)
+nudges the stream. Traced as `tick.run`, emits `tick.completed`. Cron is
+only the metronome: cadence correctness lives in the backfill arithmetic,
+never in cron resolution.
+
 ## What lands where next (don't repaint these seams)
 
-- SSE match stream + shared LISTEN nudge (ADR 0004 §2, §5): a route module
-  beside `routes/`, wiring in `buildServer`; intents stay contract routes.
-- Overworld tick cron (#20, ADR 0004 §4) and match-phase delayed singletons:
-  `worker.ts` registrations using `jobHandler`.
+- Match-phase delayed singletons (ADR 0004 §3): `worker.ts` registrations
+  using `jobHandler`; match events fan out through the same
+  LISTEN/SSE/table-cursor machinery the tick stream demonstrates.
 - Worker isolation: new entrypoint calling `startWorker` only.
 
 ## Tests
