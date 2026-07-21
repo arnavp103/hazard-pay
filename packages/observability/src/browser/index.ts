@@ -128,6 +128,7 @@ export function createLogger(scope?: string): BrowserLogger {
     const attrs = typeof attrsOrMsg === "string" ? {} : attrsOrMsg;
     const message = typeof attrsOrMsg === "string" ? attrsOrMsg : msg ?? "";
     if (state?.consoleMirror ?? isLocalhost()) {
+      // eslint-disable-next-line no-console -- console mirroring in dev is the feature (ADR 0005 §6)
       console[CONSOLE_METHODS[level]](`[${scope ?? "webapp"}] ${message}`, attrs);
     }
     push({
