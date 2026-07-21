@@ -1,5 +1,6 @@
 import { type Auth, createAuth } from "@hazard-pay/auth";
 
+import { toFetchHeaders } from "../adapters/fetch-headers.ts";
 import type { AppCtx } from "../context.ts";
 import type { ApiServer } from "../server.ts";
 
@@ -45,19 +46,9 @@ function toFetchRequest(
   request: { url: string; method: string; headers: Record<string, string | string[] | undefined>; body: unknown },
   baseURL: string,
 ): Request {
-  const headers = new Headers();
-  for (const [key, value] of Object.entries(request.headers)) {
-    if (typeof value === "string") {
-      headers.append(key, value);
-    } else if (Array.isArray(value)) {
-      for (const entry of value) {
-        headers.append(key, entry);
-      }
-    }
-  }
   return new Request(new URL(request.url, baseURL), {
     method: request.method,
-    headers,
+    headers: toFetchHeaders(request.headers),
     body: request.body === undefined || request.body === null
       ? undefined
       : JSON.stringify(request.body),

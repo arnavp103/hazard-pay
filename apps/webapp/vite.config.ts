@@ -11,7 +11,7 @@ import { defineConfig } from "vite";
 // 3000. These prefixes are the api's whole public surface; a new api route
 // group means a new entry here.
 const API_DEV_PROXY = Object.fromEntries(
-  ["/api", "/health", "/overworld", "/telemetry", "/ticks"].map((path) => [
+  ["/api", "/health", "/overworld", "/player", "/telemetry", "/ticks"].map((path) => [
     path,
     { target: "http://localhost:3000", changeOrigin: true },
   ]),

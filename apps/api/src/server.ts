@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
 
+import type { Auth } from "@hazard-pay/auth";
 import type { Logger } from "@hazard-pay/observability";
 import { OpenAPIHandler } from "@orpc/openapi/fastify";
 import { implement } from "@orpc/server";
@@ -10,12 +11,14 @@ import Fastify, {
   type RawServerDefault,
 } from "fastify";
 
+import { toFetchHeaders } from "./adapters/fetch-headers.ts";
 import { respond } from "./adapters/respond.ts";
 import { contract, type OverworldTick } from "./contract/index.ts";
 import type { AppCtx } from "./context.ts";
 import { createTickListener } from "./db/listen.ts";
 import { checkHealth } from "./domain/health.ts";
 import { getLaneTrace, listLanes } from "./domain/lanes.ts";
+import { getCurrentPlayer, renamePlayerHandle, requireSessionUserId } from "./domain/player.ts";
 import { getLatestTick, toTickSnapshot } from "./domain/tick.ts";
 import { registerAuthRoutes } from "./routes/auth.ts";
 import { registerTelemetryRoute } from "./routes/telemetry.ts";
@@ -34,10 +37,15 @@ export type ServerCtx = Pick<AppCtx, "db" | "logger" | "env">;
 /**
  * Per-request implementer context for contract procedures: the narrowed app
  * ctx plus the request's pino child (`log`) — the only logger route
- * handlers may use (ADR 0002 §6).
+ * handlers may use (ADR 0002 §6). `auth` and `headers` back the
+ * session-authenticated player routes (#50): `auth.api.getSession(headers)`
+ * is how a contract procedure reads the better-auth cookie without a
+ * bespoke oRPC auth layer.
  */
 export interface RequestCtx extends Pick<AppCtx, "db" | "env"> {
   log: Logger;
+  auth: Auth;
+  headers: Headers;
 }
 
 /**
@@ -75,6 +83,18 @@ export const router = os.router({
         latestTick: row === null ? null : toTickSnapshot(row),
         intervalMs: context.env.TICK_INTERVAL,
       })),
+    )),
+  playerMe: os.playerMe.handler(({ context }) =>
+    respond(
+      context.log,
+      requireSessionUserId(context).andThen((userId) =>
+        getCurrentPlayer(context, userId)),
+    )),
+  renamePlayer: os.renamePlayer.handler(({ context, input }) =>
+    respond(
+      context.log,
+      requireSessionUserId(context).andThen((userId) =>
+        renamePlayerHandle(context, userId, input.handle)),
     )),
 });
 
@@ -122,7 +142,7 @@ export async function buildServer(
   });
 
   registerTelemetryRoute(app, ctx, { telemetryDir: options.telemetryDir });
-  registerAuthRoutes(app, ctx);
+  const auth = registerAuthRoutes(app, ctx);
 
   // The shared LISTEN nudge (ADR 0004 §5): one connection per server
   // process, owned by the server lifecycle. A failed dial retries in the
@@ -141,7 +161,13 @@ export async function buildServer(
   const contractHandler = new OpenAPIHandler(router);
   app.all("/*", async (request, reply) => {
     const { matched } = await contractHandler.handle(request, reply, {
-      context: { db: ctx.db, env: ctx.env, log: request.log },
+      context: {
+        db: ctx.db,
+        env: ctx.env,
+        log: request.log,
+        auth,
+        headers: toFetchHeaders(request.headers),
+      },
     });
     if (!matched) {
       return reply.status(404).send({ error: "not found" });
