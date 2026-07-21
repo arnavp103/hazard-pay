@@ -69,6 +69,9 @@ envelope, so one trace spans tick → transport → render.
 - Each line has `signal: "log" | "span"`; the server redacts every line
   (client buffers are untrusted), strips `signal`, and appends logs/events to
   `var/telemetry/<service>.jsonl`, spans to `<service>.spans.jsonl`.
+- The route is dev-only, so the client must be gated too: the webapp passes
+  its dev flag as `enabled` at init, and a `404` from the endpoint disables
+  the client for the page's lifetime (no retry loop, no growing buffer).
 
 ## Storage layout
 

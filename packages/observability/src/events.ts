@@ -2,7 +2,7 @@ import { trace } from "@opentelemetry/api";
 
 import { createLogger } from "./logger.ts";
 import { redactDeep } from "./redact.ts";
-import { getRootLogger } from "./state.ts";
+import { getRootLogger } from "./root-logger.ts";
 
 export type DomainEventAttributes = Record<string, unknown>;
 

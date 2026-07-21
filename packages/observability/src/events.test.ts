@@ -1,5 +1,4 @@
-import { mkdtempSync, readFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -7,18 +6,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { emitEvent, subscribeToDomainEvents } from "./events.ts";
 import { createLogger } from "./logger.ts";
 import { REDACTED } from "./redact.ts";
-import { resetRootLoggerForTests } from "./state.ts";
-
-function tempDir(): string {
-  return mkdtempSync(join(tmpdir(), "hazard-pay-obs-"));
-}
-
-function readLines(file: string): Record<string, unknown>[] {
-  return readFileSync(file, "utf8")
-    .trim()
-    .split("\n")
-    .map((line) => JSON.parse(line) as Record<string, unknown>);
-}
+import { resetRootLoggerForTests } from "./root-logger.ts";
+import { readLines, tempDir } from "./test-helpers.ts";
 
 afterEach(() => {
   resetRootLoggerForTests();

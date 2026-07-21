@@ -4,7 +4,7 @@ import type { DestinationStream, LevelWithSilent, Logger } from "pino";
 
 import { telemetryFile } from "./paths.ts";
 import { pinoRedactPaths, REDACTED, redactDeep } from "./redact.ts";
-import { registerRootLogger } from "./state.ts";
+import { registerRootLogger } from "./root-logger.ts";
 
 export interface CreateLoggerOptions {
   /** Defaults to `LOG_LEVEL` from `@hazard-pay/env`. */

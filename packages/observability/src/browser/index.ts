@@ -46,6 +46,13 @@ const CONSOLE_METHODS: Record<LevelName, "debug" | "info" | "warn" | "error"> = 
 type WireLine = Record<string, unknown> & { signal: "log" | "span"; time: string };
 
 export interface BrowserObservabilityOptions {
+  /**
+   * Master switch — the webapp passes its dev flag. The ingest route is
+   * dev-only, so a production page must not buffer or POST telemetry.
+   * Default: true. Independently, the client disables itself when the route
+   * answers 404 (route absent — not a dev api).
+   */
+  enabled?: boolean;
   /** Ingest route on the api. Default: `/telemetry`. */
   endpoint?: string;
   /** Default: 2000. */
@@ -83,11 +90,13 @@ let state: BrowserState | undefined;
 let flushTimer: ReturnType<typeof setInterval> | undefined;
 let currentSpan: ActiveSpan | undefined;
 let flushing = false;
+let disabled = false;
 
 export function initObservability(
   service: string,
   options: BrowserObservabilityOptions = {},
 ): BrowserObservabilityHandle {
+  disabled = options.enabled === false;
   state = {
     service,
     endpoint: options.endpoint ?? "/telemetry",
@@ -97,12 +106,15 @@ export function initObservability(
   };
   if (flushTimer !== undefined) {
     clearInterval(flushTimer);
+    flushTimer = undefined;
   }
-  flushTimer = setInterval(() => {
-    void flush();
-  }, options.flushIntervalMs ?? 2000);
-  if (typeof window !== "undefined") {
-    window.addEventListener("pagehide", flushWithBeacon);
+  if (!disabled) {
+    flushTimer = setInterval(() => {
+      void flush();
+    }, options.flushIntervalMs ?? 2000);
+    if (typeof window !== "undefined") {
+      window.addEventListener("pagehide", flushWithBeacon);
+    }
   }
   return { flush, shutdown };
 }
@@ -242,7 +254,7 @@ export function currentTraceparent(): string | undefined {
 }
 
 async function flush(): Promise<void> {
-  if (state === undefined || buffer.length === 0 || flushing) {
+  if (disabled || state === undefined || buffer.length === 0 || flushing) {
     return;
   }
   flushing = true;
@@ -255,13 +267,29 @@ async function flush(): Promise<void> {
       body: JSON.stringify({ service: state.service, lines }),
       keepalive: true,
     });
-    if (!response.ok) {
+    if (response.status === 404) {
+      // Route absent: this is not a dev api. Stop for good — no retry loop,
+      // no growing buffer on a production page.
+      disable();
+    } else if (!response.ok) {
       requeue(lines);
     }
   } catch {
     requeue(lines);
   } finally {
     flushing = false;
+  }
+}
+
+function disable(): void {
+  disabled = true;
+  buffer = [];
+  if (flushTimer !== undefined) {
+    clearInterval(flushTimer);
+    flushTimer = undefined;
+  }
+  if (typeof window !== "undefined") {
+    window.removeEventListener("pagehide", flushWithBeacon);
   }
 }
 
@@ -292,6 +320,9 @@ function flushWithBeacon(): void {
 }
 
 function push(line: WireLine): void {
+  if (disabled) {
+    return;
+  }
   buffer.push(redactDeep(line));
   trim();
 }
@@ -329,4 +360,5 @@ export function resetBrowserObservabilityForTests(): void {
   state = undefined;
   currentSpan = undefined;
   flushing = false;
+  disabled = false;
 }

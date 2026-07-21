@@ -158,6 +158,30 @@ describe("browser entry", () => {
     expect(payload?.lines[0]).toMatchObject({ index: 3 });
   });
 
+  it("stays inert when enabled is false (production pages)", async () => {
+    const spy = fetchSpy();
+    const handle = initObservability("webapp", {
+      fetchFn: spy as unknown as typeof fetch,
+      consoleMirror: false,
+      flushIntervalMs: 60_000,
+      enabled: false,
+    });
+    createLogger().info("dropped");
+    await handle.flush();
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  it("disables itself for good when the ingest route answers 404", async () => {
+    const spy = fetchSpy(404);
+    const handle = init(spy);
+    createLogger().info("first");
+    await handle.flush();
+    expect(spy).toHaveBeenCalledTimes(1);
+    createLogger().info("after-404");
+    await handle.flush();
+    expect(spy).toHaveBeenCalledTimes(1);
+  });
+
   it("flushes once more on shutdown and stops afterwards", async () => {
     const spy = fetchSpy();
     const handle = init(spy);

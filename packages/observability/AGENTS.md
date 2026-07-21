@@ -9,9 +9,11 @@ grep/jq/DuckDB queries — lives in this package's `README.md`. Read it first.
 - **Facade only.** App code imports `@hazard-pay/observability` (or
   `/browser`); pino and `@opentelemetry/*` appear in this package.json and
   nowhere else. SDK churn stays inside this package.
-- **Surface is fixed**: `initObservability`, `createLogger`, `withSpan`,
-  `emitEvent`. Growing it is a design decision — take it to a ticket, not a
-  PR comment.
+- **Surface is fixed**: `initObservability` (from `/init`), `createLogger`,
+  `withSpan`, `emitEvent`; the `/browser` entry adds `currentTraceparent`
+  (ADR 0005 §6 — the header rides fetch and the match-transport envelope).
+  Growing it further is a design decision — take it to a ticket, not a PR
+  comment. `reset*ForTests` exports are test seams, not surface.
 - **`createLogger` is the only pino constructor in the repo** (ADR 0002).
   Apps call it once at boot; request/job adapters derive `.child(...)`
   loggers. Never construct a second root.
@@ -42,6 +44,8 @@ grep/jq/DuckDB queries — lives in this package's `README.md`. Read it first.
 - `src/browser/index.ts` — browser facade (buffered flush to `POST /telemetry`)
 - `src/redact.ts` — the shared redaction chokepoint
 - `src/logger.ts` / `src/events.ts` / `src/span.ts` — the three Node verbs
+- `src/root-logger.ts` — the process's root-logger registry (first
+  `createLogger` wins; `emitEvent`'s default sink)
 - `src/otel/jsonl-span-exporter.ts` — flattened-JSONL SpanExporter
 - `src/paths.ts` — repo-root discovery + `var/telemetry/` layout
 
