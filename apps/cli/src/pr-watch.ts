@@ -1,4 +1,4 @@
-import { ghApiGet, ghJson } from "./gh.ts";
+import { ghApiGet, ghJson, toErrorMessage } from "./gh.ts";
 import { printSummary } from "./output.ts";
 
 /** Poll cadence for `pr watch`. */
@@ -10,12 +10,18 @@ export const DEFAULT_TIMEOUT_MINUTES = 15;
 
 const TERMINAL_SUCCESS_CONCLUSIONS = new Set(["success", "neutral", "skipped"]);
 
+/** GitHub's `mergeable` values, per `gh pr view --json mergeable`. */
+export type Mergeable = "CONFLICTING" | "MERGEABLE" | "UNKNOWN";
+
+/** GitHub's `mergeStateStatus` values, per `gh pr view --json mergeStateStatus`. */
+export type MergeStateStatus = "BEHIND" | "BLOCKED" | "CLEAN" | "DIRTY" | "DRAFT" | "HAS_HOOKS" | "UNKNOWN" | "UNSTABLE";
+
 export interface PrStatus {
   number: number;
   headRefOid: string;
   headRefName: string;
-  mergeable: string;
-  mergeStateStatus: string;
+  mergeable: Mergeable;
+  mergeStateStatus: MergeStateStatus;
 }
 
 export interface WorkflowRun {
@@ -156,7 +162,7 @@ export async function prWatch(options: PrWatchOptions): Promise<never> {
   try {
     pr = fetchPr(options.number);
   } catch (error) {
-    return conclude({ kind: "error", message: error instanceof Error ? error.message : String(error) });
+    return conclude({ kind: "error", message: toErrorMessage(error) });
   }
 
   console.log(`Watching PR #${pr.number} (${pr.headRefName}) at ${pr.headRefOid}`);
@@ -177,7 +183,7 @@ export async function prWatch(options: PrWatchOptions): Promise<never> {
     try {
       runs = fetchRunsForSha(pr.headRefOid);
     } catch (error) {
-      return conclude({ kind: "error", message: error instanceof Error ? error.message : String(error) });
+      return conclude({ kind: "error", message: toErrorMessage(error) });
     }
 
     if (runs.length === 0) {

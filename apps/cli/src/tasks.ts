@@ -173,7 +173,11 @@ function fetchOpenBlockers(issueNumber: number): number[] {
  * numbers, then group and print.
  */
 export function tasks(options: { json: boolean }): void {
-  const raw = ghApiGet<RawIssue[]>("repos/{owner}/{repo}/issues", { state: "open", per_page: "100" });
+  const raw = ghApiGet<RawIssue[]>(
+    "repos/{owner}/{repo}/issues",
+    { state: "open", per_page: "100" },
+    { paginate: true },
+  );
   const summaries = filterIssuesOnly(raw).map(toIssueSummary);
 
   const blockersByIssue = new Map<number, number[]>();
@@ -183,7 +187,9 @@ export function tasks(options: { json: boolean }): void {
     }
   }
 
-  const prs = ghJson<OpenPr[]>(["pr", "list", "--state", "open", "--json", "number,headRefName,body"]);
+  // gh's own default page size (30) would silently cap this; --limit forces
+  // a page well past any backlog this project is expected to carry.
+  const prs = ghJson<OpenPr[]>(["pr", "list", "--state", "open", "--json", "number,headRefName,body", "--limit", "500"]);
 
   const groups = groupTasks(summaries, blockersByIssue, prs);
 
