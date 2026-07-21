@@ -1,84 +1,83 @@
 # AGENTS.md
 
-## Commands
+Hazard Pay — a pnpm + Turborepo monorepo for an online multiplayer
+auto-battler with offline progression. `apps/` holds deployable surfaces;
+`packages/` holds shared libraries consumed across apps.
 
-Run from the repo root; turbo fans out to every workspace package.
+## Setup
 
-| Command | What it does |
-| --- | --- |
-| `pnpm install` | Install. pnpm only — `preinstall` rejects npm and yarn. |
-| `pnpm lint` | ESLint, zero warnings tolerated. |
-| `pnpm lint:fix` | ESLint with `--fix`. |
-| `pnpm type-check` | `tsc --noEmit` per package. |
-| `pnpm test` | Tests per package. |
-| `pnpm syncpack:lint` | Check dependency version drift across packages. |
-| `pnpm syncpack:fix` | Fix that drift. |
+- Install: `pnpm install` (pnpm is required — `preinstall` rejects npm and yarn)
+- Node: >= 22 (see `engines` in the root `package.json`)
 
-Run a single package with `pnpm --filter @hazard-pay/<name> <script>`.
+## Commands (run from repo root)
 
-The CLI runs from source: `./apps/cli/bin/hazard-pay --help`.
+- Typecheck: `pnpm type-check`  ← run this before considering work done
+- Lint: `pnpm lint` (zero warnings tolerated) / autofix: `pnpm lint:fix`
+- Test all: `pnpm test`
+- One package: `pnpm --filter @hazard-pay/<name> <script>`
+- Dev (all apps): `pnpm dev`
+- Dependency version drift: `pnpm syncpack:lint` / `pnpm syncpack:fix`
+
+Turborepo caches these — prefer the root scripts over `cd`-ing into a
+package, so the dependency graph is respected. Packages export raw
+TypeScript from `src/` and run through `tsx`; there is no build step.
 
 ## Layout
 
-```
-apps/cli          @hazard-pay/cli     cac-based CLI, entry src/index.ts
-packages/config   @hazard-pay/config  shared ESLint + tsconfig
-packages/env      @hazard-pay/env     t3-env schema, default export
-```
+- `apps/cli` — cac-based dev CLI (`./apps/cli/bin/hazard-pay --help`)
+- `packages/config` — shared ESLint + tsconfig presets
+- `packages/env` — t3-env schema, default export
 
-Packages export raw TypeScript from `src/` and run through `tsx`. There is no
-build step, so there is no build output to keep in sync.
+Each package has its own AGENTS.md documenting that module's specific
+conventions — **read the nearest AGENTS.md before editing**. Per-package
+AGENTS.md files must stay under 200 lines.
 
 ## Conventions
 
 - **No Prettier.** `@stylistic/eslint-plugin` owns formatting via the shared
-  ESLint config: two-space indent, double quotes, semicolons, 1tbs braces.
-  ESLint is the only tool permitted to rewrite a file.
-- **No root `tsconfig.json`.** The base lives in `packages/config/tsconfig.json`
-  and packages extend it by package specifier, not relative path.
-- **Internal deps use `workspace:*`**, enforced by syncpack.
-- **Intra-package imports carry the `.ts` extension** so they resolve the same
+  ESLint config. Run `pnpm lint:fix` rather than hand-formatting; ESLint is
+  the only tool permitted to rewrite a file.
+- **No root `tsconfig.json`.** Packages extend
+  `@hazard-pay/config/tsconfig.json` by package specifier, not relative path.
+- Internal deps use `workspace:*` (enforced by syncpack). Cross-package
+  imports use the `@hazard-pay/*` package name — never a relative path that
+  crosses a package boundary.
+- Intra-package imports carry the `.ts` extension so they resolve the same
   under `tsx` and `tsc`.
-- **Env vars are optional at boot.** Everything in `packages/env` carries a
-  default, so lint, test, and type-check run with no `.env` present. A variable
-  that cannot be defaulted is boot-required by deliberate choice.
+- Cross-package changes: update the owning package first, then consumers.
 
 ## Commits
 
-Conventional commits with a **mandatory scope**: `type(scope): subject`.
-
-Valid scopes are read from the directory names under `apps/` and `packages/` at
-commitlint load time, plus `repo`, `ci`, `deps`, and `infra`. Adding a package
-adds its scope automatically — do not edit `commitlint.config.js` for that.
-
-```
-feat(cli): add status command
-chore(repo): bump turbo
-```
-
-The `commit-msg` hook runs commitlint in strict mode and will reject anything
-non-conforming. `pre-commit` runs `syncpack fix` then `lint-staged`.
+Conventional commits with a **mandatory scope**: `type(scope): subject`
+(e.g. `feat(cli): add status command`). Valid scopes are the directory names
+under `apps/` and `packages/` plus `repo`, `ci`, `deps`, and `infra`, read at
+commitlint load time — adding a package adds its scope automatically.
+The `commit-msg` hook runs commitlint in strict mode; `pre-commit` runs
+`syncpack fix` then `lint-staged`.
 
 ## Adding a package
 
 1. `apps/<name>/` or `packages/<name>/` with `package.json`, `tsconfig.json`,
-   `eslint.config.js`.
-2. `eslint.config.js` re-exports one of `@hazard-pay/config/eslint`,
-   `/eslint-node`, or `/eslint-tailwind`.
-3. `tsconfig.json` extends `@hazard-pay/config/tsconfig.json`.
-4. Scripts: `type-check`, `lint`, `lint:fix`, `clean` at minimum.
-5. `pnpm install` to link it.
+   `eslint.config.js` (re-exporting a `@hazard-pay/config` preset), and an
+   `AGENTS.md`.
+2. Scripts: `type-check`, `lint`, `lint:fix`, `clean` at minimum.
+3. `pnpm install` to link it.
+
+## Boundaries — do not touch without being asked
+
+- `pnpm-lock.yaml`, `.env*`
+- CI config under `.github/`
+
+## Verifying a change
+
+Before declaring done: `pnpm type-check && pnpm lint && pnpm test` must pass.
 
 ## Agent skills
 
-### Issue tracker
-
-Issues are tracked in GitHub Issues for `arnavp103/hazard-pay` via the `gh` CLI. See `docs/agents/issue-tracker.md`.
-
-### Triage labels
-
-Default label vocabulary (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`). See `docs/agents/triage-labels.md`.
-
-### Domain docs
-
-Single-context: `CONTEXT.md` at the repo root plus `docs/adr/`. See `docs/agents/domain.md`.
+- **Issue tracker**: GitHub Issues for `arnavp103/hazard-pay` via the `gh`
+  CLI. See `docs/agents/issue-tracker.md`.
+- **Triage labels**: default vocabulary (`needs-triage`, `needs-info`,
+  `ready-for-agent`, `ready-for-human`, `wontfix`). See
+  `docs/agents/triage-labels.md`.
+- **Domain docs**: `CONTEXT.md` at the repo root plus `docs/adr/`. See
+  `docs/agents/domain.md`.
