@@ -8,11 +8,29 @@ predicted.
 
 ## Exports
 
-- `@hazard-pay/db` — table definitions (`tick`), `createDb(connectionString)`
-  returning `{ db, close }`, and the `Db`/`DbHandle` types. Plain functions,
-  no classes; callers own the pool lifecycle via `close()`.
+- `@hazard-pay/db` — table definitions (`tick`, better-auth tables, agent
+  tables), `createDb(connectionString)` returning `{ db, close }`, and the
+  `Db`/`DbHandle` types. Plain functions, no classes; callers own the pool
+  lifecycle via `close()`.
 - `@hazard-pay/db/testing` — `createTestDatabase()` and
   `ensureTemplateDatabase()` for template-clone tests.
+
+## Agent tables (`src/agent-schema.ts`, ADR 0003)
+
+- `lane` — one thread of a leader's context. `kind` is
+  `foreground | mission`; one foreground lane per leader (partial unique
+  index). `status` (`open | waking | closed`) + `woke_at` form the wake
+  claim. `forked_from_lane_id`/`forked_from_seq` are the RESERVED forking
+  seam — schema only, never written today.
+- `lane_event` — the append-only lane event log, and the checkpoint layer
+  (the log IS the resume state; replay folds it). Row shape:
+  `(lane_id, seq, author, type, payload jsonb, occurred_at)` with
+  `PRIMARY KEY (lane_id, seq)` as the optimistic append guard. `type` in
+  (`input`, `model_turn`, `tool_result`, `compaction` — reserved).
+  `payload` is a versioned envelope owned by `@hazard-pay/agent`; store
+  functions and the fold live there, not here.
+- `leader_config` — full config JSON stored once per content hash; lanes
+  stamp `config_hash` for cross-model/cross-prompt trace comparison.
 
 ## Dev Postgres
 
@@ -53,6 +71,8 @@ predicted.
 
 ## Boundaries
 
-- No queue or checkpoint tables here — durable-execution work is future
-  scope, not part of this scaffold.
+- No queue tables here — pg-boss lives inside `apps/api` (ADR 0003 §2).
+  The lane event log is not a checkpoint table: per ADR 0003 §4 the log
+  itself is the checkpoint layer, and no separate step-checkpoint tables
+  may be added.
 - Intra-package imports carry the `.ts` extension.
