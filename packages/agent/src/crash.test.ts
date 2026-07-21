@@ -1,6 +1,6 @@
 import { createLogger } from "@hazard-pay/observability";
 import { createTestDatabase } from "@hazard-pay/db/testing";
-import { lane, laneEvent, tick } from "@hazard-pay/db";
+import { lane, laneEvent, leaderNote } from "@hazard-pay/db";
 import { ResultAsync } from "neverthrow";
 import { asc, count, eq, sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, test } from "vitest";
@@ -22,8 +22,8 @@ afterAll(async () => {
   await tdb.drop();
 });
 
-async function tickCount(): Promise<number> {
-  const [row] = await tdb.db.select({ total: count() }).from(tick);
+async function noteCount(): Promise<number> {
+  const [row] = await tdb.db.select({ total: count() }).from(leaderNote);
   return row?.total ?? 0;
 }
 
@@ -38,7 +38,7 @@ describe("kill mid-wake", () => {
       maxTurnsPerWake: 4,
       tools: {
         record_once: {
-          description: "records a tick, crashing the first time",
+          description: "records a note, crashing the first time",
           inputSchema: z.object({}),
           execute: (ctx) =>
             // fromSafePromise: a rejection here is a defect (the simulated
@@ -46,9 +46,11 @@ describe("kill mid-wake", () => {
             ResultAsync.fromSafePromise(
               (async () => {
                 executions += 1;
-                // Placeholder tick_number: a scratch game write, not the
-                // real tick writer.
-                await ctx.tx.insert(tick).values({ tickNumber: Date.now() });
+                await ctx.tx.insert(leaderNote).values({
+                  laneId: ctx.laneId,
+                  leaderName: "flaky",
+                  content: "recorded exactly once",
+                });
                 if (executions === 1) {
                   throw new Error("simulated crash between game write and tool_result");
                 }
@@ -59,7 +61,7 @@ describe("kill mid-wake", () => {
       },
     });
 
-    const before = await tickCount();
+    const before = await noteCount();
 
     // Wake 1: the model asks for the tool; the tool crashes mid-transaction.
     const model1 = scriptedModel([
@@ -80,7 +82,7 @@ describe("kill mid-wake", () => {
       .where(eq(laneEvent.laneId, laneId))
       .orderBy(asc(laneEvent.seq));
     expect(rowsAfterCrash.map((row) => row.type)).toEqual(["input", "model_turn"]);
-    expect(await tickCount()).toBe(before);
+    expect(await noteCount()).toBe(before);
 
     // Wake 2: resume folds the log, finds the unresolved obligation, and
     // discharges it — the write and the tool_result commit together, once.
@@ -90,7 +92,7 @@ describe("kill mid-wake", () => {
 
     expect(report.toolExecutions).toBe(1);
     expect(report.quiescent).toBe(true);
-    expect(await tickCount()).toBe(before + 1);
+    expect(await noteCount()).toBe(before + 1);
     expect(executions).toBe(2);
 
     const rows = await tdb.db

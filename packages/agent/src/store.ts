@@ -74,6 +74,40 @@ export function insertLane(
       : okAsync(row));
 }
 
+/**
+ * A leader's single foreground lane, if it exists (ADR 0003 §4: exactly one
+ * per leader, enforced by the partial unique index). `null` means the host
+ * has not created it yet.
+ */
+export function findForegroundLane(
+  db: DbLike,
+  leaderName: string,
+): ResultAsync<LaneRow | null, AgentError> {
+  return ResultAsync.fromPromise(
+    db
+      .select()
+      .from(lane)
+      .where(and(eq(lane.leaderName, leaderName), eq(lane.kind, "foreground"))),
+    storeFailed("findForegroundLane"),
+  ).map(([row]) => row ?? null);
+}
+
+/**
+ * Re-stamps a lane's `config_hash` after its leader's config changed in git
+ * (issue #52): the stamp names the config the lane runs under NOW; each
+ * `model_turn` carries the hash it actually ran with, so history stays
+ * verifiable across restamps.
+ */
+export function restampLaneConfig(
+  db: DbLike,
+  args: { laneId: string; configHash: string },
+): ResultAsync<void, AgentError> {
+  return ResultAsync.fromPromise(
+    db.update(lane).set({ configHash: args.configHash }).where(eq(lane.id, args.laneId)),
+    storeFailed("restampLaneConfig"),
+  ).map(() => undefined);
+}
+
 export function loadLane(db: DbLike, laneId: string): ResultAsync<LaneRow, AgentError> {
   return ResultAsync.fromPromise(
     db.select().from(lane).where(eq(lane.id, laneId)),

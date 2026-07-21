@@ -19,6 +19,9 @@ const HTTP_ERROR_FOR: Record<ApiError["type"], { code: string; status: number }>
   player_not_found: { code: "NOT_FOUND", status: 404 },
   handle_taken: { code: "CONFLICT", status: 409 },
   lane_not_found: { code: "NOT_FOUND", status: 404 },
+  // Job-side only today (no route wakes a leader), but the table is total
+  // over ApiError by construction — a variant without a row is a type error.
+  leader_wake_failed: { code: "INTERNAL_SERVER_ERROR", status: 500 },
 };
 
 export function respond<T>(log: Logger, result: ResultAsync<T, ApiError>): Promise<T> {

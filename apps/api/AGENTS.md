@@ -114,6 +114,30 @@ nudges the stream. Traced as `tick.run`, emits `tick.completed`. Cron is
 only the metronome: cadence correctness lives in the backfill arithmetic,
 never in cron resolution.
 
+## Leaders and the doorbell (ADR 0003 §6, issue #52)
+
+- `src/leaders/` holds the declarative leader configs (`defineLeader` over
+  `@hazard-pay/agent`); `mags`, the overworld dispatcher, is the first.
+  Leader tools reach the database through `src/db` helpers called with
+  their open tool transaction; the honest mutating target is
+  `leader_note`, never `tick` (that table belongs to the cron writer).
+- `src/leaders/wiring.ts` is the worker edge: the Gemini provider
+  (`gemini-2.5-flash`) is constructed there from `env.GEMINI_API_KEY` and
+  injected into `createRuntime` — the runtime never reads env. A keyless
+  boot logs `leader wakes disabled: no GEMINI_API_KEY` once, skips
+  doorbell registration, and ticks still run: CI and keyless dev stay
+  green.
+- The ticking transaction carries the outbox: `recordDueTicks`'s `outbox`
+  hook appends one input per foreground lane and enqueues that lane's
+  `leader.doorbell` job through the same transaction (`fromDrizzle`), so
+  tick row, lane input, and queued wake commit or vanish together. The
+  doorbell queue is `short`-policy with `singletonKey: laneId` — at most
+  one QUEUED wake per lane; a lane mid-wake can have its next doorbell
+  queued, nothing piles up beyond that.
+- The doorbell handler is `wakeLeaderLane` through the `jobHandler`
+  adapter: `runtime.wake({ laneId })`, absorbing `WakeClaimConflict` as a
+  benign already-waking skip; real failures throw for pg-boss retry/DLQ.
+
 ## What lands where next (don't repaint these seams)
 
 - Match-phase delayed singletons (ADR 0004 §3): `worker.ts` registrations

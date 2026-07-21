@@ -33,9 +33,20 @@ export interface LaneNotFoundError {
   message: string;
 }
 
+/**
+ * A leader wake that failed for real (issue #52) — NOT the benign
+ * `WakeClaimConflict` skip, which the wake domain function absorbs. Surfaced
+ * so the doorbell job handler throws and pg-boss retries/dead-letters.
+ */
+export interface LeaderWakeFailedError {
+  type: "leader_wake_failed";
+  message: string;
+}
+
 export type ApiError
   = | DbUnreachableError
     | UnauthenticatedError
     | PlayerNotFoundError
     | HandleTakenError
-    | LaneNotFoundError;
+    | LaneNotFoundError
+    | LeaderWakeFailedError;

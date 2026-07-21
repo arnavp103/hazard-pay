@@ -29,6 +29,13 @@
       "when": 1784621281557,
       "tag": "0003_odd_moira_mactaggert",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1784648776690,
+      "tag": "0004_lowly_longshot",
+      "breakpoints": true
     }
   ]
 }

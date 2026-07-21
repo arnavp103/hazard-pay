@@ -28,7 +28,7 @@ import { runEvalScript } from "./testing/eval-harness.ts";
  * Free-tier key: one data point, one turn. `maxTurnsPerWake` (4) bounds the
  * hello leader to at most 4 model calls for that one wake — comfortably
  * under the ≤5-calls budget for this whole file; the scripted status-report
- * flow (read_tick_count, record_tick, final text) normally takes 3.
+ * flow (read_tick_count, record_visit, final text) normally takes 3.
  * `maxModelRetries` rides the AI SDK's built-in backoff for 429s, same as
  * the live smoke.
  *
