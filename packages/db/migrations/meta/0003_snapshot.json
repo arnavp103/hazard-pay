@@ -1,6 +1,6 @@
 {
-  "id": "8652e939-404c-4aba-a325-533e8a486ebc",
-  "prevId": "baa0a0cb-3bac-4c50-95a9-233ae097f305",
+  "id": "6cd965b0-d9df-46fb-b131-664a6de78e69",
+  "prevId": "8652e939-404c-4aba-a325-533e8a486ebc",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -25,18 +25,38 @@
             "cycle": false
           }
         },
+        "tick_number": {
+          "name": "tick_number",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
         "completed_at": {
           "name": "completed_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
+        },
+        "traceparent": {
+          "name": "traceparent",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {},
       "foreignKeys": {},
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "tick_tick_number_unique": {
+          "name": "tick_tick_number_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "tick_number"
+          ]
+        }
+      },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false

@@ -34,6 +34,11 @@ honestly without it.
 - `src/routes/index.tsx` — overworld hello screen: tick counter/countdown
   poll the contract route, the Uplink panel tails the live tick stream;
   credits/heat/crew/missions are still a canned snapshot (labeled as such)
+- `src/routes/match-proto.tsx` + `src/match-proto/` — #27 prototype: PixiJS
+  v8 mounted imperatively (no @pixi/react, per the #26 research). The
+  `MatchStageHandle` mount/teardown in `match-proto/stage.ts` is the
+  reference pattern for the future real match view; sprite data and
+  animation math live in pure TS modules tested in Node
 - `src/lib/api.ts` — the typed oRPC client over `@hazard-pay/api/contract`
 - `src/lib/use-tick-stream.ts` — THE client half of the transport seam
   (ADR 0004 §2): EventSource + `Last-Event-ID` resume, parses the envelope,
@@ -56,6 +61,15 @@ honestly without it.
 - Fonts: `import "@hazard-pay/ui/fonts"` once, in `__root.tsx`.
 - Semantic utilities only (`bg-panel`, `text-accent`, `font-display`…);
   no raw colors.
+
+## Tests
+
+- `pnpm --filter @hazard-pay/webapp test` — Vitest, node environment by
+  default; DOM-dependent suites opt in per file with a
+  `@vitest-environment jsdom` pragma.
+- Canvas/WebGL never runs in tests: pixi.js is mocked and the tests assert
+  our lifecycle contract (mount/unmount/remount, StrictMode init race).
+  Keep renderable state in pure modules so it tests without a renderer.
 
 ## Query conventions
 
