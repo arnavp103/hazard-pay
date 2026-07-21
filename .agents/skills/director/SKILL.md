@@ -169,3 +169,11 @@ Environment facts agents keep rediscovering; brief them or fix them:
 - lint-staged autofixes at commit time make committed files drift from any
   scratchpad staging copies; after committing, treat the worktree (via
   `git show`/`git diff`), not your staging copies, as truth.
+- A bare `#N` in commit body prose makes commitlint emit **misleading** footer
+  errors (`footer-leading-blank`, phantom blank lines) — the fix is always
+  "move the ref to the trailing `Refs:` footer", whatever the error says.
+  (Hook-level fix tracked as a harness issue.)
+- Canary verdict 2026-07-21: after the worktree/CLI/env harness round, a
+  mid-tier (sonnet) agent ran a full ticket with zero permission workarounds —
+  the hardened path (CLI worktree new, invocable /implement, `.worktrees/` file
+  tools, checkout-root env) is confirmed carrying the workflow.
