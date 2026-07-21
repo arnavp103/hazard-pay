@@ -35,6 +35,13 @@ const env = createEnv({
     // only — real auth flows are out of scope for this map (wayfinder #1),
     // so this default is deliberately checked in and insecure.
     BETTER_AUTH_SECRET: z.string().default("dev-only-insecure-secret-do-not-use-in-production"),
+    // Overworld tick cadence in milliseconds (ADR 0004 §4): 5-minute default,
+    // headroom for a leader wake to usually finish within a tick. The tick
+    // number is derived from wall clock / TICK_INTERVAL, so changing this
+    // mid-history renumbers future ticks — fine for the walking skeleton.
+    // pg-boss cron fires at whole-minute resolution; sub-minute intervals
+    // are caught up in batches by the idempotent backfill, not by cron.
+    TICK_INTERVAL: z.coerce.number().int().min(1000).default(300_000),
     GEMINI_API_KEY: z.string().optional(),
   },
   runtimeEnv: process.env,
