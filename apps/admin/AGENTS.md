@@ -59,9 +59,11 @@ links to `/lanes`.
 Same as webapp: `makeQueryClient` defaults (staleTime 15s, refetch on
 focus, retry 1) live in `src/router.tsx`. Query keys here start with
 `["admin", <surface>]`. Polling is overworld-tier and set per query site:
-the lane index refetches every 15s, the transcript every 5s with a
-`seq > lastSeen` cursor riding an infinite query — no realtime transport
-on admin surfaces (#24 ruling).
+the lane index refetches every 15s, the transcript every 5s — no realtime
+transport on admin surfaces (#24 ruling). The transcript's "load next
+page" advances a `seq > lastSeen` cursor, but the interval refetch re-runs
+every loaded page (TanStack infinite-query semantics); a true tail-only
+poll is deliberate follow-up material.
 
 ## Gotchas
 

@@ -83,7 +83,12 @@ function LanesScreen() {
         )}
 
         {data !== undefined && data.lanes.length > 0 && (
-          <Panel title="Lanes" meta={`${data.lanes.length} lanes · polling 15s`} flush>
+          <Panel
+            title="Lanes"
+            // The api caps the index at 500 rows — say so when we hit it.
+            meta={`${data.lanes.length} lanes${data.lanes.length >= 500 ? " (api cap — oldest not shown)" : ""} · polling 15s`}
+            flush
+          >
             <ListRowGroup>
               {data.lanes.map((lane, index) => (
                 <ListRow

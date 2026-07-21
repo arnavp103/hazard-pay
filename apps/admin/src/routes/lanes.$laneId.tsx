@@ -1,4 +1,5 @@
 import { Button, Panel, StatReadout, StatusChip } from "@hazard-pay/ui";
+import { ORPCError } from "@orpc/client";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 
@@ -10,11 +11,18 @@ export const Route = createFileRoute("/lanes/$laneId")({
   component: LaneTraceScreen,
 });
 
+/** The contract's NOT_FOUND, as the typed client throws it — never matched by message text. */
+function isLaneNotFound(err: unknown): boolean {
+  return err instanceof ORPCError && err.status === 404;
+}
+
 /**
  * The transcript view (#24): one lane's full log as progressive-disclosure
  * chips — summaries by default, one deep-dive at a time (#11 rider).
- * Overworld-tier polling: the `seq > lastSeen` cursor rides the infinite
- * query's pages; no realtime transport (per the ticket).
+ * Overworld-tier polling, no realtime transport (per the ticket). Honest
+ * caveat: "load next page" advances a `seq > lastSeen` cursor, but the 5s
+ * interval refetch re-runs every loaded page (TanStack infinite-query
+ * semantics) — fine at dev scale; a true tail-poll is follow-up material.
  */
 function LaneTraceScreen() {
   const { laneId } = Route.useParams();
@@ -25,9 +33,8 @@ function LaneTraceScreen() {
     getNextPageParam: (lastPage) =>
       lastPage.hasMore ? lastPage.events.at(-1)?.seq ?? null : null,
     refetchInterval: 5_000,
-    retry: (failureCount, err) =>
-      // A 404 is an answer (no such lane), not a flake — don't retry it.
-      failureCount < 1 && !(err instanceof Error && err.message.includes("no lane")),
+    // A 404 is an answer (no such lane), not a flake — don't retry it.
+    retry: (failureCount, err) => failureCount < 1 && !isLaneNotFound(err),
   });
 
   const pages = data?.pages ?? [];
@@ -58,7 +65,7 @@ function LaneTraceScreen() {
         {error !== null && (
           <Panel title="Lane unavailable" tone="magenta">
             <p className="font-data text-[11px] leading-relaxed text-ink-dim">
-              {error.message.includes("no lane")
+              {isLaneNotFound(error)
                 ? `No lane ${laneId} in this database.`
                 : "Could not reach apps/api through the dev proxy — is `pnpm --filter @hazard-pay/api dev` running?"}
             </p>
