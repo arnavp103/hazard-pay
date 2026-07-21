@@ -28,8 +28,14 @@ export interface HandleTakenError {
   message: string;
 }
 
+export interface LaneNotFoundError {
+  type: "lane_not_found";
+  message: string;
+}
+
 export type ApiError
   = | DbUnreachableError
     | UnauthenticatedError
     | PlayerNotFoundError
-    | HandleTakenError;
+    | HandleTakenError
+    | LaneNotFoundError;

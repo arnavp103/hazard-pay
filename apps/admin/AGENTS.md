@@ -32,23 +32,38 @@ wraps a single region because it's demonstrating the *contrast* against a
 default-scope sibling, admin has no default-scope regions to contrast
 against.
 
-## The #24 seam
+## The lane trace viewer (#24)
 
-`src/routes/index.tsx` is a hello screen, not a lane trace viewer. It shows
-placeholder lanes and leaders through a real `useQuery` (canned data, same
-pattern as webapp's overworld screen — see its AGENTS.md), clearly labeled
-as canned, plus an inert "Open lane trace" button pointing at #24. **Do not
-wire that button up or build a trace view here** — the lane-trace viewer
-is scoped to #24 and depends on the agent event store shape, which doesn't
-exist yet. This scaffold's job is the shell and the seam, nothing more.
+`/lanes` (index) and `/lanes/$laneId` (transcript) are the first real admin
+surfaces: they render the agent runtime's lane event log from apps/api's
+lane read routes. The split of knowledge is deliberate:
+
+- `src/lib/api.ts` — the typed oRPC client over `@hazard-pay/api/contract`
+  (pure inference, no codegen). Requests go same-origin through the
+  `/hp-api` Vite dev proxy to the api on port 3000 — the api serves no CORS
+  headers and admin is dev-only, so the proxy stays. Both `pnpm db:up` +
+  `pnpm --filter @hazard-pay/api dev` must be running; the screens state it
+  honestly when they aren't (never canned data on these routes).
+- `src/lib/trace-format.ts` + `src/components/lane-event-chip.tsx` —
+  envelope semantics (summaries, mission links from tool receipts, model
+  turn parts). This knowledge is admin-local on purpose: the
+  `@hazard-pay/ui` trace components (TraceChip, JsonInspector) stay
+  payload-agnostic.
+
+`src/routes/index.tsx` is still the hello screen with a canned
+leaders/lanes snapshot (labeled as such); its "Open lane trace" button now
+links to `/lanes`.
 
 ## Query conventions
 
 Same as webapp: `makeQueryClient` defaults (staleTime 15s, refetch on
 focus, retry 1) live in `src/router.tsx`. Query keys here start with
-`["admin", <surface>]`. There is no live tick to poll yet, so the hello
-screen doesn't set a `refetchInterval` — add one at the query site once a
-surface actually needs to chase a tick.
+`["admin", <surface>]`. Polling is overworld-tier and set per query site:
+the lane index refetches every 15s, the transcript every 5s — no realtime
+transport on admin surfaces (#24 ruling). The transcript's "load next
+page" advances a `seq > lastSeen` cursor, but the interval refetch re-runs
+every loaded page (TanStack infinite-query semantics); a true tail-only
+poll is deliberate follow-up material.
 
 ## Gotchas
 

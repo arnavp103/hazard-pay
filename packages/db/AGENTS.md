@@ -53,6 +53,12 @@ predicted.
 - `pnpm --filter @hazard-pay/db db:migrate` applies them to `DATABASE_URL`.
   Tests migrate their own template database — `db:migrate` is only for
   poking the dev database by hand.
+- **Concurrent-migration races** (two branches both generate `000N_*`):
+  take main's `meta/` journal wholesale, delete your own generated SQL +
+  snapshot, re-run `db:generate` (it renumbers on top of main's), then
+  re-apply any hand edits. If the dev database's journal recorded your
+  deleted migration, drop and recreate it (`docker exec
+  hazard-pay-postgres-1 psql` when no host psql).
 
 ## Tests (template cloning)
 

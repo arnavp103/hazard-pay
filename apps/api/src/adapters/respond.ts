@@ -18,6 +18,7 @@ const HTTP_ERROR_FOR: Record<ApiError["type"], { code: string; status: number }>
   unauthenticated: { code: "UNAUTHORIZED", status: 401 },
   player_not_found: { code: "NOT_FOUND", status: 404 },
   handle_taken: { code: "CONFLICT", status: 409 },
+  lane_not_found: { code: "NOT_FOUND", status: 404 },
 };
 
 export function respond<T>(log: Logger, result: ResultAsync<T, ApiError>): Promise<T> {

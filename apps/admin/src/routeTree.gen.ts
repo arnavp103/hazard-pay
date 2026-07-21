@@ -10,33 +10,53 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as LanesIndexRouteImport } from './routes/lanes.index'
+import { Route as LanesLaneIdRouteImport } from './routes/lanes.$laneId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LanesIndexRoute = LanesIndexRouteImport.update({
+  id: '/lanes/',
+  path: '/lanes/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LanesLaneIdRoute = LanesLaneIdRouteImport.update({
+  id: '/lanes/$laneId',
+  path: '/lanes/$laneId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/lanes/$laneId': typeof LanesLaneIdRoute
+  '/lanes/': typeof LanesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/lanes/$laneId': typeof LanesLaneIdRoute
+  '/lanes': typeof LanesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/lanes/$laneId': typeof LanesLaneIdRoute
+  '/lanes/': typeof LanesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths: '/' | '/lanes/$laneId' | '/lanes/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/lanes/$laneId' | '/lanes'
+  id: '__root__' | '/' | '/lanes/$laneId' | '/lanes/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  LanesLaneIdRoute: typeof LanesLaneIdRoute
+  LanesIndexRoute: typeof LanesIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +68,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/lanes/': {
+      id: '/lanes/'
+      path: '/lanes'
+      fullPath: '/lanes/'
+      preLoaderRoute: typeof LanesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/lanes/$laneId': {
+      id: '/lanes/$laneId'
+      path: '/lanes/$laneId'
+      fullPath: '/lanes/$laneId'
+      preLoaderRoute: typeof LanesLaneIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  LanesLaneIdRoute: LanesLaneIdRoute,
+  LanesIndexRoute: LanesIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

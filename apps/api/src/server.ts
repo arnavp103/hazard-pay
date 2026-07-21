@@ -17,6 +17,7 @@ import { contract, type OverworldTick } from "./contract/index.ts";
 import type { AppCtx } from "./context.ts";
 import { createTickListener } from "./db/listen.ts";
 import { checkHealth } from "./domain/health.ts";
+import { getLaneTrace, listLanes } from "./domain/lanes.ts";
 import { getCurrentPlayer, renamePlayerHandle, requireSessionUserId } from "./domain/player.ts";
 import { getLatestTick, toTickSnapshot } from "./domain/tick.ts";
 import { registerAuthRoutes } from "./routes/auth.ts";
@@ -69,6 +70,12 @@ const os = implement(contract).$context<RequestCtx>();
  */
 export const router = os.router({
   health: os.health.handler(({ context }) => respond(context.log, checkHealth({ db: context.db }))),
+  lanes: {
+    list: os.lanes.list.handler(({ context }) =>
+      respond(context.log, listLanes({ db: context.db }))),
+    events: os.lanes.events.handler(({ context, input }) =>
+      respond(context.log, getLaneTrace({ db: context.db }, input))),
+  },
   overworldTick: os.overworldTick.handler(({ context }) =>
     respond(
       context.log,
