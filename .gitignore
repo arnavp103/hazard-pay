@@ -31,3 +31,6 @@ dist/
 
 # Agent worktrees (see .agents/skills/implement)
 .claude/worktrees/
+
+# Local telemetry JSONL (see packages/observability; clean with `pnpm telemetry:clean`)
+var/telemetry/
