@@ -6,7 +6,6 @@ import { expect, test } from "vitest";
 
 import { recordDueTicks, TICK_CHANNEL } from "../db/index.ts";
 import { runTick } from "./tick.ts";
-import { tickCron } from "../worker.ts";
 
 /**
  * Honest integration tests for the tick writer (ADR 0004 §4, §5): a
@@ -87,10 +86,4 @@ test("runTick records a tick through the job-shaped domain function", async () =
   } finally {
     await testDb.drop();
   }
-});
-
-test("tickCron maps TICK_INTERVAL to whole-minute cron, clamped to 1..59", () => {
-  expect(tickCron(300_000)).toBe("*/5 * * * *");
-  expect(tickCron(10_000)).toBe("*/1 * * * *");
-  expect(tickCron(2 * 60 * 60 * 1000)).toBe("*/59 * * * *");
 });

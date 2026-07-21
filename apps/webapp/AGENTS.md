@@ -20,10 +20,12 @@ alongside the Ladle workbench and apps/api (port 3000).
 All api traffic is same-origin through the Vite dev proxy
 (`vite.config.ts`): `/api`, `/health`, `/overworld`, `/telemetry`, `/ticks`
 forward to `http://localhost:3000`. EventSource, better-auth cookies, and
-the telemetry flush therefore need zero client-side configuration — no base
-URL exists anywhere in client code (`src/lib/api.ts` uses the page origin).
-A new api route group means a new proxy prefix. The api must be running for
-live data; every surface renders honestly without it.
+the telemetry flush therefore need zero client-side configuration — no
+configurable base URL exists in client code (`src/lib/api.ts` uses the page
+origin at runtime; its localhost constant is only a prerender-safe
+placeholder that never serves a request). A new api route group means a new
+proxy prefix. The api must be running for live data; every surface renders
+honestly without it.
 
 ## Layout
 

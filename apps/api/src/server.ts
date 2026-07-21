@@ -15,7 +15,7 @@ import { contract, type OverworldTick } from "./contract/index.ts";
 import type { AppCtx } from "./context.ts";
 import { createTickListener } from "./db/listen.ts";
 import { checkHealth } from "./domain/health.ts";
-import { getLatestTick } from "./domain/tick.ts";
+import { getLatestTick, toTickSnapshot } from "./domain/tick.ts";
 import { registerAuthRoutes } from "./routes/auth.ts";
 import { registerTelemetryRoute } from "./routes/telemetry.ts";
 import { registerTickStreamRoute } from "./routes/tick-stream.ts";
@@ -65,9 +65,7 @@ export const router = os.router({
     respond(
       context.log,
       getLatestTick({ db: context.db }).map((row): OverworldTick => ({
-        latestTick: row === null
-          ? null
-          : { id: row.id, tickNumber: row.tickNumber, completedAt: row.completedAt.toISOString() },
+        latestTick: row === null ? null : toTickSnapshot(row),
         intervalMs: context.env.TICK_INTERVAL,
       })),
     )),

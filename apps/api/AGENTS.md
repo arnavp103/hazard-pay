@@ -86,7 +86,10 @@ stamps span-accurate `trace_id`/`span_id` on every line.
   `data:` envelope is `tickStreamEnvelopeSchema` from the contract — tick
   snapshot plus the ticking span's `traceparent` (ADR 0005 §6). Swapping to
   WebSocket later replaces this module and the webapp's `useTickStream`
-  hook, nothing else.
+  hook, nothing else. Like the other non-contract routes, the stream module
+  IS its own edge: it consumes Results inline (log-and-keep-streaming has no
+  meaningful HTTP translation), which is the sanctioned exception to
+  "adapters own all translation".
 - `POST /telemetry` (`src/routes/telemetry.ts`) — dev-only browser-telemetry
   ingest (ADR 0005 §6): `{ service, lines }`, `signal: "log" | "span"` per
   line. Not registered when `NODE_ENV === "production"` (the browser client

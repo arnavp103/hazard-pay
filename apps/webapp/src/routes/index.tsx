@@ -115,7 +115,7 @@ function OverworldScreen() {
               next tick
               <span className="ml-2 font-bold text-ink tabular-nums">
                 <NextTickCountdown
-                  completedAt={latestTick?.completedAt ?? null}
+                  tickNumber={latestTick?.tickNumber ?? null}
                   intervalMs={overworldTick?.intervalMs ?? null}
                 />
               </span>
@@ -167,14 +167,14 @@ function OverworldScreen() {
 
             <Panel title="Uplink" meta={STREAM_STATUS_LABEL[uplink.status]}>
               <div className="flex flex-col gap-2">
-                {uplink.events.length === 0
+                {uplink.ticks.length === 0
                   ? (
                       <p className="hp-blink font-data text-[10px] text-ink-dim uppercase">
                         awaiting next tick on the live uplink…
                       </p>
                     )
                   : (
-                      uplink.events.map((envelope) => (
+                      uplink.ticks.map((envelope) => (
                         <TraceChip
                           key={envelope.tick.id}
                           seq={String(envelope.tick.tickNumber).slice(-4).padStart(4, "0")}
@@ -198,16 +198,18 @@ function OverworldScreen() {
 }
 
 /**
- * Counts down to `completedAt + intervalMs` — when the next tick is due.
- * Server time and presentation time are decoupled (ADR 0004): a tick landing
- * resets this through the polling query and the stream's invalidation; an
- * overdue tick pins at 00:00 until the next one arrives.
+ * Counts down to the next tick's wall-clock boundary. Tick numbers are
+ * `floor(time / interval)` (ADR 0004 §4), so the next tick is due at
+ * `(tickNumber + 1) * intervalMs` — not `completedAt + interval`, which
+ * would drift by the cron's firing delay. A tick landing resets this
+ * through the polling query and the stream's invalidation; an overdue tick
+ * pins at 00:00 until the next one arrives.
  */
 function NextTickCountdown({
-  completedAt,
+  tickNumber,
   intervalMs,
 }: {
-  completedAt: string | null;
+  tickNumber: number | null;
   intervalMs: number | null;
 }) {
   const [now, setNow] = useState(() => Date.now());
@@ -216,10 +218,10 @@ function NextTickCountdown({
     return () => clearInterval(timer);
   }, []);
 
-  if (completedAt === null || intervalMs === null) {
+  if (tickNumber === null || intervalMs === null) {
     return <>--:--</>;
   }
-  const dueAt = new Date(completedAt).getTime() + intervalMs;
+  const dueAt = (tickNumber + 1) * intervalMs;
   const remaining = Math.max(0, dueAt - now);
   const totalSeconds = Math.floor(remaining / 1_000);
   const minutes = String(Math.floor(totalSeconds / 60)).padStart(2, "0");

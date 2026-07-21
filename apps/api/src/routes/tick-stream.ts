@@ -2,6 +2,7 @@ import type { TickStreamEnvelope } from "../contract/index.ts";
 import type { AppCtx } from "../context.ts";
 import type { TickListener } from "../db/listen.ts";
 import { latestTick, ticksAfter, type TickRow } from "../db/index.ts";
+import { toTickSnapshot } from "../domain/tick.ts";
 import type { ApiServer } from "../server.ts";
 
 /**
@@ -23,20 +24,12 @@ export function registerTickStreamRoute(
   listener: TickListener,
 ): void {
   app.get("/ticks/stream", async (request, reply) => {
-    // A fresh EventSource has no Last-Event-ID header; start it one before
-    // the newest tick so the display populates immediately. A reconnecting
-    // one resumes exactly after what it saw.
-    const resumeFrom = parseLastEventId(request.headers["last-event-id"]);
-    let cursor: number;
-    if (resumeFrom === undefined) {
-      const newest = await latestTick(ctx.db);
-      cursor = newest.match(
-        (row) => (row === null ? 0 : row.id - 1),
-        () => 0,
-      );
-    } else {
-      cursor = resumeFrom;
-    }
+    // A fresh EventSource has no Last-Event-ID header; its cursor starts
+    // unknown and is primed to one-before-the-newest tick on the first
+    // successful pump, so the display populates immediately without ever
+    // replaying history (a transient db error just delays priming until the
+    // next nudge). A reconnecting client resumes exactly after what it saw.
+    let cursor = parseLastEventId(request.headers["last-event-id"]);
 
     reply.hijack();
     reply.raw.writeHead(200, {
@@ -61,6 +54,14 @@ export function registerTickStreamRoute(
       try {
         do {
           nudgedWhilePumping = false;
+          if (cursor === undefined) {
+            const newest = await latestTick(ctx.db);
+            if (newest.isErr()) {
+              request.log.warn({ error: newest.error }, "tick stream cursor priming failed");
+              break;
+            }
+            cursor = newest.value === null ? 0 : newest.value.id - 1;
+          }
           const result = await ticksAfter(ctx.db, cursor);
           if (result.isErr()) {
             // Transient db failure: keep the stream open — the next nudge or
@@ -99,11 +100,7 @@ function frame(row: TickRow): string {
   // The transport message envelope (ADR 0005 §6): the tick snapshot plus the
   // ticking span's traceparent, so one trace spans tick → transport → render.
   const envelope: TickStreamEnvelope = {
-    tick: {
-      id: row.id,
-      tickNumber: row.tickNumber,
-      completedAt: row.completedAt.toISOString(),
-    },
+    tick: toTickSnapshot(row),
     traceparent: row.traceparent,
   };
   return `id: ${row.id}\nevent: tick\ndata: ${JSON.stringify(envelope)}\n\n`;

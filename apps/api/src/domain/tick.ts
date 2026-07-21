@@ -1,6 +1,7 @@
 import { emitEvent, traceparentOf, withSpan } from "@hazard-pay/observability";
 import type { ResultAsync } from "neverthrow";
 
+import type { TickSnapshot } from "../contract/index.ts";
 import type { AppCtx } from "../context.ts";
 import { latestTick, recordDueTicks, type TickRow } from "../db/index.ts";
 import type { ApiError } from "./errors.ts";
@@ -40,4 +41,13 @@ export function getLatestTick(
   ctx: Pick<AppCtx, "db">,
 ): ResultAsync<TickRow | null, ApiError> {
   return latestTick(ctx.db);
+}
+
+/** The one row → wire-snapshot mapping, shared by the contract route and the stream. */
+export function toTickSnapshot(row: TickRow): TickSnapshot {
+  return {
+    id: row.id,
+    tickNumber: row.tickNumber,
+    completedAt: row.completedAt.toISOString(),
+  };
 }

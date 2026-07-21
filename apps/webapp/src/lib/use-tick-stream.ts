@@ -7,11 +7,11 @@ export type TickStreamStatus = "connecting" | "live" | "reconnecting";
 
 export interface TickStreamState {
   status: TickStreamStatus;
-  /** Newest first, capped at KEEP_EVENTS. */
-  events: TickStreamEnvelope[];
+  /** Received tick envelopes, newest first, capped at KEEP_TICKS. */
+  ticks: TickStreamEnvelope[];
 }
 
-const KEEP_EVENTS = 4;
+const KEEP_TICKS = 4;
 
 /**
  * The client half of the match-tier transport seam (ADR 0004 §2): ONE hook
@@ -19,14 +19,14 @@ const KEEP_EVENTS = 4;
  * browser's own machinery, not ours. Swapping the transport for WebSocket
  * later means reimplementing this hook, nothing above it.
  *
- * Each tick event also invalidates the `["overworld"]` query tier — a tick
- * boundary is exactly when polled overworld state goes stale — and emits
- * `tick.received` with the envelope's traceparent (ADR 0005 §6), joining the
- * browser's telemetry to the server's tick trace.
+ * Each arriving tick also invalidates the `["overworld"]` query tier — a
+ * tick boundary is exactly when polled overworld state goes stale — and
+ * emits the `tick.received` domain event with the envelope's traceparent
+ * (ADR 0005 §6), joining the browser's telemetry to the server's tick trace.
  */
 export function useTickStream(): TickStreamState {
   const queryClient = useQueryClient();
-  const [state, setState] = useState<TickStreamState>({ status: "connecting", events: [] });
+  const [state, setState] = useState<TickStreamState>({ status: "connecting", ticks: [] });
 
   useEffect(() => {
     const source = new EventSource("/ticks/stream");
@@ -44,7 +44,7 @@ export function useTickStream(): TickStreamState {
       });
       setState((prev) => ({
         status: "live",
-        events: [envelope, ...prev.events].slice(0, KEEP_EVENTS),
+        ticks: [envelope, ...prev.ticks].slice(0, KEEP_TICKS),
       }));
       void queryClient.invalidateQueries({ queryKey: ["overworld"] });
     });
