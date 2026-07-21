@@ -90,16 +90,50 @@ describe("lane event append guard", () => {
 describe("wake claim", () => {
   test("open claims, concurrent claim conflicts, release reopens", async () => {
     const laneId = await makeLane();
+    const claimedAt = new Date();
 
-    const claimed = await claimWake(tdb.db, { laneId, staleAfterMs: 60_000 });
+    const claimed = await claimWake(tdb.db, { laneId, staleAfterMs: 60_000, claimedAt });
     expect(claimed._unsafeUnwrap().status).toBe("waking");
 
-    const contested = await claimWake(tdb.db, { laneId, staleAfterMs: 60_000 });
+    const contested = await claimWake(tdb.db, {
+      laneId,
+      staleAfterMs: 60_000,
+      claimedAt: new Date(),
+    });
     expect(contested._unsafeUnwrapErr()).toEqual({ tag: "WakeClaimConflict", laneId });
 
-    await releaseWake(tdb.db, laneId);
-    const reclaimed = await claimWake(tdb.db, { laneId, staleAfterMs: 60_000 });
+    await releaseWake(tdb.db, { laneId, claimedAt });
+    const reclaimed = await claimWake(tdb.db, {
+      laneId,
+      staleAfterMs: 60_000,
+      claimedAt: new Date(),
+    });
     expect(reclaimed.isOk()).toBe(true);
+  });
+
+  test("release is guarded by the claim token: a stale claimant cannot free a new claim", async () => {
+    const laneId = await makeLane();
+    const oldClaim = new Date(Date.now() - 10 * 60 * 1000);
+    await claimWake(tdb.db, { laneId, staleAfterMs: 60_000, claimedAt: oldClaim });
+
+    // A second wake reclaims the stale claim with its own token.
+    const newClaim = new Date();
+    const reclaimed = await claimWake(tdb.db, {
+      laneId,
+      staleAfterMs: 1000,
+      claimedAt: newClaim,
+    });
+    expect(reclaimed.isOk()).toBe(true);
+
+    // The original (dead-slow) claimant's release must be a no-op.
+    await releaseWake(tdb.db, { laneId, claimedAt: oldClaim });
+    const [row] = await tdb.db.select().from(lane).where(eq(lane.id, laneId));
+    expect(row?.status).toBe("waking");
+
+    // The rightful claimant's release works.
+    await releaseWake(tdb.db, { laneId, claimedAt: newClaim });
+    const [reopened] = await tdb.db.select().from(lane).where(eq(lane.id, laneId));
+    expect(reopened?.status).toBe("open");
   });
 
   test("a stale waking claim is reclaimable (crash recovery)", async () => {
@@ -109,10 +143,18 @@ describe("wake claim", () => {
       .set({ status: "waking", wokeAt: sql`now() - interval '10 minutes'` })
       .where(eq(lane.id, laneId));
 
-    const fresh = await claimWake(tdb.db, { laneId, staleAfterMs: 60 * 60 * 1000 });
+    const fresh = await claimWake(tdb.db, {
+      laneId,
+      staleAfterMs: 60 * 60 * 1000,
+      claimedAt: new Date(),
+    });
     expect(fresh._unsafeUnwrapErr().tag).toBe("WakeClaimConflict");
 
-    const reclaimed = await claimWake(tdb.db, { laneId, staleAfterMs: 1000 });
+    const reclaimed = await claimWake(tdb.db, {
+      laneId,
+      staleAfterMs: 1000,
+      claimedAt: new Date(),
+    });
     expect(reclaimed._unsafeUnwrap().status).toBe("waking");
   });
 });

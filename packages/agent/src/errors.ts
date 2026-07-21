@@ -14,8 +14,6 @@ export type AgentError
     | { tag: "ConfigDrift"; laneId: string; expected: string; actual: string }
     | { tag: "UnknownLeader"; leaderName: string }
     | { tag: "ForegroundLaneExists"; leaderName: string }
-  /** Only mission lanes may be cancelled. */
-    | { tag: "NotAMission"; laneId: string }
     | { tag: "ModelCallFailed"; laneId: string; cause: unknown }
   /** A persisted payload failed envelope validation on read. */
     | { tag: "EnvelopeInvalid"; laneId: string; seq: number; cause: unknown }

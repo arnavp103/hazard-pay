@@ -138,13 +138,15 @@ export function nextSeq(db: DbLike, laneId: string): ResultAsync<number, AgentEr
  */
 export function claimWake(
   db: DbLike,
-  args: { laneId: string; staleAfterMs: number },
+  args: { laneId: string; staleAfterMs: number; claimedAt: Date },
 ): ResultAsync<LaneRow, AgentError> {
   const staleSeconds = args.staleAfterMs / 1000;
   return ResultAsync.fromPromise(
     db
       .update(lane)
-      .set({ status: "waking", wokeAt: sql`now()` })
+      // The claimant's own timestamp (not now()): it doubles as the claim
+      // token that releaseWake is guarded on.
+      .set({ status: "waking", wokeAt: args.claimedAt })
       .where(
         and(
           eq(lane.id, args.laneId),
@@ -165,13 +167,27 @@ export function claimWake(
       : okAsync(row));
 }
 
-/** Releases a wake claim back to `open` at quiescence. */
-export function releaseWake(db: DbLike, laneId: string): ResultAsync<void, AgentError> {
+/**
+ * Releases a wake claim back to `open` at quiescence — but only the claim
+ * identified by `claimedAt`. If a stale claim was reclaimed by another wake
+ * while this one limped along, `woke_at` no longer matches and this release
+ * is a no-op: a slow claimant can never free the reclaimer's claim.
+ */
+export function releaseWake(
+  db: DbLike,
+  args: { laneId: string; claimedAt: Date },
+): ResultAsync<void, AgentError> {
   return ResultAsync.fromPromise(
     db
       .update(lane)
       .set({ status: "open", wokeAt: null })
-      .where(and(eq(lane.id, laneId), eq(lane.status, "waking"))),
+      .where(
+        and(
+          eq(lane.id, args.laneId),
+          eq(lane.status, "waking"),
+          eq(lane.wokeAt, args.claimedAt),
+        ),
+      ),
     storeFailed("releaseWake"),
   ).map(() => undefined);
 }

@@ -61,9 +61,9 @@ export const modelTurnPartSchema = z.discriminatedUnion("type", [
 ]);
 
 /**
- * One `model_turn` event per model call (ADR 0003 §4): request fingerprint
- * plus the full response; there is no request-side event — the request is
- * reproducible from the fold, which is what the fingerprint verifies.
+ * One `model_turn` lane event per model call (ADR 0003 §4): request
+ * fingerprint plus the full response; there is no request-side lane event —
+ * the request is reproducible from the fold, which the fingerprint verifies.
  */
 export const modelTurnPayloadSchema = z.object({
   v: z.literal(ENVELOPE_VERSION),
@@ -81,9 +81,9 @@ export const modelTurnPayloadSchema = z.object({
 });
 
 /**
- * The recorded outcome of one tool call. For mutating tools this event
+ * The recorded outcome of one tool call. For mutating tools this lane event
  * commits in the same transaction as the game write (ADR 0003 §2) —
- * exactly-once structurally: the write exists iff this event exists.
+ * exactly-once structurally: the write exists iff this lane event exists.
  */
 export const toolResultPayloadSchema = z.object({
   v: z.literal(ENVELOPE_VERSION),

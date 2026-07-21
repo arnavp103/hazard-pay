@@ -45,7 +45,9 @@ leader config, lane event (always qualified — never bare "event"). No
   its writes back via savepoint but records the failure; a throw is a
   defect that aborts the transaction and leaves the obligation open for the
   next wake. Harness tools `spawn_lane` / `send_message` / `cancel_lane`
-  are always available (spawn-and-report: lanes are never awaited).
+  are always available (spawn-and-report: lanes are never awaited). A
+  mission closes via `cancel_lane` — its parent's, or its own once its
+  goal is done (CONTEXT.md: "closed when done").
 - **Leaders are declarative config** (`defineLeader`), content-hashed;
   the full config JSON is stored once in `leader_config`, lanes stamp
   `config_hash`. Real leaders belong in `apps/api/src/leaders/`; the

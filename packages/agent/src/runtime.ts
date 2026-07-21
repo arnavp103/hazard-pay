@@ -105,7 +105,13 @@ class ToolRollback extends Error {
   }
 }
 
-async function unwrap<T>(result: ResultAsync<T, AgentError>): Promise<T> {
+/**
+ * Bridges a `ResultAsync` into Drizzle's throw-to-rollback contract: an err
+ * becomes a `TxRollback` throw that aborts the enclosing transaction, and
+ * `inTransaction` converts it back into the tagged error — the throw never
+ * escapes an adapter (ADR 0002 §4).
+ */
+async function unwrapOrRollback<T>(result: ResultAsync<T, AgentError>): Promise<T> {
   const awaited = await result;
   if (awaited.isErr()) {
     throw new TxRollback(awaited.error);
@@ -131,6 +137,9 @@ export function createRuntime(options: CreateRuntimeOptions): Runtime {
   const leaders = new Map<string, DefinedLeader>();
   for (const leader of options.leaders) {
     if (leaders.has(leader.name)) {
+      // Like defineLeader's validation, a colliding registry is a defect in
+      // reviewed boot code (git is the source of truth for leaders), caught
+      // at process start — not a runtime condition. Throwing is deliberate.
       throw new Error(`duplicate leader name "${leader.name}"`);
     }
     leaders.set(leader.name, leader);
@@ -146,8 +155,8 @@ export function createRuntime(options: CreateRuntimeOptions): Runtime {
   const createLane: Runtime["createLane"] = (args) =>
     resolveLeader(args.leader).andThen((leader) =>
       inTransaction(db, "createLane", async (tx) => {
-        await unwrap(ensureLeaderConfig(tx, { hash: leader.configHash, config: leader.config }));
-        const row = await unwrap(
+        await unwrapOrRollback(ensureLeaderConfig(tx, { hash: leader.configHash, config: leader.config }));
+        const row = await unwrapOrRollback(
           insertLane(tx, {
             kind: args.kind ?? "foreground",
             leaderName: leader.name,
@@ -167,28 +176,29 @@ export function createRuntime(options: CreateRuntimeOptions): Runtime {
       }));
 
   const appendInput: Runtime["appendInput"] = (args) =>
-    loadLane(db, args.laneId).andThen((row) => {
+    inTransaction(db, "appendInput", async (tx) => {
+      // Status is checked inside the transaction so a concurrent
+      // cancel_lane cannot slip an input into a just-closed lane.
+      const row = await unwrapOrRollback(loadLane(tx, args.laneId));
       if (row.status === "closed") {
-        return errAsync<{ seq: number }, AgentError>({ tag: "LaneClosed", laneId: args.laneId });
+        throw new TxRollback({ tag: "LaneClosed", laneId: args.laneId });
       }
-      return inTransaction(db, "appendInput", async (tx) => {
-        const seq = await unwrap(nextSeq(tx, args.laneId));
-        await unwrap(
-          appendLaneEvent(tx, {
-            laneId: args.laneId,
-            seq,
-            author: args.author,
-            type: "input",
-            payload: {
-              v: ENVELOPE_VERSION,
-              kind: "input",
-              content: args.content,
-              ...(args.data === undefined ? {} : { data: args.data }),
-            },
-          }),
-        );
-        return { seq };
-      });
+      const seq = await unwrapOrRollback(nextSeq(tx, args.laneId));
+      await unwrapOrRollback(
+        appendLaneEvent(tx, {
+          laneId: args.laneId,
+          seq,
+          author: args.author,
+          type: "input",
+          payload: {
+            v: ENVELOPE_VERSION,
+            kind: "input",
+            content: args.content,
+            ...(args.data === undefined ? {} : { data: args.data }),
+          },
+        }),
+      );
+      return { seq };
     });
 
   /**
@@ -200,22 +210,22 @@ export function createRuntime(options: CreateRuntimeOptions): Runtime {
    * defect or infrastructure failure leaves the obligation open.
    */
   function dischargeObligation(args: {
-    lane: { id: string; leaderName: string };
+    laneId: string;
     leader: DefinedLeader;
     obligation: Obligation;
     log: Logger;
     report: { spawnedLaneIds: string[]; messagedLaneIds: string[] };
   }): ResultAsync<void, AgentError> {
     const { obligation, leader, log } = args;
-    const laneId = args.lane.id;
+    const laneId = args.laneId;
 
     const appendToolResult = async (
       tx: DbTx,
       output: JsonValue,
       isError: boolean,
     ): Promise<void> => {
-      const seq = await unwrap(nextSeq(tx, laneId));
-      await unwrap(
+      const seq = await unwrapOrRollback(nextSeq(tx, laneId));
+      await unwrapOrRollback(
         appendLaneEvent(tx, {
           laneId,
           seq,
@@ -248,8 +258,8 @@ export function createRuntime(options: CreateRuntimeOptions): Runtime {
               await appendToolResult(tx, { tag: "unknown_leader" }, true);
               return;
             }
-            await unwrap(ensureLeaderConfig(tx, { hash: child.configHash, config: child.config }));
-            const childLane = await unwrap(
+            await unwrapOrRollback(ensureLeaderConfig(tx, { hash: child.configHash, config: child.config }));
+            const childLane = await unwrapOrRollback(
               insertLane(tx, {
                 kind: "mission",
                 leaderName: child.name,
@@ -257,7 +267,7 @@ export function createRuntime(options: CreateRuntimeOptions): Runtime {
                 parentLaneId: laneId,
               }),
             );
-            await unwrap(
+            await unwrapOrRollback(
               appendLaneEvent(tx, {
                 laneId: childLane.id,
                 seq: 1,
@@ -287,8 +297,8 @@ export function createRuntime(options: CreateRuntimeOptions): Runtime {
               await appendToolResult(tx, { tag: "lane_unavailable" }, true);
               return;
             }
-            const targetSeq = await unwrap(nextSeq(tx, target.value.id));
-            await unwrap(
+            const targetSeq = await unwrapOrRollback(nextSeq(tx, target.value.id));
+            await unwrapOrRollback(
               appendLaneEvent(tx, {
                 laneId: target.value.id,
                 seq: targetSeq,
@@ -314,7 +324,7 @@ export function createRuntime(options: CreateRuntimeOptions): Runtime {
               await appendToolResult(tx, { tag: "not_a_mission" }, true);
               return;
             }
-            await unwrap(closeLane(tx, target.value.id));
+            await unwrapOrRollback(closeLane(tx, target.value.id));
             await appendToolResult(tx, { closed: true, laneId: target.value.id }, false);
             emitEvent("mission.cancelled", { laneId: target.value.id, byLaneId: laneId });
             return;
@@ -384,10 +394,15 @@ export function createRuntime(options: CreateRuntimeOptions): Runtime {
                         actual: leader.configHash,
                       })))
           .andThen(({ row, leader }) =>
-            claimWake(db, { laneId: args.laneId, staleAfterMs: reclaimStaleWakeAfterMs }).map(
-              () => ({ row, leader }),
-            ))
-          .andThen(({ row, leader }) => {
+            claimWake(db, {
+              laneId: args.laneId,
+              staleAfterMs: reclaimStaleWakeAfterMs,
+              // Also the claim token: releaseWake only frees THIS claim, so
+              // a slow wake that gets reclaimed cannot release the
+              // reclaimer's claim.
+              claimedAt: new Date(),
+            }).map((claimed) => ({ row, leader, claimedAt: claimed.wokeAt ?? new Date() })))
+          .andThen(({ leader, claimedAt }) => {
             const report: WakeReport = {
               laneId: args.laneId,
               turns: 0,
@@ -407,7 +422,7 @@ export function createRuntime(options: CreateRuntimeOptions): Runtime {
                     const [obligation] = snapshot.openObligations;
                     report.toolExecutions += 1;
                     return dischargeObligation({
-                      lane: { id: args.laneId, leaderName: row.leaderName },
+                      laneId: args.laneId,
                       leader,
                       obligation: obligation as Obligation,
                       log,
@@ -466,7 +481,7 @@ export function createRuntime(options: CreateRuntimeOptions): Runtime {
             // must NOT release — that would free someone else's claim.)
             return step()
               .andThen((finished) =>
-                releaseWake(db, args.laneId).map(() => {
+                releaseWake(db, { laneId: args.laneId, claimedAt }).map(() => {
                   emitEvent("lane.woke", {
                     laneId: args.laneId,
                     turns: finished.turns,
@@ -477,7 +492,7 @@ export function createRuntime(options: CreateRuntimeOptions): Runtime {
                   return finished;
                 }))
               .orElse((error) =>
-                releaseWake(db, args.laneId).andThen(() =>
+                releaseWake(db, { laneId: args.laneId, claimedAt }).andThen(() =>
                   errAsync<WakeReport, AgentError>(error)));
           });
       },
