@@ -178,7 +178,9 @@ export function worktreeNew(name: string | undefined): void {
   if (existsSync(worktreePath)) {
     fail(`worktree path already exists: ${worktreePath}`);
   }
-  run("git", ["worktree", "add", worktreePath, "-b", name, "origin/main"], root);
+  // --no-track: without it the new branch's upstream would be origin/main,
+  // which would make `worktree clean` misread a fresh worktree as pushed.
+  run("git", ["worktree", "add", "--no-track", worktreePath, "-b", name, "origin/main"], root);
   run("pnpm", ["install"], worktreePath);
   printSummary(`Worktree ready: ${worktreePath} (branch "${name}" off origin/main). PR flow:`, [
     `cd ${worktreePath}`,
@@ -242,13 +244,15 @@ export function worktreeClean(options: { dryRun: boolean }): void {
       skip(label, "uncommitted changes");
       continue;
     }
-    // A branch that was never pushed is never cleaned: a freshly created
-    // worktree (zero commits) points at origin/main and would otherwise be
-    // classified as "merged" and removed from under its agent. The PR flow
-    // always pushes with an upstream, so finished work is unaffected.
+    // A branch that was never pushed as its own remote branch is never
+    // cleaned: a freshly created worktree (zero commits) points at
+    // origin/main and would otherwise be classified as "merged" and removed
+    // from under its agent. Only an upstream matching the branch name — what
+    // `git push -u origin HEAD` sets — counts; branches auto-tracking main
+    // do not. The PR flow always pushes, so finished work is still swept.
     const upstream = upstreamRef(root, branch);
-    if (upstream === undefined) {
-      console.log(`keep ${label}: branch "${branch}" was never pushed (no upstream)`);
+    if (upstream !== `refs/heads/${branch}`) {
+      console.log(`keep ${label}: branch "${branch}" was never pushed (no matching upstream)`);
       kept += 1;
       continue;
     }
