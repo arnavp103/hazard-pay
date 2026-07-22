@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { StatusChip } from "@hazard-pay/ui";
 
+import { ResolutionMapPrototype } from "../match-proto/resolution-map-prototype.tsx";
 import { mountMatchStage, STAGE_HEIGHT, STAGE_WIDTH } from "../match-proto/stage.ts";
 
 export const Route = createFileRoute("/match-proto")({
@@ -29,6 +30,11 @@ const feedChip = {
 } as const;
 
 function MatchProtoScreen() {
+  if (isResolutionStudy()) { return <ResolutionMapPrototype />; }
+  return <OriginalMatchPrototype />;
+}
+
+function OriginalMatchPrototype() {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const [feed, setFeed] = useState<keyof typeof feedChip>("linking");
 
@@ -95,4 +101,9 @@ function MatchProtoScreen() {
       </footer>
     </main>
   );
+}
+
+function isResolutionStudy(): boolean {
+  if (globalThis.location === undefined) { return false; }
+  return new URLSearchParams(globalThis.location.search).get("study") === "resolution";
 }
