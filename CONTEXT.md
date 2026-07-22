@@ -40,6 +40,13 @@ _Avoid_: using "tick" for match pacing or frame timing
 The overworld having advanced while a player was away. A consequence of
 ticks, not a catch-up mechanism — there is nothing to replay on return.
 
+**Technofantasy**:
+Exceptional powers and mythic character archetypes expressed within the
+cyberpunk setting, such as espers and specialized cyberarmor. Espers are
+rare and command significant investment; their abilities may be genuinely
+supernatural or deliberately ambiguous. Technofantasy does not imply a
+separate medieval-fantasy world.
+
 **Action**:
 A game operation defined once and invokable two ways: by players and by
 leaders (as a tool).
