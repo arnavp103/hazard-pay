@@ -43,6 +43,14 @@ const env = createEnv({
     // are caught up in batches by the idempotent backfill, not by cron.
     TICK_INTERVAL: z.coerce.number().int().min(1000).default(300_000),
     GEMINI_API_KEY: z.string().optional(),
+    // Hosted agents use GitHub's HTTP API directly: provider images do not
+    // reliably include or authenticate the `gh` executable.
+    GITHUB_TOKEN: z.string().optional(),
+    GITHUB_REPOSITORY: z.string().regex(/^[^/]+\/[^/]+$/).optional(),
+    GITHUB_API_URL: z.url().default("https://api.github.com"),
+    HAZARD_PAY_HOSTED_AGENT: z.enum(["true", "false"])
+      .transform((value) => value === "true")
+      .default(false),
   },
   runtimeEnv: process.env,
   emptyStringAsUndefined: true,

@@ -17,6 +17,9 @@ importers:
       '@hazard-pay/config':
         specifier: workspace:*
         version: link:packages/config
+      agent-browser:
+        specifier: ^0.25.0
+        version: 0.25.0
       eslint:
         specifier: ^9.39.4
         version: 9.39.5(jiti@2.7.0)
@@ -181,6 +184,9 @@ importers:
       cac:
         specifier: ^7.0.0
         version: 7.0.0
+      pg:
+        specifier: ^8.22.0
+        version: 8.22.0
     devDependencies:
       '@hazard-pay/config':
         specifier: workspace:*
@@ -188,6 +194,9 @@ importers:
       '@types/node':
         specifier: ^22.10.0
         version: 22.20.1
+      '@types/pg':
+        specifier: ^8.20.0
+        version: 8.20.0
       eslint:
         specifier: ^9.39.4
         version: 9.39.5(jiti@2.7.0)
@@ -2861,6 +2870,10 @@ packages:
   acorn@8.17.0:
     resolution: {integrity: sha512-xRQbDb9BnwDafYNn6Vwl839DYVjqXYb1XVGtWAZ1kcDc6iwAL4hg3B1dZlRiuENFeO2H53gFG3in621AdERVAg==}
     engines: {node: '>=0.4.0'}
+    hasBin: true
+
+  agent-browser@0.25.0:
+    resolution: {integrity: sha512-GiwnrmC3X4ptSIG/+WkEcwONen4Zco8YDV/y87RwnTS4oye3XqUBMWdUjBxbuAgy+WwW4dTpVF8ELWYOYVnVHg==}
     hasBin: true
 
   ai@7.0.32:
@@ -8256,6 +8269,8 @@ snapshots:
       acorn: 8.17.0
 
   acorn@8.17.0: {}
+
+  agent-browser@0.25.0: {}
 
   ai@7.0.32(zod@4.4.3):
     dependencies:

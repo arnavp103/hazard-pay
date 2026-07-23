@@ -1,56 +1,54 @@
-import { execFileSync } from "node:child_process";
-
-/**
- * Shared `gh` exec wrapper, mirroring `worktree.ts`'s `git()`/`tryGit()`
- * pattern: run `gh`, capture stderr into the thrown error so callers can
- * report a useful message instead of a bare non-zero exit.
- */
-export function gh(args: string[]): string {
-  try {
-    return execFileSync("gh", args, {
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "pipe"],
-    }).trim();
-  } catch (error) {
-    const stderr = error !== null && typeof error === "object" && "stderr" in error
-      ? String((error as { stderr: unknown }).stderr).trim()
-      : "";
-    throw new Error(`gh ${args.join(" ")} failed${stderr ? `: ${stderr}` : ""}`);
-  }
-}
-
-/** Run `gh` and parse its stdout as JSON. Throws with a clear message on failure. */
-export function ghJson<T>(args: string[]): T {
-  return JSON.parse(gh(args)) as T;
-}
+import env from "@hazard-pay/env";
 
 /** `error instanceof Error ? error.message : String(error)`, named once. */
 export function toErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-/**
- * `gh api` GET request against the current repo, with `{owner}`/`{repo}`
- * resolved by `gh` itself from the local git remote — no repo needs to be
- * hardcoded or looked up separately. `params` become `-f key=value` query
- * parameters; `-X GET` is required explicitly because `gh api` defaults to
- * POST once any `-f` params are present. `paginate: true` follows every
- * page and flattens array responses into one array — required for any
- * endpoint whose result can plausibly exceed one page (100 items), since a
- * silently-truncated listing is exactly the kind of quiet miss this CLI
- * exists to avoid.
- */
-export function ghApiGet<T>(
+function configuration(): { apiUrl: string; repository: string; token: string } {
+  if (env.GITHUB_TOKEN === undefined || env.GITHUB_REPOSITORY === undefined) {
+    throw new Error("GitHub access requires GITHUB_TOKEN and GITHUB_REPOSITORY=owner/repo");
+  }
+  return { apiUrl: env.GITHUB_API_URL, repository: env.GITHUB_REPOSITORY, token: env.GITHUB_TOKEN };
+}
+
+export function githubRepository(): string {
+  return configuration().repository;
+}
+
+function nextLink(link: string | null): string | undefined {
+  if (link === null) { return undefined; }
+  return link.split(",").map((part) => part.trim()).find((part) => part.endsWith("rel=\"next\""))?.match(/^<([^>]+)>/)?.[1];
+}
+
+/** Authenticated GitHub REST GET without relying on a preinstalled `gh`. */
+export async function githubApiGet<T>(
   endpoint: string,
   params: Record<string, string> = {},
   options: { paginate?: boolean } = {},
-): T {
-  const args = ["api", endpoint, "-X", "GET"];
-  for (const [key, value] of Object.entries(params)) {
-    args.push("-f", `${key}=${value}`);
-  }
-  if (options.paginate === true) {
-    args.push("--paginate");
-  }
-  return ghJson<T>(args);
+): Promise<T> {
+  const { apiUrl, repository, token } = configuration();
+  let url: string | undefined = `${apiUrl}/${endpoint.replace("{repo}", repository).replace(/^\//, "")}`;
+  const initial = new URL(url);
+  for (const [key, value] of Object.entries(params)) { initial.searchParams.set(key, value); }
+  url = initial.toString();
+  const pages: unknown[] = [];
+  do {
+    const response = await fetch(url, {
+      headers: {
+        "Accept": "application/vnd.github+json",
+        "Authorization": `Bearer ${token}`,
+        "X-GitHub-Api-Version": "2022-11-28",
+      },
+    });
+    if (!response.ok) { throw new Error(`GitHub GET ${endpoint} failed (${response.status}): ${await response.text()}`); }
+    const value = await response.json() as unknown;
+    if (options.paginate === true && Array.isArray(value)) {
+      pages.push(...value);
+    } else {
+      return value as T;
+    }
+    url = nextLink(response.headers.get("link"));
+  } while (url !== undefined);
+  return pages as T;
 }

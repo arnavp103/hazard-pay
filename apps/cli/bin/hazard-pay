@@ -2,4 +2,20 @@
 # Thin shim so `hazard-pay` runs the TypeScript entrypoint directly — packages
 # in this repo export raw TS source and are executed through tsx, with no build
 # step to keep in sync.
-exec pnpm exec tsx "$(dirname "$0")/../src/index.ts" "$@"
+package_dir="$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)"
+
+# `setup` must work in a fresh clone before tsx exists. The shim only performs
+# that unavoidable bootstrap; the setup command itself lives in TypeScript.
+if [ "${1:-}" = "setup" ]; then
+  command -v node >/dev/null 2>&1 || { echo "hazard-pay setup: Node >=22 is required" >&2; exit 1; }
+  command -v pnpm >/dev/null 2>&1 || { echo "hazard-pay setup: pnpm 11.11.0 is required" >&2; exit 1; }
+  root="$(git -C "$package_dir" rev-parse --show-toplevel)"
+  lock_hash="$(node -e 'const fs=require("node:fs"),c=require("node:crypto");process.stdout.write(c.createHash("sha256").update(fs.readFileSync(process.argv[1])).digest("hex"))' "$root/pnpm-lock.yaml")"
+  installed_hash="$(cat "$root/node_modules/.hazard-pay-lock-hash" 2>/dev/null || true)"
+  if [ ! -x "$package_dir/node_modules/.bin/tsx" ] || [ "$lock_hash" != "$installed_hash" ]; then
+    pnpm --dir "$root" install --frozen-lockfile || exit $?
+    printf '%s' "$lock_hash" > "$root/node_modules/.hazard-pay-lock-hash"
+  fi
+fi
+
+exec pnpm --dir "$package_dir" exec tsx "$package_dir/src/index.ts" "$@"

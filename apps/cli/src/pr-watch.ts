@@ -1,4 +1,5 @@
-import { ghApiGet, ghJson, toErrorMessage } from "./gh.ts";
+import { execFileSync } from "node:child_process";
+import { githubApiGet, githubRepository, toErrorMessage } from "./gh.ts";
 import { printSummary } from "./output.ts";
 
 /** Poll cadence for `pr watch`. */
@@ -123,17 +124,39 @@ function toWorkflowRun(raw: RawWorkflowRun): WorkflowRun {
   return { id: raw.id, name: raw.name, headSha: raw.head_sha, status: raw.status, conclusion: raw.conclusion };
 }
 
-function fetchPr(number: number | undefined): PrStatus {
-  const fields = "number,headRefOid,headRefName,mergeable,mergeStateStatus";
-  const args = number === undefined
-    ? ["pr", "view", "--json", fields]
-    : ["pr", "view", String(number), "--json", fields];
-  return ghJson<PrStatus>(args);
+interface RawPr {
+  number: number;
+  head: { ref: string; sha: string };
+  mergeable: boolean | null;
+  mergeable_state: string;
 }
 
-function fetchRunsForSha(sha: string): WorkflowRun[] {
-  const { workflow_runs: runs } = ghApiGet<{ workflow_runs: RawWorkflowRun[] }>(
-    "repos/{owner}/{repo}/actions/runs",
+function toPrStatus(pr: RawPr): PrStatus {
+  const mergeable: Mergeable = pr.mergeable === true ? "MERGEABLE" : pr.mergeable === false ? "CONFLICTING" : "UNKNOWN";
+  const state = pr.mergeable_state.toUpperCase();
+  const mergeStateStatus: MergeStateStatus = state === "DIRTY" || state === "BLOCKED" || state === "BEHIND"
+    ? state
+    : state === "CLEAN" || state === "UNSTABLE" || state === "DRAFT" || state === "HAS_HOOKS"
+      ? state
+      : "UNKNOWN";
+  return { number: pr.number, headRefOid: pr.head.sha, headRefName: pr.head.ref, mergeable, mergeStateStatus };
+}
+
+async function fetchPr(number: number | undefined): Promise<PrStatus> {
+  if (number !== undefined) { return toPrStatus(await githubApiGet<RawPr>(`repos/{repo}/pulls/${number}`)); }
+  const branch = execFileSync("git", ["branch", "--show-current"], { encoding: "utf8" }).trim();
+  if (branch === "") { throw new Error("cannot infer a PR from detached HEAD; pass its number"); }
+  const owner = githubRepository().split("/")[0];
+  const prs = await githubApiGet<RawPr[]>("repos/{repo}/pulls", { head: `${owner}:${branch}`, state: "open" });
+  if (prs.length !== 1) { throw new Error(`expected one open PR for branch ${branch}, found ${prs.length}; pass its number`); }
+  const [pr] = prs;
+  if (pr === undefined) { throw new Error(`open PR for branch ${branch} disappeared while resolving it`); }
+  return toPrStatus(pr);
+}
+
+async function fetchRunsForSha(sha: string): Promise<WorkflowRun[]> {
+  const { workflow_runs: runs } = await githubApiGet<{ workflow_runs: RawWorkflowRun[] }>(
+    "repos/{repo}/actions/runs",
     { head_sha: sha },
   );
   return filterRunsForSha(runs.map(toWorkflowRun), sha);
@@ -160,7 +183,7 @@ export interface PrWatchOptions {
 export async function prWatch(options: PrWatchOptions): Promise<never> {
   let pr: PrStatus;
   try {
-    pr = fetchPr(options.number);
+    pr = await fetchPr(options.number);
   } catch (error) {
     return conclude({ kind: "error", message: toErrorMessage(error) });
   }
@@ -181,7 +204,7 @@ export async function prWatch(options: PrWatchOptions): Promise<never> {
     const elapsedMs = Date.now() - startedAt;
     let runs: WorkflowRun[];
     try {
-      runs = fetchRunsForSha(pr.headRefOid);
+      runs = await fetchRunsForSha(pr.headRefOid);
     } catch (error) {
       return conclude({ kind: "error", message: toErrorMessage(error) });
     }
@@ -210,7 +233,7 @@ export async function prWatch(options: PrWatchOptions): Promise<never> {
 function conclude(verdict: Verdict): never {
   if (verdict.kind === "failure" || verdict.kind === "timeout" || verdict.kind === "no-ci") {
     printSummary("CI did not conclude successfully:", [
-      "re-check the raw state: `gh pr checks <number>` and `gh pr view <number> --json mergeStateStatus,mergeable`",
+      "re-check the PR's Actions and merge state in GitHub",
       "after pushing a fix, `hazard-pay pr watch` will pick up the new head SHA automatically",
     ]);
   } else if (verdict.kind === "conflicting") {
