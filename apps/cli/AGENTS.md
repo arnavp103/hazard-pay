@@ -6,14 +6,16 @@ cac-based dev CLI. Runs from source, no build: `./apps/cli/bin/hazard-pay`
 ## Structure
 
 - `bin/hazard-pay` — executable entry; keep it a launcher, no logic.
+- `src/setup.ts` — idempotent hosted/local-agent environment bootstrap. Its
+  state fingerprint makes repeated invocations a quick readiness check.
 - `src/index.ts` — cac program: command registration and dispatch.
 - `src/worktree.ts` — `worktree new <branch>` / `worktree clean` for the
   agent-worktree workflow. New worktrees go under `.worktrees/`; clean also
   sweeps the legacy `.claude/worktrees/`.
 - `src/output.ts` — end-of-command summary/reminder helper; commands route
   their closing checklist through it so reminders can grow per-command.
-- `src/gh.ts` — shared `gh` exec wrapper (`gh`/`ghJson`/`ghApiGet`), mirroring
-  `worktree.ts`'s `git()`/`tryGit()` pattern.
+- `src/gh.ts` — shared authenticated GitHub REST client. It deliberately does
+  not depend on the provider image containing or authenticating `gh`.
 - `src/pr-watch.ts` — `pr watch [number]`: polls CI for a PR's exact head
   SHA and blocks until it concludes, surfacing the silent no-CI states
   (CONFLICTING/DIRTY, no runs after a grace period) instead of hanging.
