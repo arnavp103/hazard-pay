@@ -13,6 +13,7 @@ import { useEffect, useRef, useState } from "react";
 import { StatusChip } from "@hazard-pay/ui";
 
 import {
+  type GritMode,
   LOUPE_HEIGHT,
   LOUPE_WIDTH,
   type MedicAnim,
@@ -75,6 +76,13 @@ function readZoom(): number {
   return Number.isFinite(parsed) && parsed >= 0.5 && parsed <= 4 ? parsed : 1;
 }
 
+/** Round-2 wear treatment A/B: `?grit=decal|chip|both` (default both). */
+function readGrit(): GritMode {
+  if (globalThis.location === undefined) { return "both"; }
+  const raw = new URLSearchParams(globalThis.location.search).get("grit");
+  return raw === "decal" || raw === "chip" || raw === "both" ? raw : "both";
+}
+
 function writeUrl(anim: MedicAnim, motion: boolean): void {
   const url = new URL(globalThis.location.href);
   url.searchParams.set("anim", anim);
@@ -100,6 +108,7 @@ export function Realtime3dPrototype() {
     const handle = mountRealtime3d(stage, loupeRef.current, {
       anim: readAnim(),
       freezeMs: readFreezeMs(),
+      grit: readGrit(),
       motion: readMotion(),
       zoom: readZoom(),
     });

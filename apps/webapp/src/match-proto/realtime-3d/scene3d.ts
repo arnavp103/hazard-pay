@@ -9,7 +9,7 @@
 
 import * as THREE from "three";
 
-import { buildBoard } from "./board3d.ts";
+import { buildBoard, type GritMode } from "./board3d.ts";
 import { applyMedicPose, buildMedic, type MedicAnim } from "./medic3d.ts";
 
 export const STAGE_WIDTH = 480;
@@ -66,7 +66,7 @@ function makeLights(): THREE.Object3D[] {
   return [key, ambient];
 }
 
-export type { MedicAnim };
+export type { GritMode, MedicAnim };
 
 export interface MountOptions {
   anim: MedicAnim;
@@ -74,6 +74,8 @@ export interface MountOptions {
   /** Deterministic capture: render exactly this clock value and stop. */
   freezeMs?: number;
   zoom?: number;
+  /** Round-2 wear treatment A/B: decal-heavy, geometry-chip-heavy, or both. */
+  grit?: GritMode;
 }
 
 export interface Realtime3dHandle {
@@ -90,6 +92,7 @@ export function mountRealtime3d(
   let anim = options.anim;
   let motion = options.motion;
   const zoom = options.zoom ?? 1;
+  const grit = options.grit ?? "both";
 
   const stageRenderer = new THREE.WebGLRenderer({ antialias: true });
   stageRenderer.setPixelRatio(1);
@@ -99,7 +102,7 @@ export function mountRealtime3d(
 
   const stageScene = new THREE.Scene();
   stageScene.add(...makeLights());
-  stageScene.add(buildBoard());
+  stageScene.add(buildBoard(grit));
   const medic = buildMedic();
   stageScene.add(medic.root);
 
