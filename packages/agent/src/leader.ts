@@ -4,6 +4,7 @@ import type { ResultAsync } from "neverthrow";
 import { z } from "zod";
 
 import { contentHash } from "./hash.ts";
+import { RESERVED_TOOL_NAMES } from "./envelope.ts";
 import type { JsonValue } from "./envelope.ts";
 
 /**
@@ -42,9 +43,6 @@ export interface LeaderTool {
    */
   execute: (ctx: ToolExecutionCtx, input: never) => ResultAsync<JsonValue, ToolError>;
 }
-
-/** Tool names owned by the harness itself — leaders cannot redefine them. */
-export const RESERVED_TOOL_NAMES = ["spawn_lane", "send_message", "cancel_lane"] as const;
 
 const leaderShapeSchema = z.object({
   name: z.string().regex(/^[a-z][a-z0-9_-]*$/),
