@@ -1,10 +1,18 @@
 import { cac } from "cac";
 import env from "@hazard-pay/env";
 import { DEFAULT_TIMEOUT_MINUTES, prWatch } from "./pr-watch.ts";
+import { setup } from "./setup.ts";
 import { tasks } from "./tasks.ts";
 import { worktreeClean, worktreeNew } from "./worktree.ts";
 
 const cli = cac("hazard-pay");
+
+cli
+  .command("setup", "Bootstrap dependencies, browser, database, and migrations")
+  .option("--force", "Run every setup step even when this environment is ready")
+  .action(async (options: { force?: boolean }) => {
+    await setup({ force: options.force === true });
+  });
 
 /** Env vars whose values must never be printed, only shown as "[set]". */
 function isSecretName(name: string): boolean {
@@ -74,8 +82,8 @@ cli
   .option("--json", "Emit the raw grouped structure as JSON instead of a table")
   .example("hazard-pay tasks")
   .example("hazard-pay tasks --json")
-  .action((options: { json?: boolean }) => {
-    tasks({ json: options.json === true });
+  .action(async (options: { json?: boolean }) => {
+    await tasks({ json: options.json === true });
   });
 
 cli.help();

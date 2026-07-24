@@ -1,4 +1,4 @@
-import { ghApiGet, ghJson } from "./gh.ts";
+import { githubApiGet } from "./gh.ts";
 import { printSummary } from "./output.ts";
 
 /** Raw shape of a REST issues-list entry (snake_case, as GitHub returns it). */
@@ -162,8 +162,8 @@ interface DependencyIssue {
 }
 
 /** Fetches the open blocker issue numbers for a single (already known-blocked) issue. */
-function fetchOpenBlockers(issueNumber: number): number[] {
-  const dependencies = ghApiGet<DependencyIssue[]>(`repos/{owner}/{repo}/issues/${issueNumber}/dependencies/blocked_by`);
+async function fetchOpenBlockers(issueNumber: number): Promise<number[]> {
+  const dependencies = await githubApiGet<DependencyIssue[]>(`repos/{repo}/issues/${issueNumber}/dependencies/blocked_by`);
   return dependencies.filter((dependency) => dependency.state === "open").map((dependency) => dependency.number);
 }
 
@@ -172,9 +172,9 @@ function fetchOpenBlockers(issueNumber: number): number[] {
  * open PRs, and — only for issues that need it — their open blocker
  * numbers, then group and print.
  */
-export function tasks(options: { json: boolean }): void {
-  const raw = ghApiGet<RawIssue[]>(
-    "repos/{owner}/{repo}/issues",
+export async function tasks(options: { json: boolean }): Promise<void> {
+  const raw = await githubApiGet<RawIssue[]>(
+    "repos/{repo}/issues",
     { state: "open", per_page: "100" },
     { paginate: true },
   );
@@ -183,13 +183,13 @@ export function tasks(options: { json: boolean }): void {
   const blockersByIssue = new Map<number, number[]>();
   for (const issue of summaries) {
     if (issue.assignees.length === 0 && issue.blockedByCount > 0) {
-      blockersByIssue.set(issue.number, fetchOpenBlockers(issue.number));
+      blockersByIssue.set(issue.number, await fetchOpenBlockers(issue.number));
     }
   }
 
-  // gh's own default page size (30) would silently cap this; --limit forces
-  // a page well past any backlog this project is expected to carry.
-  const prs = ghJson<OpenPr[]>(["pr", "list", "--state", "open", "--json", "number,headRefName,body", "--limit", "500"]);
+  interface RawPr { number: number; body: string | null; head: { ref: string } }
+  const rawPrs = await githubApiGet<RawPr[]>("repos/{repo}/pulls", { state: "open", per_page: "100" }, { paginate: true });
+  const prs = rawPrs.map((pr) => ({ number: pr.number, headRefName: pr.head.ref, body: pr.body ?? "" }));
 
   const groups = groupTasks(summaries, blockersByIssue, prs);
 
@@ -200,6 +200,6 @@ export function tasks(options: { json: boolean }): void {
 
   console.log(renderTable(groups));
   printSummary("Before starting work:", [
-    "claim an issue: `gh issue edit <n> --add-assignee @me`",
+    "claim the issue in GitHub before starting work",
   ]);
 }

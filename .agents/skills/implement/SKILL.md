@@ -12,10 +12,24 @@ Implement the work described by the user in the spec or tickets. All implementat
 work happens in a dedicated git worktree and lands as a pull request — never commit
 to `main` directly.
 
-## 1. Worktree first
+## 1. Prepare the environment, then the worktree
 
-Before any other work, set up an isolated worktree (skip if you're already inside
+Run the repository bootstrap first. It is a quick readiness check after its
+first successful run, so use it in local worktrees as well as hosted-agent
+checkouts:
+
+```bash
+./apps/cli/bin/hazard-pay setup
+```
+
+The command installs dependencies and the screenshot browser, ensures Postgres
+is reachable, and applies migrations only when its setup fingerprint is stale.
+Use `--force` only to repair or deliberately reprovision an environment.
+
+Then set up an isolated worktree (skip if you're already inside
 one — check whether `git rev-parse --git-common-dir` differs from `.git`).
+When `HAZARD_PAY_HOSTED_AGENT=true`, the command works directly on the provider
+checkout's branch instead of creating a nested worktree; do not `cd` afterward.
 Preferred path — the dev CLI does fetch, branch off `origin/main`, worktree add,
 and `pnpm install` in one step, then prints the PR-flow checklist:
 

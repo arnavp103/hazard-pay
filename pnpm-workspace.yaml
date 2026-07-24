@@ -15,6 +15,7 @@ allowBuilds:
   # without them (verified on the #13 prototype). Deliberately skipped.
   "@swc/core": false
   msw: false
+  agent-browser: true
 
 # Auto-appended by pnpm when apps/webapp pinned a react-query release
 # younger than the configured minimum age; exact-version exceptions only.

@@ -1,6 +1,7 @@
 import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import path from "node:path";
+import env from "@hazard-pay/env";
 import { printSummary } from "./output.ts";
 
 /** Where `worktree new` creates agent worktrees (repo-relative). */
@@ -169,6 +170,22 @@ export function worktreeNew(name: string | undefined): void {
     fail(invalid ?? "a branch name is required");
   }
   const root = checkoutRoot();
+  if (env.HAZARD_PAY_HOSTED_AGENT) {
+    if (tryGit(["status", "--porcelain"], root) !== "") {
+      fail("the hosted-agent checkout has uncommitted changes — create the branch before editing");
+    }
+    const current = tryGit(["branch", "--show-current"], root);
+    if (current === name) {
+      console.log(`Hosted-agent checkout is already on branch "${name}"; no worktree created.`);
+      return;
+    }
+    run("git", ["switch", "-c", name], root);
+    printSummary(`Hosted-agent branch ready: ${name}.`, [
+      "work directly in this checkout; do not create a nested worktree",
+      "green gate before review: `pnpm type-check && pnpm lint && pnpm test`",
+    ]);
+    return;
+  }
   console.log("Fetching origin...");
   run("git", ["fetch", "origin"], root);
   if (branchExists(root, name)) {
