@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { StyleCohesionPrototype } from "../match-proto/style-cohesion-prototype.tsx";
+import { PixelControlPrototype } from "../match-proto/pixel-control-lane/pixel-control-prototype.tsx";
 
 export const Route = createFileRoute("/match-proto")({
-  component: StyleCohesionPrototype,
+  component: PixelControlPrototype,
 });
