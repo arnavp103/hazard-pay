@@ -140,7 +140,7 @@ export function BlenderBakedPrototype() {
       </header>
 
       <div className="grid flex-1 place-items-center px-5 py-4">
-        <div className="flex flex-col gap-4" style={{ width: STAGE_WIDTH }}>
+        <div className="flex flex-col gap-4" style={{ width: comparison ? 800 : STAGE_WIDTH }}>
           <section>
             <div className="mb-2 flex items-end justify-between font-data uppercase">
               <div>
@@ -172,7 +172,7 @@ export function BlenderBakedPrototype() {
 
           {comparison
             ? (
-                <section className="border-2 border-line bg-panel px-4 py-3 shadow-hard">
+                <section data-quant-panel className="border-2 border-line bg-panel px-4 py-3 shadow-hard">
                   <div className="font-display text-lg font-extrabold tracking-[0.05em] text-ink uppercase">
                     Deliberate pixel art, or a shrunken 3D render?
                   </div>

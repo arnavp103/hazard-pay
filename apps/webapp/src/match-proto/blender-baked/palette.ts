@@ -140,6 +140,42 @@ export function quantizeToPalette(
   }
 }
 
+let darkerCache: Map<number, [number, number, number]> | undefined;
+
+/**
+ * One step down the ramp for every palette entry.
+ *
+ * Internal separation on a 31-px figure cannot be plum-black: two touching
+ * cloth masses inked in `#120b10` shred the silhouette into speckle (measured,
+ * not guessed — it was the first thing the pixels said). Stepping the darker
+ * side one rung down its own ramp instead keeps the seam inside the palette's
+ * value language, which is how hand-drawn sprites separate same-tone forms.
+ */
+export function darkerStep(r: number, g: number, b: number): [number, number, number] {
+  if (darkerCache === undefined) {
+    darkerCache = new Map();
+    const entries = DIRECTION_B_PALETTE.map((entry) => hexToRgb(entry.hex));
+    for (const [er, eg, eb] of entries) {
+      const target: [number, number, number] = [er * 0.58, eg * 0.58, eb * 0.62];
+      let best = entries[0] ?? [0, 0, 0];
+      let bestDistance = Number.POSITIVE_INFINITY;
+      for (const candidate of entries) {
+        // Straight squared RGB is right here: we are picking a rung on a ramp
+        // we authored, not judging perceptual similarity across hues.
+        const distance = (candidate[0] - target[0]) ** 2
+          + (candidate[1] - target[1]) ** 2
+          + (candidate[2] - target[2]) ** 2;
+        if (distance < bestDistance) {
+          bestDistance = distance;
+          best = candidate;
+        }
+      }
+      darkerCache.set((er << 16) | (eg << 8) | eb, best);
+    }
+  }
+  return darkerCache.get((r << 16) | (g << 8) | b) ?? [r, g, b];
+}
+
 /** Distinct palette entries actually used by an RGBA buffer, for reporting. */
 export function paletteCoverage(rgba: Uint8Array | Uint8ClampedArray): Set<string> {
   const byKey = new Map<number, string>();

@@ -6,22 +6,22 @@
   "cellWidth": 64,
   "cellHeight": 48,
   "uniformGrid": {
-    "width": 450,
-    "height": 490,
-    "pixels": 220500
+    "width": 405,
+    "height": 504,
+    "pixels": 204120
   },
   "trimmed": {
-    "width": 320,
-    "height": 448,
-    "pixels": 143360,
-    "occupancy": 0.8520438058035714
+    "width": 324,
+    "height": 456,
+    "pixels": 147744,
+    "occupancy": 0.8357970543643058
   },
-  "rgbaPngBytes": 189026,
-  "indexedPngBytes": 30720,
-  "paletteEntriesUsed": 25,
+  "rgbaPngBytes": 197337,
+  "indexedPngBytes": 33620,
+  "paletteEntriesUsed": 26,
   "paletteSize": 33,
-  "blenderRenderSeconds": 6.1,
-  "blenderTotalSeconds": 6.752,
-  "bakeWallClockSeconds": 8.35,
+  "blenderRenderSeconds": 6.158,
+  "blenderTotalSeconds": 6.811,
+  "bakeWallClockSeconds": 8.39,
   "atlasRoundTripMismatchedPixels": 0
 }

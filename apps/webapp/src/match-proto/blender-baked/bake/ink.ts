@@ -16,7 +16,7 @@
  *    would just make a 31-px figure muddy.
  */
 
-import { hexToRgb, INK } from "../palette.ts";
+import { darkerStep, hexToRgb, INK } from "../palette.ts";
 
 export interface InkOptions {
   /** Grow a 1 px plum-black contour into the transparent margin. */
@@ -29,9 +29,15 @@ export interface InkOptions {
    * 0 disables internal ink entirely.
    */
   internalLumaGap: number;
+  /**
+   * How a seam is drawn. "ink" is the textbook plum-black line and is kept
+   * only so the gallery can show why it does not survive at this scale;
+   * "darken" steps the darker side one rung down its own ramp.
+   */
+  internalMode: "darken" | "ink";
 }
 
-export const DEFAULT_INK: InkOptions = { contour: true, internalLumaGap: 6 };
+export const DEFAULT_INK: InkOptions = { contour: true, internalLumaGap: 10, internalMode: "darken" };
 
 /** Palette entries the internal pass must never overwrite: the scarce 5%. */
 const PROTECTED = new Set(["#2f9e96", "#a8f0e4", "#c8bda9"]);
@@ -87,9 +93,12 @@ export function inkSprite(
     }
     for (let i = 0; i < mask.length; i += 1) {
       if (mask[i] !== 1) { continue; }
-      out[i * 4] = ir;
-      out[i * 4 + 1] = ig;
-      out[i * 4 + 2] = ib;
+      const [dr, dg, db] = options.internalMode === "ink"
+        ? [ir, ig, ib]
+        : darkerStep(color[i * 4] ?? 0, color[i * 4 + 1] ?? 0, color[i * 4 + 2] ?? 0);
+      out[i * 4] = dr;
+      out[i * 4 + 1] = dg;
+      out[i * 4 + 2] = db;
     }
   }
 

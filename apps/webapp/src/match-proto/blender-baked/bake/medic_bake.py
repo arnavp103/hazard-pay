@@ -62,6 +62,10 @@ HOOD = "#3b2936"
 BROW = "#241a22"
 METAL = "#8b8f99"
 METAL_HI = "#c6cad4"
+# Toe caps sit at the busiest, least important end of a 31-px figure; a
+# darker steel keeps the material read without letting the feet outshine
+# the head and kit.
+TOE_METAL = "#5f636d"
 LIVERY = "#a6533f"
 LIVERY_DK = "#7d3d2f"
 PALE = "#cfc3b0"
@@ -76,6 +80,22 @@ KNEEPAD = "#7d4136"
 AERIAL = "#1a1218"
 SCUFF = "#312c36"
 
+# --- minimum feature size -------------------------------------------------
+# A finding, not a fudge. The rival rig was authored for a REAL-TIME 60-px
+# view, where a 0.03-unit stencil tick is half a pixel of harmless texture
+# that temporal motion smooths over. Baked at 16 art px per world unit with a
+# point sampling filter, that same tick becomes a single hard pixel that flicks
+# on and off between facings — noise, not detail. So every decorative feature
+# is floored at ~1.2 art px, and the features that cannot be grown without
+# lying about the kit (the unit stencil) are dropped outright.
+ART_PX = 1.0 / 16.0
+MIN_FEATURE = ART_PX * 1.2
+
+
+def feat(*dims):
+    """Floor each dimension at the minimum readable feature size."""
+    return tuple(max(d, MIN_FEATURE) for d in dims)
+
 # Key direction (surface -> light), the rival lane's key mapped into Blender.
 KEY = (0.6245, -0.039, 0.7807)
 # Three-band ramp thresholds on u = dot * 0.5 + 0.5, matching cel.ts's
@@ -89,11 +109,24 @@ BAND_STOPS = (0.0, 9.0 / 16.0, 13.0 / 16.0)
 # palette entries. So the bands below keep the rival's value STRUCTURE
 # (deep cool shadow, clear mid, warm lit) with the top pulled just under
 # saturation, widening the ramp instead of blowing it out.
-BAND_GAIN = 2.55
+BAND_MULTIPLIERS = ((0.62, 0.52, 0.66), (1.70, 1.58, 1.50), (3.00, 2.75, 2.40))
+BAND_GAIN = max(max(band) for band in BAND_MULTIPLIERS)
 BAND_COLORS = tuple(
-    tuple(channel / BAND_GAIN for channel in band)
-    for band in ((0.55, 0.46, 0.58), (1.45, 1.35, 1.28), (2.55, 2.34, 2.05))
+    tuple(channel / BAND_GAIN for channel in band) for band in BAND_MULTIPLIERS
 )
+
+
+def band_headroom(base_linear):
+    """Per-material gain that puts the LIT band exactly at saturation, no higher.
+
+    A flat gain would clip the rust livery's lit band and drag its hue toward
+    pink while leaving the dark cloth needlessly dim. Scaling each material by
+    its own headroom keeps hue exact, maximises the value spread every material
+    gets, and — the part that matters downstream — stops several saturated
+    materials from collapsing onto the same near-white palette entry.
+    """
+    peak = max(base * band for base, band in zip(base_linear, BAND_MULTIPLIERS[2]))
+    return 1.0 if peak <= 1.0 else 1.0 / peak
 
 
 # --- scene plumbing -------------------------------------------------------
@@ -145,7 +178,7 @@ def cel_material(hex_color: str):
 
     emit = tree.nodes.new("ShaderNodeEmission")
     # Gain lives on Strength, not in the ramp: ColorRamp stops clamp at 1.0.
-    emit.inputs["Strength"].default_value = BAND_GAIN
+    emit.inputs["Strength"].default_value = BAND_GAIN * band_headroom(hex_to_linear(hex_color))
     tree.links.new(tint.outputs["Color"], emit.inputs["Color"])
     out = tree.nodes.new("ShaderNodeOutputMaterial")
     tree.links.new(emit.outputs["Emission"], out.inputs["Surface"])
@@ -253,12 +286,12 @@ def build_leg(side, root):
     knee = empty(f"knee{side}", hip, (0.0, 0.0, -0.38))
     box("shin", (0.15, 0.3, 0.16), (0, -0.16, 0), cel_material(SHIN), knee)
     if side == -1:
-        box("shin_tape", (0.175, 0.05, 0.185), (0, -0.12, 0.005), flat_material(TAPE), knee)
+        box("shin_tape", feat(0.175, 0.06, 0.185), (0, -0.12, 0.005), flat_material(TAPE), knee)
     box("boot", (0.24, 0.15, 0.42), (0, -0.385, 0.09), cel_material(BOOT), knee)
-    box("toe", (0.245, 0.11, 0.13), (0, -0.41, 0.28), cel_material(METAL), knee)
-    box("toe_hi", (0.245, 0.03, 0.04), (0, -0.368, 0.335), flat_material(METAL_HI), knee)
+    box("toe", (0.245, 0.11, 0.13), (0, -0.41, 0.28), cel_material(TOE_METAL), knee)
+    box("toe_hi", feat(0.245, 0.03, 0.04), (0, -0.372, 0.338), flat_material(METAL_HI), knee)
     # Chip-led wear: a notched, scuffed heel block (the r2 critique's lesson).
-    box("boot_scuff", (0.09, 0.05, 0.1), (side * 0.07, -0.325, -0.11), flat_material(SCUFF), knee)
+    box("boot_scuff", feat(0.09, 0.05, 0.1), (side * 0.07, -0.325, -0.115), flat_material(SCUFF), knee)
     return hip, knee
 
 
@@ -268,30 +301,30 @@ def build_arm(side, cyber, torso):
     elbow = empty(f"elbow{side}", shoulder, (0.0, 0.0, -0.34))
     if cyber:
         box("forearm", (0.14, 0.27, 0.15), (0, -0.15, 0), cel_material(METAL), elbow)
-        box("forearm_spec", (0.035, 0.22, 0.035), (side * 0.06, -0.14, 0.075), flat_material(METAL_HI), elbow)
-        box("forearm_dot", (0.04, 0.04, 0.025), (side * 0.02, -0.18, 0.09), flat_material(SIGNAL), elbow)
+        box("forearm_spec", feat(0.035, 0.22, 0.035), (side * 0.06, -0.14, 0.08), flat_material(METAL_HI), elbow)
     else:
         box("forearm", (0.13, 0.26, 0.14), (0, -0.15, 0), cel_material(COAT_DARK), elbow)
-        box("wrist_wrap", (0.155, 0.06, 0.165), (0, -0.03, 0.005), flat_material(TAPE), elbow)
+        box("wrist_wrap", feat(0.155, 0.07, 0.165), (0, -0.03, 0.005), flat_material(TAPE), elbow)
     hand = empty(f"hand{side}", elbow, (0.0, 0.0, -0.33))
     if cyber:
         box("fist", (0.2, 0.16, 0.18), (0, -0.06, 0), cel_material(METAL), hand)
-        box("knuckle", (0.055, 0.045, 0.17), (0, -0.012, 0.02), flat_material(METAL_HI), hand)
+        box("knuckle", feat(0.055, 0.045, 0.17), (0, -0.012, 0.02), flat_material(METAL_HI), hand)
     else:
         box("fist", (0.19, 0.15, 0.17), (0, -0.06, 0), cel_material(SKIN), hand)
     return shoulder, elbow, hand
 
 
 def cross_plate(width, at, parent, flip=False):
-    depth = -0.02 if flip else 0.02
-    box("cross_v", (width * 0.36, width * 1.1, 0.03), (at[0], at[1], at[2] + depth * 0.0), flat_material(PALE), parent)
-    box("cross_h", (width, width * 0.36, 0.03), at, flat_material(PALE), parent)
+    """The pale cross: the mark that must survive grayscale and 31 px."""
+    del flip
+    box("cross_v", feat(width * 0.4, width * 1.15, 0.03), at, flat_material(PALE), parent)
+    box("cross_h", feat(width, width * 0.4, 0.03), at, flat_material(PALE), parent)
 
 
 def build_injector(hand):
     tool = empty("tool", hand, (0.0, -0.04, -0.08))
     cylinder("inj_body", 0.065, 0.4, (0, -0.02, 0.16), cel_material(METAL), tool)
-    box("inj_gleam", (0.03, 0.03, 0.34), (0, 0.05, 0.16), flat_material(METAL_HI), tool)
+    box("inj_gleam", feat(0.03, 0.03, 0.34), (0, 0.055, 0.16), flat_material(METAL_HI), tool)
     box("inj_tank", (0.1, 0.1, 0.14), (0, 0.07, 0.05), cel_material(LIVERY), tool)
     box("inj_grip", (0.06, 0.12, 0.07), (0, -0.1, 0.02), cel_material(BOOT), tool)
     tip = empty("tip", tool, (0.0, -0.4, -0.02))
@@ -307,36 +340,34 @@ def build_medic():
 
     torso = empty("torso", pelvis, (0.0, 0.0, 0.12))
     box("chest", (0.5, 0.44, 0.34), (0, 0.28, 0), cel_material(COAT), torso)
-    box("pocket", (0.16, 0.13, 0.03), (-0.16, 0.16, 0.18), flat_material(COAT_DARK), torso)
+    box("pocket", feat(0.16, 0.13, 0.03), (-0.16, 0.15, 0.185), flat_material(COAT_DARK), torso)
     # Chest rig + cross plate + strap + steel buckle.
-    box("chest_rig", (0.28, 0.26, 0.07), (0.06, 0.24, 0.19), cel_material(LIVERY), torso)
-    cross_plate(0.13, (0.06, 0.24, 0.24), torso)
-    box("strap", (0.56, 0.07, 0.03), (-0.02, 0.3, 0.185), flat_material(STRAP), torso, rot=(0, 0, 0.55))
+    box("chest_rig", (0.33, 0.30, 0.08), (0.05, 0.235, 0.19), cel_material(LIVERY), torso)
+    cross_plate(0.17, (0.05, 0.235, 0.245), torso)
+    box("strap", feat(0.56, 0.085, 0.03), (-0.02, 0.3, 0.19), flat_material(STRAP), torso, rot=(0, 0, 0.55))
     box("buckle", (0.09, 0.08, 0.035), (-0.14, 0.36, 0.2), flat_material(METAL), torso)
-    box("buckle_hi", (0.09, 0.025, 0.025), (-0.14, 0.39, 0.215), flat_material(METAL_HI), torso)
     # Field pack.
     box("pack", (0.38, 0.44, 0.2), (0, 0.22, -0.27), cel_material(PACK), torso)
     box("pack_plate", (0.24, 0.28, 0.05), (-0.02, 0.22, -0.39), cel_material(LIVERY), torso)
     cross_plate(0.12, (-0.02, 0.26, -0.425), torso, flip=True)
-    box("stencil_bar", (0.15, 0.03, 0.025), (-0.02, 0.09, -0.428), flat_material(STENCIL), torso)
-    for sx in (-0.06, -0.02, 0.02):
-        box("stencil_tick", (0.02, 0.05, 0.025), (sx, 0.045, -0.428), flat_material(STENCIL), torso)
+    # The rival's three-tick unit stencil is 0.3 art px per tick — dropped, and
+    # its history re-spent as one readable painted bar.
+    box("stencil_bar", feat(0.17, 0.05, 0.025), (-0.02, 0.075, -0.43), flat_material(STENCIL), torso)
     box("pack_scuff", (0.22, 0.06, 0.16), (0.05, 0.42, -0.27), flat_material(SCUFF), torso)
-    box("pack_worn", (0.05, 0.3, 0.05), (-0.2, 0.22, -0.28), flat_material(LIVERY_DK), torso)
-    box("pack_signal", (0.05, 0.05, 0.035), (0.13, 0.38, -0.375), flat_material(SIGNAL), torso)
-    box("aerial", (0.035, 0.34, 0.035), (0.15, 0.56, -0.3), flat_material(AERIAL), torso)
+    box("pack_worn", feat(0.075, 0.3, 0.075), (-0.2, 0.22, -0.28), flat_material(LIVERY_DK), torso)
+    box("aerial", feat(0.035, 0.34, 0.035), (0.15, 0.56, -0.3), flat_material(AERIAL), torso)
 
     head = empty("head", torso, (0.0, 0.0, 0.46))
     box("neck", (0.14, 0.1, 0.13), (0, 0.02, 0), cel_material(SKIN), head)
     box("hood", (0.36, 0.34, 0.34), (0, 0.17, -0.02), cel_material(HOOD), head)
     box("face", (0.24, 0.18, 0.08), (0, 0.13, 0.15), cel_material(SKIN), head)
     box("brow", (0.27, 0.09, 0.1), (0, 0.205, 0.15), flat_material(BROW), head)
-    box("visor", (0.2, 0.04, 0.025), (0, 0.16, 0.2), flat_material(SIGNAL), head)
+    box("visor", feat(0.2, 0.055, 0.025), (0, 0.155, 0.205), flat_material(SIGNAL), head)
 
     shoulder_l, elbow_l, hand_l = build_arm(-1, True, torso)
     shoulder_r, elbow_r, hand_r = build_arm(1, False, torso)
     box("pad", (0.24, 0.11, 0.26), (-0.04, 0.06, 0), cel_material(LIVERY), shoulder_l)
-    box("pad_chip", (0.085, 0.05, 0.1), (-0.14, 0.09, 0.09), flat_material(LIVERY_DK), shoulder_l)
+    box("pad_chip", feat(0.085, 0.06, 0.1), (-0.14, 0.09, 0.095), flat_material(LIVERY_DK), shoulder_l)
 
     tip, needle = build_injector(hand_r)
 
@@ -416,7 +447,7 @@ def attack_pose(frame, count):
         pose["squash"] = 1.0 + 0.03 * coil
     elif frame <= 8:
         strike = min(1.0, (frame - 3) / 2.0)
-        pose["rot"]["torso"] = (0.26 * strike, 0.45 - 0.85 * strike, 0)
+        pose["rot"]["torso"] = (0.19 * strike, 0.45 - 0.85 * strike, 0)
         pose["rot"]["shoulderR"] = (0.68 - 2.0 * strike, 0, 0)
         pose["rot"]["elbowR"] = (-0.68 + 0.52 * strike, 0, 0)
         pose["rot"]["head"] = (0.12 * strike, -0.22 + 0.3 * strike, 0)
@@ -425,13 +456,15 @@ def attack_pose(frame, count):
         pose["rot"]["hipR"] = (-0.52 * strike, 0, 0)
         pose["rot"]["shoulderL"] = (0.36 * strike, 0, 0.16 * strike)
         pose["lunge"] = -0.1 + 0.4 * strike
-        # f4 stretches into contact, f5 squashes hard, f6-f8 HOLD the hit.
-        pose["squash"] = {4: 1.10, 5: 0.80}.get(frame, 0.84)
+        # f4 stretches into contact, f5 squashes, f6-f8 HOLD the hit. The
+        # squash is shallower than the rival's: at 31 px a 0.80 squash stops
+        # reading as weight and starts reading as the figure collapsing.
+        pose["squash"] = {4: 1.08, 5: 0.88}.get(frame, 0.91)
         pose["flash"] = frame >= 5
         pose["spark"] = frame == 5
     else:
         back = 1.0 - (frame - 8) / 3.0
-        pose["rot"]["torso"] = (0.26 * back, -0.4 * back, 0)
+        pose["rot"]["torso"] = (0.19 * back, -0.4 * back, 0)
         pose["rot"]["shoulderR"] = (-1.32 * back, 0, 0)
         pose["rot"]["elbowR"] = (-0.16 * back, 0, 0)
         pose["rot"]["hipL"] = (0.58 * back, 0, 0)
@@ -489,7 +522,10 @@ def apply_pose(rig, pose, facing):
     spread = 1.0 + (1.0 - pose["squash"]) * 0.7
     root.scale = (spread, spread, pose["squash"])
 
-    tip_scale = 2.9 if pose["spark"] else (1.9 if pose["flash"] else 1.0)
+    # Emission budget (#68: ~5% max). The rival can afford a 2.9x tip pop at
+    # 60 px; the same multiplier here is a solid teal slab across a fifth of
+    # the figure's width, and it stops reading as a flash.
+    tip_scale = 2.0 if pose["spark"] else (1.35 if pose["flash"] else 1.0)
     rig["tip"].scale = (tip_scale, tip_scale, tip_scale)
     rig["needle"].data.materials[0] = flat_material(SIGNAL_HOT if pose["flash"] else SIGNAL)
 

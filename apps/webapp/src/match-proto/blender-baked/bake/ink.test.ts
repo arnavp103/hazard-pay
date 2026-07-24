@@ -38,7 +38,7 @@ describe("inkSprite contour", () => {
     put(color, 3, 3, "#4c5752");
     putId(ids, 3, 3, 1);
 
-    const out = inkSprite(color, ids, W, H, { contour: true, internalLumaGap: 0 });
+    const out = inkSprite(color, ids, W, H, { contour: true, internalLumaGap: 0, internalMode: "ink" });
 
     expect(at(out, 3, 3)).toBe("#4c5752");
     for (const [x, y] of [[2, 3], [4, 3], [3, 2], [3, 4]] as const) {
@@ -53,7 +53,7 @@ describe("inkSprite contour", () => {
     const { color, ids } = blank();
     put(color, 3, 3, "#4c5752");
     putId(ids, 3, 3, 1);
-    const out = inkSprite(color, ids, W, H, { contour: false, internalLumaGap: 0 });
+    const out = inkSprite(color, ids, W, H, { contour: false, internalLumaGap: 0, internalMode: "ink" });
     expect(out).toStrictEqual(color);
   });
 });
@@ -66,7 +66,7 @@ describe("inkSprite internal seams", () => {
     putId(ids, 2, 2, 1);
     putId(ids, 3, 2, 2);
 
-    const out = inkSprite(color, ids, W, H, { contour: false, internalLumaGap: 6 });
+    const out = inkSprite(color, ids, W, H, { contour: false, internalLumaGap: 6, internalMode: "ink" });
     const inked = [at(out, 2, 2), at(out, 3, 2)].filter((hex) => hex === INK);
     expect(inked).toHaveLength(1);
   });
@@ -78,7 +78,7 @@ describe("inkSprite internal seams", () => {
     putId(ids, 2, 2, 1);
     putId(ids, 3, 2, 2);
 
-    const out = inkSprite(color, ids, W, H, { contour: false, internalLumaGap: 6 });
+    const out = inkSprite(color, ids, W, H, { contour: false, internalLumaGap: 6, internalMode: "ink" });
     expect(at(out, 2, 2)).toBe("#17131b");
     expect(at(out, 3, 2)).toBe("#d4d2d3");
   });
@@ -90,7 +90,7 @@ describe("inkSprite internal seams", () => {
     putId(ids, 2, 2, 1);
     putId(ids, 3, 2, 2);
 
-    const out = inkSprite(color, ids, W, H, { contour: false, internalLumaGap: 6 });
+    const out = inkSprite(color, ids, W, H, { contour: false, internalLumaGap: 6, internalMode: "ink" });
     expect(at(out, 2, 2)).toBe("#2f9e96");
     expect(at(out, 3, 2)).toBe("#2f9e96");
   });
@@ -102,7 +102,7 @@ describe("inkSprite internal seams", () => {
     putId(ids, 2, 2, 7);
     putId(ids, 3, 2, 7);
 
-    const out = inkSprite(color, ids, W, H, { contour: false, internalLumaGap: 6 });
+    const out = inkSprite(color, ids, W, H, { contour: false, internalLumaGap: 6, internalMode: "ink" });
     expect(at(out, 2, 2)).toBe("#4c5752");
     expect(at(out, 3, 2)).toBe("#4c5752");
   });

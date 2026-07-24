@@ -24,6 +24,7 @@ import {
   BOARD_OFFSET,
   BOARD_WIDTH,
   CELL,
+  CLIPS,
   FEET,
   STAGE_HEIGHT,
   STAGE_WIDTH,
@@ -187,6 +188,17 @@ export function mountBakedStage(host: HTMLElement, options: MountOptions): Baked
       app.ticker.stop();
       draw(freezeMs);
       app.render();
+      // Capture hook. Stepping the clock in place beats reloading the page per
+      // frame: a GIF has to be sampled at the clip's NATIVE rate to show the
+      // acted beats, and the turn alone is 82 frames at 12 fps.
+      const stage = app;
+      Object.assign(globalThis, {
+        __bakedInfo: { clips: CLIPS, turnCycleMs: TURN_CYCLE_MS },
+        __bakedStep: (ms: number) => {
+          draw(ms);
+          stage.render();
+        },
+      });
     }
 
     host.appendChild(app.canvas);
