@@ -407,6 +407,25 @@ clutter as requirements.
 Official source: [Dotemu press kit](https://www.dotemu.com/PressKit/project/Games/MetalSlugTactics).
 Keep this copyrighted reference link-only.
 
+### Quasimorph
+
+![Quasimorph official screenshot](https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2059170/c63dd40e6fff1aa770026da8564a167460065ff6/ss_c63dd40e6fff1aa770026da8564a167460065ff6.1920x1080.jpg?t=1784208344)
+
+**Use:** `grime`, `density`, `characters`, `environment`. Fine-pixel, lived-in
+station interiors read as dangerous and materially specific; small units carry
+identity through silhouette, stance, and local material palettes rather than
+chunky magnified pixels. This is the density-register anchor for the revised
+48×64-at-1× character baseline: gritty pixel illustration at 1:1 screen scale
+that stays readable when characters are small.
+
+**Do not inherit:** the near-monochrome brown-grey oppression as the default
+mood, hard-sci-fi body horror as world canon, extraction-loop staging or UI,
+or its top-down camera. Direction B's comic-book graphic language and palette
+roles still lead.
+
+Official source: [Quasimorph on Steam](https://store.steampowered.com/app/2059170/Quasimorph/).
+Keep this copyrighted reference link-only.
+
 ### MARVEL Cosmic Invasion
 
 ![MARVEL Cosmic Invasion official video thumbnail](https://i.ytimg.com/vi/NQsufvSo64s/maxresdefault.jpg)
