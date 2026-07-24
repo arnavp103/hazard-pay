@@ -6,6 +6,14 @@
  * (one char per pixel, `.` = transparent, per-character palette) but the
  * grids live here: this is lane-local prototype art, not the seam module.
  *
+ * ROUND 2 (#74 refinement): legs shortened ~4 rows and the stance
+ * staggered (front foot forward) so the figure reads stockier and planted
+ * rather than tall; a light detailing pass adds pack stitching, a strap
+ * buckle, a forearm panel line, hem/pack wear chips and boot-toe speculars;
+ * the injector now reads in every facing's hand and the chest cross reads
+ * from the front. Animation lives in `./medic-rig.ts` — this module owns
+ * only the base facings + the compile/validate helpers.
+ *
  * Style laws carried from the #79 four-treatment synthesis:
  * - A: continuous plum-black silhouette ink + large material-local
  *   clusters (two values per material, deliberate shadow shapes).
@@ -49,9 +57,15 @@ export const medicPalette: Record<string, string> = {
 /**
  * Side facing, right-facing profile. The anchor sprite: hooded coat,
  * back-slung livery med-case with pale cross, rust armband, cybernetic
- * right forearm with teal emission strip, compact injector tool.
+ * right forearm with teal emission strip, compact injector tool. Legs
+ * shortened and the stance staggered (front foot forward) per the #74
+ * round-2 proportions directive.
  */
 export const medicSide: string[] = [
+  "................................................",
+  "................................................",
+  "................................................",
+  "................................................",
   "................................................",
   "................................................",
   "....................kkkkkkk.....................",
@@ -72,19 +86,19 @@ export const medicSide: string[] = [
   "............kcccCccccccccccccCCCk...............",
   "............kccccccccccccccCCCCCk...............",
   "........kiiiikCcccccccCccccccCck................",
-  "........kllllkCcccccccClllllLCck................",
-  "........kllllkCcccccccClllllLCck................",
-  "........klnnlkCcccccccCccccccCck................",
+  "........kllwlkCcccccccClllllLCck................",
+  "........kllllkCcccccccCllnllLCck................",
+  "........klnnlkCcccccccClllllLCck................",
   "........knnnnkCcccccccCccccccCck................",
   "........knnnnkCcccccccCccccccCck................",
   "........klnnlkCcccccccCccccccCck................",
   "........kllllkCcccccccCccccccCk.................",
-  "........kllllkCcccccccCcccckkCk.................",
+  "........kllwlkCcccccccCcccckkCk.................",
   "........kllllkCcccccccCknmmmMk..................",
   "........kLLLLkCcccccccCckttmmmMk................",
   ".............kCcccccccCcckummmmMk...............",
   ".............kCcccccccCccckmmmmMkmmmmmmmk.......",
-  ".............kCcccccccCccckmmmMkmTttmmMnn.......",
+  ".............kCcccccccCccckmmnMkmTttmnMnn.......",
   ".............kCcccccccCccCkMMMkkkkkkkkkk........",
   ".............kbbbbbbbbbbnnbbbbk.................",
   ".............kBBBBBBBBBBBBBBkk..................",
@@ -97,23 +111,19 @@ export const medicSide: string[] = [
   ".............kccccccCCkkppppPk..................",
   ".............kcccccCCkkkppppPk..................",
   "..............kCCkpppkkkppppPk..................",
-  "..............kpppppPk.kppppPk..................",
-  "..............kpppppPk.kppppPk..................",
-  "..............kppwbbBk.kpwbbBk..................",
-  "..............kppwbbBk.kpwbbBk..................",
-  "..............kppwbbBk.kpwbbBk..................",
-  "..............kpppppPk.kppppPk..................",
-  "..............kpppppPk.kppppPk..................",
-  "..............kpppppPk.kppppPk..................",
-  "..............kpppppPk.kppppPk..................",
-  "..............kpppppPk.kppppPk..................",
-  "..............kpppppPk.kppppPk..................",
-  "..............kbbbbbBk.kbbbbBk..................",
-  "..............kbbbbbBk.kbbbbBk..................",
-  ".............kbbbbbbBk.kbbbbbBk.................",
-  ".............kbbbbbbBk.kbbbbwBk.................",
-  ".............kBBBBBBBk.kBBBBBBBk................",
-  ".............kkkkkkkkk.kkkkkkkkk................",
+  "..............kpppppPk...kppppPk................",
+  "..............kpppppPk...kppppPk................",
+  "..............kppwbbBk...kpwbbBk................",
+  "..............kppwbbBk...kpwbbBk................",
+  "..............kppwbbBk...kpwbbBk................",
+  "..............kpppppPk...kppppPk................",
+  "..............kpppppPk...kppppPk................",
+  "..............kbbbbnBk...kbnbbBk................",
+  "..............kbbbbbBk...kbbbbBk................",
+  ".............kbbbbbbBk...kbbbbbBk...............",
+  ".............kbbbbbbBk...kbbbbwBk...............",
+  ".............kBBBBBBBk...kBBBBBBBk..............",
+  ".............kkkkkkkkk...kkkkkkkkk..............",
   "................................................",
   "................................................",
 ];
@@ -121,9 +131,14 @@ export const medicSide: string[] = [
 /**
  * Front facing (toward viewer). Hair fringe under the hood, twin teal
  * respirator filters, chest livery patch with pale cross, harness strap
- * running shoulder-to-hip, cyber right forearm on the viewer's left.
+ * running shoulder-to-hip, cyber right forearm on the viewer's left with
+ * a teal-tipped injector in the hand.
  */
 export const medicFront: string[] = [
+  "................................................",
+  "................................................",
+  "................................................",
+  "................................................",
   "................................................",
   "................................................",
   "...................kkkkkkkkkk...................",
@@ -153,9 +168,9 @@ export const medicFront: string[] = [
   "...........kcccCcccccbbcccccccccCccck...........",
   "...........kcccCccccbbccccccccccCccck...........",
   "...........knmmMcccbbcccccccccccCccck...........",
-  "...........ktmmMccbbccccccccccccCccck...........",
-  "...........ktmmMccccccccccccccccCbbbk...........",
-  "...........kummMccccccccccccccccCbbbk...........",
+  "..........mktmmMccbbccccccccccccCccck...........",
+  ".........mtktmmMccccccccccccccccCbbbk...........",
+  "........mtukummMccccccccccccccccCbbbk...........",
   "...........kmmmMccccccccccccccccCbbbk...........",
   "...........kMMMkcccccccccccccccckBBBk...........",
   ".............kbbbbbbbbbnnbbbbbbbbbk.............",
@@ -167,14 +182,10 @@ export const medicFront: string[] = [
   ".............kccccccccCkkCccccCccck.............",
   ".............kccccccccCkkCcccccccck.............",
   ".............kcCccccccCkkCccccccCck.............",
-  "................kppppPk..kppppPk................",
-  "................kppppPk..kppppPk................",
-  "................kppppPk..kppppPk................",
-  "................kppppPk..kppppPk................",
   "................kpbbpPk..kpbbpPk................",
   "................kpbbpPk..kpbbpPk................",
   "................kpbbpPk..kpbbpPk................",
-  "................kppppPk..kppppPk................",
+  "................kpnppPk..knpppPk................",
   "................kppppPk..kppppPk................",
   "................kppppPk..kppppPk................",
   "................kppppPk..kppppPk................",
@@ -192,10 +203,14 @@ export const medicFront: string[] = [
 
 /**
  * Back facing (away from viewer). The med-case dominates: full rust
- * pack with the big pale cross, twin shoulder straps, hood crease.
- * Cyber forearm sits on the viewer's right from behind.
+ * pack with the big pale cross, twin shoulder straps, hood crease. Cyber
+ * forearm sits on the viewer's right from behind, injector nub visible.
  */
 export const medicBack: string[] = [
+  "................................................",
+  "................................................",
+  "................................................",
+  "................................................",
   "................................................",
   "................................................",
   "...................kkkkkkkkkk...................",
@@ -226,9 +241,9 @@ export const medicBack: string[] = [
   "...........kcccklllllnnnllllLLLLkccck...........",
   "...........kcccklllllnnnllllLLLLknmmk...........",
   "...........kccckllllllllllllLLLLkmmtk...........",
-  "...........kbbbklllllllllllllLLLkmmtk...........",
-  "...........kbbbkLLLLLLLLLLLLLLLLkmmuk...........",
-  "...........kbbbkcccccccccccccccckmmmk...........",
+  "...........kbbbklllllllllllllLLLkmmtmm..........",
+  "...........kbbbkLLLLLLLLLLLLLLLLkmmutu..........",
+  "...........kbbbkcccccccccccccccckmmmm...........",
   "...........kBBBkcccccccccccccccckMMMk...........",
   ".............kbbbbbbbbbbbbbbbbbbbbk.............",
   ".............kBBBBBBBBBBBBBBBBBBBBk.............",
@@ -243,11 +258,7 @@ export const medicBack: string[] = [
   "................kppppPk..kppppPk................",
   "................kppppPk..kppppPk................",
   "................kppppPk..kppppPk................",
-  "................kppppPk..kppppPk................",
-  "................kppppPk..kppppPk................",
-  "................kppppPk..kppppPk................",
-  "................kppppPk..kppppPk................",
-  "................kppppPk..kppppPk................",
+  "................kpnppPk..knpppPk................",
   "................kppppPk..kppppPk................",
   "................kppppPk..kppppPk................",
   "................kppppPk..kppppPk................",
@@ -266,90 +277,6 @@ export interface MedicFrame {
   name: string;
   rows: string[];
 }
-
-const BLANK_ROW = ".".repeat(MEDIC_WIDTH);
-
-/** Copy a grid, replacing the given rows (authored frame deltas). */
-function withRows(base: string[], edits: Record<number, string>): string[] {
-  return base.map((row, y) => edits[y] ?? row);
-}
-
-/** Shift rows [fromY..toY] down by one (chin-tuck / settle motion). */
-function dipRows(base: string[], fromY: number, toY: number): string[] {
-  return base.map((row, y) => {
-    if (y === fromY) { return BLANK_ROW; }
-    if (y > fromY && y <= toY) { return base[y - 1] ?? row; }
-    return row;
-  });
-}
-
-/**
- * Idle loop, side facing — 4 deliberate stepped frames: chin tuck on the
- * hood, emission dim/pulse on the forearm strip, vial, and mask filter.
- */
-export const medicSideIdle: string[][] = [
-  medicSide,
-  dipRows(medicSide, 2, 13),
-  withRows(dipRows(medicSide, 2, 13), {
-    12: "..............kcccccccccCCmmmTk.................",
-    30: ".............kCcccccccCccktmmmmMk...............",
-    32: ".............kCcccccccCccckmmmMkmTTtmmMnn.......",
-  }),
-  withRows(medicSide, {
-    32: ".............kCcccccccCccckmmmMkmTtummMnn.......",
-  }),
-];
-
-/**
- * Attack, side facing — 6 stepped frames of an injector jab:
- * ready, cock back, thrust, impact flash, recover, settle.
- */
-export const medicSideAttack: string[][] = [
-  // 1 — ready (base stance)
-  medicSide,
-  // 2 — anticipation: arm cocked, injector pulled to the chest
-  withRows(medicSide, {
-    27: "........kllllkCcccccccCccccccCk.................",
-    28: "........kllllkCcccccccCcknmMkk..................",
-    29: "........kLLLLkCcccccccCcktmmMk..................",
-    30: ".............kCcccccccCckummmMk.................",
-    31: ".............kCcccccccCcckmmmmMkk...............",
-    32: ".............kCcccccccCcckmmMkmTtk..............",
-    33: ".............kCcccccccCccCkMMkkkk...............",
-  }),
-  // 3 — thrust: arm extended, needle forward
-  withRows(medicSide, {
-    27: "........kllllkCcccccccCccccccCk.................",
-    28: "........kllllkCcccccccCknnnnnmmmmmkkkkkkk.......",
-    29: "........kLLLLkCcccccccCkmmmmmmmmmMkmTttmmMnn....",
-    30: ".............kCcccccccCkttummmmmMkkkkkkkkk......",
-    31: ".............kCcccccccCkkMMMMMMMkk..............",
-    32: ".............kCcccccccCcckkkkkk.................",
-    33: ".............kCcccccccCccCkkk...................",
-  }),
-  // 4 — impact flash: emission flare + spark past the needle tip
-  withRows(medicSide, {
-    27: "........kllllkCcccccccCccccccCk............t....",
-    28: "........kllllkCcccccccCknnnnnmmmmmkkkkkkk.u.u...",
-    29: "........kLLLLkCcccccccCkmmmmmmmmmMkmuuummMuu.t..",
-    30: ".............kCcccccccCkttummmmmMkkkkkkkkk.u....",
-    31: ".............kCcccccccCkkMMMMMMMkk......t.......",
-    32: ".............kCcccccccCcckkkkkk.................",
-    33: ".............kCcccccccCccCkkk...................",
-  }),
-  // 5 — recover: back through the cocked pose
-  withRows(medicSide, {
-    27: "........kllllkCcccccccCccccccCk.................",
-    28: "........kllllkCcccccccCcknmMkk..................",
-    29: "........kLLLLkCcccccccCcktmmMk..................",
-    30: ".............kCcccccccCckummmMk.................",
-    31: ".............kCcccccccCcckmmmmMkk...............",
-    32: ".............kCcccccccCcckmmMkmTtk..............",
-    33: ".............kCcccccccCccCkMMkkkk...............",
-  }),
-  // 6 — settle (base)
-  medicSide,
-];
 
 function hexToRgb(hex: string): [number, number, number] {
   const n = Number.parseInt(hex.slice(1), 16);

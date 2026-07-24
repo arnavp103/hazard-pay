@@ -1,12 +1,20 @@
 /**
  * THROWAWAY PROTOTYPE (#74): pixel control lane of the art-modality
- * bake-off. One 48×64-at-1× field medic (fine-pixel re-author of the
- * #79 subject) over the same rasterized SVG grime-market board, same
- * 2:1 dimetric projection, palette roles, light direction, and camera
- * path as the four-treatment study. Facings, idle, and attack are
- * driven by a stepped JS clock so `?freeze=<ms>` can pin any instant
- * for deterministic GIF capture. Query params: `?facing=front|side|
- * back|left`, `?anim=idle|attack|none`, `?motion=1`, `?capture=1`.
+ * bake-off. One 48×64-at-1× field medic over the rasterized SVG
+ * grime-market board, 2:1 dimetric projection, palette roles, light and
+ * camera path carried from the #79 study.
+ *
+ * ROUND 2 (#74 refinement): the animation is now driven by the three
+ * competing treatments in `./medic-rig.ts` (authored keys / programmatic /
+ * hybrid) so the taste gate can pick a production approach; the combat
+ * camera can be pulled back (`?zoom=wide`) so the unit sits smaller on the
+ * map; and the medic art itself is the round-2 refine (shorter legs,
+ * staggered stance, more detail, kit on every facing).
+ *
+ * Query params for deterministic capture:
+ *   ?facing=front|side|back|left  ?anim=idle|attack|none
+ *   ?treatment=authored|programmatic|hybrid
+ *   ?zoom=combat|wide   ?motion=1   ?freeze=<ms>   ?capture=1
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -16,13 +24,15 @@ import { StatusChip } from "@hazard-pay/ui";
 import {
   MEDIC_HEIGHT,
   MEDIC_WIDTH,
-  medicBack,
   medicFrameToRgba,
-  medicFront,
-  medicSide,
-  medicSideAttack,
-  medicSideIdle,
 } from "./medic-48.ts";
+import {
+  type Facing,
+  type RigFrame,
+  getTreatment,
+  subjectFor,
+  treatments,
+} from "./medic-rig.ts";
 import boardUrl from "../style-cohesion-assets/grime-market-board.prototype.png";
 
 export const facings = [
@@ -42,10 +52,22 @@ export const animations = [
 
 export type AnimationKey = (typeof animations)[number]["key"];
 
-const CLOCK_STEP_MS = 125;
+const CLOCK_STEP_MS = 40;
 const TURN_CYCLE_MS = 4000;
-const IDLE_DURATIONS = [400, 240, 240, 240];
-const ATTACK_DURATIONS = [260, 180, 70, 100, 160, 240];
+
+/**
+ * Combat-camera framings. `combat` is the round-1 zoom, `wide` the round-2
+ * pulled-back tactical framing (unit sits smaller on the map), and `loupe`
+ * an integer 2× inspection framing used only to judge the animation acting
+ * up close on the board — crisp nearest-neighbour, not a proposed game zoom.
+ */
+const ZOOMS = {
+  combat: { scale: 1, still: { x: -174, y: -46 }, label: "combat (round 1)" },
+  wide: { scale: 0.72, still: { x: -150, y: -30 }, label: "wide tactical (round 2)" },
+  loupe: { scale: 2, still: { x: -250, y: -96 }, label: "2× animation loupe" },
+} as const;
+
+export type ZoomKey = keyof typeof ZOOMS;
 
 /** Camera pan waypoints carried over from the #79 harness. */
 const PAN_WAYPOINTS: { at: number; x: number; y: number }[] = [
@@ -80,44 +102,13 @@ function facingAt(clockMs: number): FacingKey {
   return TURN_ORDER[slot] ?? "side";
 }
 
-function frameAt(clockMs: number, durations: number[]): number {
-  const total = durations.reduce((sum, ms) => sum + ms, 0);
-  let local = clockMs % total;
-  for (let index = 0; index < durations.length; index += 1) {
-    const duration = durations[index] ?? 0;
-    if (local < duration) { return index; }
-    local -= duration;
-  }
-  return 0;
-}
-
-interface SubjectState {
-  mirrored: boolean;
-  rows: string[];
-}
-
-function subjectAt(clockMs: number, facing: FacingKey, animation: AnimationKey): SubjectState {
-  const mirrored = facing === "left";
-  if (facing === "front") { return { mirrored, rows: medicFront }; }
-  if (facing === "back") { return { mirrored, rows: medicBack }; }
-  if (animation === "attack") {
-    const frame = medicSideAttack[frameAt(clockMs, ATTACK_DURATIONS)];
-    return { mirrored, rows: frame ?? medicSide };
-  }
-  if (animation === "idle") {
-    const frame = medicSideIdle[frameAt(clockMs, IDLE_DURATIONS)];
-    return { mirrored, rows: frame ?? medicSide };
-  }
-  return { mirrored, rows: medicSide };
-}
-
 interface MedicCanvasProps {
+  frame: RigFrame;
   mirrored: boolean;
-  rows: string[];
   scale: number;
 }
 
-function MedicCanvas({ mirrored, rows, scale }: MedicCanvasProps) {
+function MedicCanvas({ frame, mirrored, scale }: MedicCanvasProps) {
   const ref = useRef<HTMLCanvasElement | null>(null);
 
   useEffect(() => {
@@ -125,10 +116,12 @@ function MedicCanvas({ mirrored, rows, scale }: MedicCanvasProps) {
     if (canvas === null) { return; }
     const context = canvas.getContext("2d");
     if (context === null) { return; }
-    const rgba = medicFrameToRgba(rows);
+    const rgba = medicFrameToRgba(frame.rows);
+    context.clearRect(0, 0, MEDIC_WIDTH, MEDIC_HEIGHT);
     context.putImageData(new ImageData(new Uint8ClampedArray(rgba), MEDIC_WIDTH, MEDIC_HEIGHT), 0, 0);
-  }, [rows]);
+  }, [frame.rows]);
 
+  const shift = `translate(${String(frame.dx * scale)}px, ${String(frame.dy * scale)}px)`;
   return (
     <canvas
       ref={ref}
@@ -138,7 +131,7 @@ function MedicCanvas({ mirrored, rows, scale }: MedicCanvasProps) {
       style={{
         height: MEDIC_HEIGHT * scale,
         imageRendering: "pixelated",
-        transform: mirrored ? "scaleX(-1)" : undefined,
+        transform: mirrored ? `${shift} scaleX(-1)` : shift,
         width: MEDIC_WIDTH * scale,
       }}
     />
@@ -160,6 +153,16 @@ function readAnimation(): AnimationKey {
   return animations.some((animation) => animation.key === candidate) ? candidate as AnimationKey : "idle";
 }
 
+function readTreatment(): string {
+  const candidate = readParam("treatment");
+  return treatments.some((treatment) => treatment.key === candidate) ? (candidate as string) : "hybrid";
+}
+
+function readZoom(): ZoomKey {
+  const candidate = readParam("zoom");
+  return candidate !== null && candidate in ZOOMS ? candidate as ZoomKey : "combat";
+}
+
 function readMotion(): boolean {
   return readParam("motion") === "1";
 }
@@ -175,10 +178,12 @@ function isCaptureMode(): boolean {
   return readParam("capture") === "1";
 }
 
-function writeUrl(facing: FacingKey, animation: AnimationKey, motion: boolean): void {
+function writeUrl(facing: FacingKey, animation: AnimationKey, treatment: string, zoom: ZoomKey, motion: boolean): void {
   const url = new URL(globalThis.location.href);
   url.searchParams.set("facing", facing);
   url.searchParams.set("anim", animation);
+  url.searchParams.set("treatment", treatment);
+  url.searchParams.set("zoom", zoom);
   if (motion) {
     url.searchParams.set("motion", "1");
   } else {
@@ -190,6 +195,8 @@ function writeUrl(facing: FacingKey, animation: AnimationKey, motion: boolean): 
 export function PixelControlPrototype() {
   const [facing, setFacing] = useState<FacingKey>(readFacing);
   const [animation, setAnimation] = useState<AnimationKey>(readAnimation);
+  const [treatment, setTreatment] = useState<string>(readTreatment);
+  const [zoom, setZoom] = useState<ZoomKey>(readZoom);
   const [motion, setMotion] = useState(readMotion);
   const freeze = useMemo(readFreeze, []);
   const [clockMs, setClockMs] = useState(freeze ?? 0);
@@ -203,25 +210,36 @@ export function PixelControlPrototype() {
   }, [freeze]);
 
   const activeFacing = motion ? facingAt(clockMs) : facing;
-  const subject = subjectAt(clockMs, activeFacing, animation);
-  const camera = motion ? cameraAt(clockMs) : { x: -174, y: -46 };
+  const subject = subjectFor(clockMs, activeFacing as Facing, animation, treatment);
+  const zoomSpec = ZOOMS[zoom];
+  const camera = motion ? cameraAt(clockMs) : zoomSpec.still;
 
   const changeFacing = (next: FacingKey) => {
-    writeUrl(next, animation, motion);
+    writeUrl(next, animation, treatment, zoom, motion);
     setFacing(next);
   };
   const changeAnimation = (next: AnimationKey) => {
-    writeUrl(facing, next, motion);
+    writeUrl(facing, next, treatment, zoom, motion);
     setAnimation(next);
+  };
+  const changeTreatment = (next: string) => {
+    writeUrl(facing, animation, next, zoom, motion);
+    setTreatment(next);
+  };
+  const toggleZoom = () => {
+    const next = zoom === "wide" ? "combat" : "wide";
+    writeUrl(facing, animation, treatment, next, motion);
+    setZoom(next);
   };
   const toggleMotion = () => {
     const next = !motion;
-    writeUrl(facing, animation, next);
+    writeUrl(facing, animation, treatment, zoom, next);
     setMotion(next);
   };
 
   const facingInfo = facings.find((item) => item.key === activeFacing) ?? facings[0];
   const animationInfo = animations.find((item) => item.key === animation) ?? animations[0];
+  const treatmentInfo = getTreatment(treatment);
 
   return (
     <main className="hp-noise flex min-h-screen flex-col bg-shell">
@@ -232,12 +250,12 @@ export function PixelControlPrototype() {
             <span className="text-accent"> lane</span>
           </h1>
           <span className="font-data text-[10px] tracking-[0.1em] text-ink-dim uppercase">
-            /// modality bake-off · throwaway prototype
+            /// modality bake-off · round 2 · throwaway prototype
           </span>
         </div>
         <div className="flex items-center gap-3">
           <StatusChip tone="warn" stamped>not production art</StatusChip>
-          <StatusChip tone={motion ? "acid" : "neutral"}>{motion ? "turn + pan" : "controlled still"}</StatusChip>
+          <StatusChip tone={motion ? "acid" : "neutral"}>{motion ? "turn + pan" : zoomSpec.label}</StatusChip>
         </div>
       </header>
 
@@ -247,7 +265,7 @@ export function PixelControlPrototype() {
             <div className="mb-2 flex items-end justify-between font-data uppercase">
               <div>
                 <div className="text-[9px] tracking-[0.15em] text-ink-dim">actual match scale</div>
-                <div className="text-xs tracking-[0.08em] text-ink">480×270 fixed camera aperture</div>
+                <div className="text-xs tracking-[0.08em] text-ink">{`480×270 aperture · ${zoomSpec.label}`}</div>
               </div>
               <span className="text-[9px] tracking-[0.12em] text-accent-2">2:1 board · 48×64 @ 1×</span>
             </div>
@@ -256,28 +274,33 @@ export function PixelControlPrototype() {
               data-prototype-stage
             >
               <div
-                className="absolute h-[360px] w-[840px]"
-                style={{ transform: `translate3d(${String(camera.x)}px, ${String(camera.y)}px, 0)` }}
+                className="absolute inset-0"
+                style={{ transform: `scale(${String(zoomSpec.scale)})`, transformOrigin: "247px 205px" }}
               >
-                <img
-                  alt=""
-                  className="block h-[360px] w-[840px] max-w-none"
-                  draggable={false}
-                  src={boardUrl}
+                <div
+                  className="absolute h-[360px] w-[840px]"
+                  style={{ transform: `translate3d(${String(camera.x)}px, ${String(camera.y)}px, 0)` }}
+                >
+                  <img
+                    alt=""
+                    className="block h-[360px] w-[840px] max-w-none"
+                    draggable={false}
+                    src={boardUrl}
+                  />
+                </div>
+                <div
+                  className="absolute h-3 w-11 -translate-x-1/2 rounded-[50%] bg-shell/70"
+                  style={{ left: 247, top: 207, transform: "translateX(-50%) skewX(-48deg)" }}
                 />
+                <div className="absolute" style={{ left: 223, top: 145 }}>
+                  <MedicCanvas frame={subject.frame} mirrored={subject.mirrored} scale={1} />
+                </div>
               </div>
 
               <div className="absolute inset-0 bg-[linear-gradient(110deg,transparent_58%,rgb(18_11_16_/_0.22)_58%)]" />
-              <div
-                className="absolute h-3 w-11 -translate-x-1/2 rounded-[50%] bg-shell/70"
-                style={{ left: 247, top: 207, transform: "translateX(-50%) skewX(-48deg)" }}
-              />
-              <div className="absolute" style={{ left: 223, top: 145 }}>
-                <MedicCanvas mirrored={subject.mirrored} rows={subject.rows} scale={1} />
-              </div>
 
               <div className="absolute top-3 left-3 border border-line/80 bg-shell/90 px-2 py-1 font-data text-[8px] tracking-[0.12em] text-ink-dim uppercase">
-                camera fixed · translation only
+                {motion ? "camera fixed · translation only" : zoomSpec.label}
               </div>
               <div className="absolute right-3 bottom-3 flex items-center gap-2 border border-line/80 bg-shell/90 px-2 py-1 font-data text-[8px] tracking-[0.1em] uppercase">
                 <span className="text-ink-dim">Mara Voss</span>
@@ -298,14 +321,14 @@ export function PixelControlPrototype() {
                   style={{ transform: "translateX(-50%) skewX(-48deg)" }}
                 />
                 <div className="relative">
-                  <MedicCanvas mirrored={subject.mirrored} rows={subject.rows} scale={4} />
+                  <MedicCanvas frame={subject.frame} mirrored={subject.mirrored} scale={4} />
                 </div>
               </div>
             </div>
             <div className="border-t-2 border-line px-3 py-2 font-data text-[9px] leading-relaxed text-ink-dim uppercase">
-              <div>Muted material body</div>
-              <div className="text-ink">Rust livery identity</div>
-              <div className="text-accent-2">Teal signal emission</div>
+              <div>Treatment</div>
+              <div className="text-ink">{treatmentInfo.name}</div>
+              <div className="text-accent-2">{treatmentInfo.blurb}</div>
             </div>
           </aside>
 
@@ -313,20 +336,21 @@ export function PixelControlPrototype() {
             <div>
               <div className="font-display text-lg font-extrabold tracking-[0.05em] text-ink uppercase">
                 {facingInfo.name}
-                {" "}
-                ·
-                {" "}
+                {" · "}
                 {animationInfo.name}
+                {" · "}
+                {treatmentInfo.name}
               </div>
               <p className="mt-1 max-w-xl font-data text-[10px] leading-relaxed text-ink-dim uppercase">
-                48×64 authored pixels at 1×: A-synthesis silhouette ink and material
-                clusters, sparse third band on metal and emission, wear only where
-                history earns it. Mirrored left facing swaps the pack and injector side.
+                Round 2: the attack and idle act with the whole body — hip-pivoted weight
+                shift, lunge step, chin tuck — under three competing animation treatments.
+                Authored = stepped hand poses; programmatic = one sprite transformed with a
+                smear + sub-pixel; hybrid = authored keys with programmatic in-betweens.
               </p>
             </div>
             <div className="border-l border-line pl-4 font-data text-[9px] leading-relaxed text-ink-dim uppercase">
               <div>Same map + palette roles + light</div>
-              <div>Idle 4f · attack 6f · stepped</div>
+              <div>Whole-body key poses · smears</div>
               <div className="text-ink">Judge at 1× first</div>
             </div>
           </section>
@@ -344,9 +368,13 @@ export function PixelControlPrototype() {
           animation={animation}
           facing={facing}
           motion={motion}
+          treatment={treatment}
+          zoom={zoom}
           onChangeAnimation={changeAnimation}
           onChangeFacing={changeFacing}
+          onChangeTreatment={changeTreatment}
           onToggleMotion={toggleMotion}
+          onToggleZoom={toggleZoom}
         />
       )}
     </main>
@@ -357,18 +385,26 @@ interface PrototypeSwitcherProps {
   animation: AnimationKey;
   facing: FacingKey;
   motion: boolean;
+  treatment: string;
+  zoom: ZoomKey;
   onChangeAnimation: (animation: AnimationKey) => void;
   onChangeFacing: (facing: FacingKey) => void;
+  onChangeTreatment: (treatment: string) => void;
   onToggleMotion: () => void;
+  onToggleZoom: () => void;
 }
 
 function PrototypeSwitcher({
   animation,
   facing,
   motion,
+  treatment,
+  zoom,
   onChangeAnimation,
   onChangeFacing,
+  onChangeTreatment,
   onToggleMotion,
+  onToggleZoom,
 }: PrototypeSwitcherProps) {
   return (
     <div className="fixed bottom-5 left-1/2 z-50 flex -translate-x-1/2 items-center gap-2 border-2 border-line bg-ink px-3 py-2 font-data text-xs text-shell uppercase shadow-hard-lg">
@@ -394,6 +430,24 @@ function PrototypeSwitcher({
         </button>
       ))}
       <span className="mx-1 text-shell/50">|</span>
+      {treatments.map((item) => (
+        <button
+          key={item.key}
+          type="button"
+          className={`border px-2 py-1 hover:bg-accent hover:text-ink ${treatment === item.key ? "border-accent-2 text-accent-2" : "border-shell/40"}`}
+          onClick={() => { onChangeTreatment(item.key); }}
+        >
+          {item.key}
+        </button>
+      ))}
+      <span className="mx-1 text-shell/50">|</span>
+      <button
+        type="button"
+        className="border border-shell/40 px-2 py-1 hover:bg-accent-2 hover:text-ink"
+        onClick={onToggleZoom}
+      >
+        {zoom === "wide" ? "wide" : "combat"}
+      </button>
       <button
         type="button"
         className="border border-shell/40 px-2 py-1 hover:bg-accent-2 hover:text-ink"
