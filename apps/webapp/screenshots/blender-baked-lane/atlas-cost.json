@@ -1,0 +1,27 @@
+{
+  "facings": 8,
+  "animations": 3,
+  "framesPerFacing": 26,
+  "cells": 208,
+  "cellWidth": 64,
+  "cellHeight": 48,
+  "uniformGrid": {
+    "width": 450,
+    "height": 490,
+    "pixels": 220500
+  },
+  "trimmed": {
+    "width": 320,
+    "height": 448,
+    "pixels": 143360,
+    "occupancy": 0.8520438058035714
+  },
+  "rgbaPngBytes": 189026,
+  "indexedPngBytes": 30720,
+  "paletteEntriesUsed": 25,
+  "paletteSize": 33,
+  "blenderRenderSeconds": 6.1,
+  "blenderTotalSeconds": 6.752,
+  "bakeWallClockSeconds": 8.35,
+  "atlasRoundTripMismatchedPixels": 0
+}
