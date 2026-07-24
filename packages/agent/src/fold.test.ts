@@ -4,7 +4,7 @@ import { ENVELOPE_VERSION } from "./envelope.ts";
 import { foldLaneEvents, hasPendingWork } from "./fold.ts";
 import { requestFingerprint, verifyLaneFingerprints } from "./fingerprint.ts";
 import type { LaneEventPayload } from "./envelope.ts";
-import type { LaneEventRow } from "./store.ts";
+import type { LaneEventRow } from "@hazard-pay/db";
 
 const LANE = "00000000-0000-0000-0000-000000000001";
 

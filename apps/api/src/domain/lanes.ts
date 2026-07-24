@@ -1,4 +1,5 @@
 import type { LaneEventPayload } from "@hazard-pay/agent/envelope";
+import type { LaneEventRow, LaneRow } from "@hazard-pay/db";
 import { errAsync, type ResultAsync } from "neverthrow";
 
 import type { LaneEventRecord, LaneSummary, LaneTracePage } from "../contract/index.ts";
@@ -8,9 +9,7 @@ import {
   listLaneEventsAfter,
   listLaneRows,
   tallyLaneEvents,
-  type LaneEventRow,
   type LaneEventTally,
-  type LaneRow,
 } from "../db/index.ts";
 import type { ApiError } from "./errors.ts";
 

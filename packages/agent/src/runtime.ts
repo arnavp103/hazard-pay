@@ -24,12 +24,11 @@ import {
   releaseWake,
   restampLaneConfig,
 } from "./store.ts";
-import type { DbLike } from "./store.ts";
 import type { AgentError } from "./errors.ts";
 import type { JsonValue } from "./envelope.ts";
 import type { LaneSnapshot, Obligation } from "./fold.ts";
-import type { DbTx, DefinedLeader } from "./leader.ts";
-import type { Db } from "@hazard-pay/db";
+import type { DefinedLeader } from "./leader.ts";
+import type { Db, DbLike, DbTx } from "@hazard-pay/db";
 import type { Logger } from "@hazard-pay/observability";
 import type { LanguageModel } from "ai";
 

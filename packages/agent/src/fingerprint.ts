@@ -5,7 +5,7 @@ import { contentHash } from "./hash.ts";
 import { ENVELOPE_VERSION, modelTurnPayloadSchema } from "./envelope.ts";
 import type { AgentError } from "./errors.ts";
 import type { JsonValue } from "./envelope.ts";
-import type { LaneEventRow } from "./store.ts";
+import type { LaneEventRow } from "@hazard-pay/db";
 import type { ModelMessage } from "ai";
 
 /**

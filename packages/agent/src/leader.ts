@@ -1,13 +1,10 @@
-import type { Db } from "@hazard-pay/db";
+import type { DbTx } from "@hazard-pay/db";
 import type { Logger } from "@hazard-pay/observability";
 import type { ResultAsync } from "neverthrow";
 import { z } from "zod";
 
 import { contentHash } from "./hash.ts";
 import type { JsonValue } from "./envelope.ts";
-
-/** The transaction handle Drizzle passes to `db.transaction` callbacks. */
-export type DbTx = Parameters<Parameters<Db["transaction"]>[0]>[0];
 
 /**
  * What a tool's `execute` sees: the open transaction (the game write and the

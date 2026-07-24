@@ -2,7 +2,6 @@ export { createRuntime } from "./runtime.ts";
 export type { CreateRuntimeOptions, Runtime, WakeReport } from "./runtime.ts";
 export { defineLeader, RESERVED_TOOL_NAMES } from "./leader.ts";
 export type {
-  DbTx,
   DefinedLeader,
   LeaderDefinitionInput,
   LeaderTool,
@@ -31,5 +30,4 @@ export type {
 } from "./envelope.ts";
 export { contentHash, canonicalJson } from "./hash.ts";
 export type { AgentError } from "./errors.ts";
-export type { DbLike, LaneEventRow, LaneRow } from "./store.ts";
 export { createHelloLeader } from "./hello-leader.ts";
