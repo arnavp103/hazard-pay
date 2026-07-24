@@ -221,3 +221,33 @@ Environment facts agents keep rediscovering; brief them or fix them:
   mid-tier (sonnet) agent ran a full ticket with zero permission workarounds —
   the hardened path (CLI worktree new, invocable /implement, `.worktrees/` file
   tools, checkout-root env) is confirmed carrying the workflow.
+- When the director itself runs as a background job, its engineer subagents
+  inherit the bg-isolation guard: their Write/Edit into `.worktrees/` trees is
+  refused with "parent session hasn't isolated" (both 2026-07-24 bake-off
+  agents hit this; both staged files in `/tmp/<lane>/` and `cp`'d into the
+  worktree via Bash — workable but double-bookkeeping, and lint-staged
+  autofixes force a worktree→staging re-sync before every Edit). Project
+  settings now allowlist `Read/Edit/Write(.worktrees/**)` and
+  `Bash(git worktree *)` to kill the interactive prompts; whether the guard
+  itself still blocks subagent file tools needs the next canary. Caveat:
+  permission rules are prefix-matched, so the `git -C <path> worktree …` shape
+  is NOT covered — use plain `git worktree` from the repo root for creation.
+- `gh issue view <n>` and `gh pr edit` can die on a projectCards GraphQL
+  deprecation (both bake-off agents, every affected call) — go straight to
+  REST (`gh api repos/{owner}/{repo}/issues/<n>`), don't retry the porcelain.
+- `pnpm --filter <pkg> dev -- --port N` silently drops the port flag and vite
+  grabs 5173 (both agents) — use `pnpm exec vite dev --port N --strictPort`
+  (or the script form without `--`), and pin `--strictPort` so a collision
+  fails loudly instead of stealing a parallel agent's port.
+- agent-browser's daemon state is shared across parallel agents of one
+  session: the default session collides (one agent captured the other's page)
+  and `close --all` kills the OTHER agent's session too (happened 2026-07-24).
+  Always `--session <lane-name>`, always scoped `close`, `wait <selector>`
+  before element screenshots, and expect to install it first
+  (`pnpm add -g agent-browser`, then call by absolute path —
+  `~/.local/share/pnpm/agent-browser`).
+- `hazard-pay worktree new` fails from the launch checkout (`tsx` not found);
+  manual `git worktree add` is the reliable fallback.
+- Never build `raw.githubusercontent.com`/blob URLs from an abbreviated SHA
+  extended by hand — one agent fabricated a full SHA and shipped 404 gallery
+  links. `git rev-parse HEAD` first, always.

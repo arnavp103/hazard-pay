@@ -4,5 +4,13 @@
     "commit": "",
     "pr": "",
     "sessionUrl": false
+  },
+  "permissions": {
+    "allow": [
+      "Read(.worktrees/**)",
+      "Edit(.worktrees/**)",
+      "Write(.worktrees/**)",
+      "Bash(git worktree *)"
+    ]
   }
 }
