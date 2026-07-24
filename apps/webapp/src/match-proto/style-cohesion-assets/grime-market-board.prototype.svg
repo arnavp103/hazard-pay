@@ -1,0 +1,118 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="840" height="360" viewBox="0 0 840 360">
+  <title>Throwaway prototype grime-market board for style cohesion study</title>
+  <defs>
+    <pattern id="diamond-grid" width="48" height="24" patternUnits="userSpaceOnUse">
+      <path d="M24 0 48 12 24 24 0 12Z" fill="none" stroke="#5a404f" stroke-width="1"/>
+    </pattern>
+    <pattern id="wall-hatch" width="12" height="12" patternUnits="userSpaceOnUse">
+      <path d="m-3 12 15-15M3 15 15 3" stroke="#6b3b3f" stroke-width="2"/>
+    </pattern>
+    <clipPath id="floor-clip">
+      <rect width="840" height="360"/>
+    </clipPath>
+  </defs>
+
+  <rect fill="#120b10" width="840" height="360"/>
+
+  <!-- distant industrial canyon -->
+  <path fill="#211720" d="M0 0h840v78L774 68l-42 10-46-20-58 18-52-34-48 25-61-23-68 31-49-19-67 23-58-35-51 24-58-18-46 26L0 61Z"/>
+  <path fill="#30202e" d="M0 24h68v58H0zm88-11h47v68H88zm79 29h62v38h-62zm464-18h54v55h-54zm82 8h39v51h-39zm58-21h69v73h-69z"/>
+  <path d="m0 71 100-9 75 14 89-16 95 17 105-19 91 17 87-15 111 18 87-13" fill="none" stroke="#56303f" stroke-width="4"/>
+  <path d="M38 0v51m15-30v39M113 0v57m95-34v45m441-68v59m39-42v48m97-65v67" stroke="#6a455b" stroke-width="3"/>
+  <path d="M62 49h66m492 7h98" stroke="#120b10" stroke-width="8"/>
+  <path d="M74 49h32m529 7h49" stroke="#b76d46" stroke-width="2"/>
+
+  <!-- fixed-angle 2:1 combat plane -->
+  <rect fill="#332733" width="840" height="360"/>
+  <g clip-path="url(#floor-clip)">
+    <path fill="url(#diamond-grid)" d="M0 0h840v360H0z"/>
+    <path d="m-70 198 302-151 40 20-303 151zm534-197 338 169-41 21L423 22z" fill="#442f3e"/>
+    <path d="m18 316 354-177 54 27L72 343zm382-156 54-27 356 178-54 27z" fill="#2d2730"/>
+    <path d="m158 305 258-129 73 37-258 129z" fill="#43313e"/>
+    <path d="m226 342 265-132 72 36-228 114H226Z" fill="#2b252d"/>
+    <path d="m393 147 46-23 88 44-46 23z" fill="#50313c"/>
+    <path d="m405 143 31-15 78 39-31 15z" fill="#b0523d"/>
+    <path d="m147 256 48-24 70 35-48 24z" fill="#273b3e"/>
+    <path d="m157 254 35-18 60 30-35 18z" fill="#2c8581"/>
+    <path d="m86 330 49-25 20 10-49 25zm520-7 52-26 20 10-52 26z" fill="#8c6044"/>
+    <path d="m44 177 98-49 14 7-98 49zm626 6 94-47 14 7-94 47z" fill="#211820" opacity=".75"/>
+    <path d="m-36 93 174-87 31 16L-5 109zm681-48 31-16 190 95-31 16z" fill="#281f29"/>
+    <path d="m286 71 122-61 168 84-122 61z" fill="#3c2d39"/>
+    <path d="m303 72 105-53 149 75-104 52z" fill="#2b262d"/>
+    <path d="m309 73 29-15 27 14-29 14zm63-32 31-15 26 13-31 16zm77 11 29 14-31 16-29-15zm65 32 28 14-30 15-28-14z" fill="#59404f"/>
+  </g>
+
+  <!-- left market stack: large flat comic shadow shapes -->
+  <g stroke="#120b10" stroke-linejoin="bevel" stroke-width="4">
+    <path fill="#6e413c" d="m16 116 123-61 114 57-123 62Z"/>
+    <path fill="#3d2936" d="m16 116 114 58v99L16 214Z"/>
+    <path fill="#56303d" d="m130 174 123-62v98l-123 63Z"/>
+    <path fill="#8c5141" d="m44 128 82-41 72 36-82 41Z"/>
+    <path fill="#2a2029" d="m44 128 72 36v51l-72-36Z"/>
+    <path fill="#46313b" d="m116 164 82-41v51l-82 41Z"/>
+  </g>
+  <path d="m50 143 59 30v17l-59-30z" fill="#171217"/>
+  <path d="m59 150 39 20" stroke="#d08a49" stroke-width="4"/>
+  <path d="m149 165 35-18v21l-35 18z" fill="#1c292b"/>
+  <path d="m154 164 22-11" stroke="#3aaaa0" stroke-width="3"/>
+  <path d="m25 190 104 53m16-57 91-46m-87 68 87-45" fill="none" stroke="#120b10" stroke-width="6"/>
+  <path d="m26 202 102 51m25-36 77-39" fill="none" stroke="#7c4d4c" stroke-width="3"/>
+  <path d="m74 86 9-42 8 38m54-22 6-34 8 31" fill="none" stroke="#120b10" stroke-width="5"/>
+  <path d="M80 45h14m55-19h14" stroke="#a06f56" stroke-width="3"/>
+  <path d="M36 218 14 229m57 6-24 12m158-39 25 12" stroke="#b76d46" stroke-width="5"/>
+  <path d="M37 224 15 235m57 6-24 12m158-39 25 12" stroke="#d09a65" stroke-width="1"/>
+
+  <!-- right foundry / clinic block -->
+  <g stroke="#120b10" stroke-linejoin="bevel" stroke-width="4">
+    <path fill="#5b3d48" d="m602 105 105-52 115 57-106 53Z"/>
+    <path fill="#302530" d="m602 105 114 58v109l-114-57Z"/>
+    <path fill="#48323d" d="m716 163 106-53v109l-106 53Z"/>
+    <path fill="#755044" d="m646 108 58-29 70 35-58 29Z"/>
+    <path fill="#372a31" d="m646 108 70 35v45l-70-35Z"/>
+    <path fill="#543640" d="m716 143 58-29v45l-58 29Z"/>
+  </g>
+  <path d="m617 139 83 42v22l-83-42z" fill="#171217"/>
+  <path d="m626 148 39 20" stroke="#bb6546" stroke-width="4"/>
+  <path d="m737 170 65-32v29l-65 32z" fill="#17272a"/>
+  <path d="m747 175 38-19" stroke="#2f9e96" stroke-width="4"/>
+  <path d="m614 180 95 48m16-46 88-44m-88 69 88-44" fill="none" stroke="#120b10" stroke-width="6"/>
+  <path d="m623 199 78 39m34-47 70-35" fill="none" stroke="#75505a" stroke-width="3"/>
+  <path d="m655 76 8-45 9 40m56 1 7-39 9 34" fill="none" stroke="#120b10" stroke-width="5"/>
+  <path d="M659 32h17m72 2h14" stroke="#a06f56" stroke-width="3"/>
+
+  <!-- overhead service cables and broken canopy -->
+  <path d="M122 90C247 24 489 25 706 91" fill="none" stroke="#120b10" stroke-width="8"/>
+  <path d="M122 89C247 29 489 30 706 90" fill="none" stroke="#6e4e5e" stroke-width="2"/>
+  <path d="m281 64 26 13-31 15-26-13zm72-19 29 14-31 16-29-15zm75 3 31 15-34 17-31-15zm91 20 29 14-31 16-29-15z" fill="#2a1e28" stroke="#120b10" stroke-width="3"/>
+  <path d="m286 74 11 5m62-24 11 5m65-3 12 6m78 15 11 5" stroke="#ad6849" stroke-width="3"/>
+
+  <!-- ground clutter and material history -->
+  <g fill="none" stroke="#120b10" stroke-width="5">
+    <path d="m252 274 30-15 32 16-30 15z"/>
+    <path d="m517 276 32-16 31 16-32 16z"/>
+    <path d="m330 98 25-13 28 14-27 13z"/>
+  </g>
+  <g fill="#745044">
+    <path d="m252 274 30-15 32 16-30 15z"/>
+    <path d="m517 276 32-16 31 16-32 16z"/>
+  </g>
+  <path d="m265 274 17-8 19 9-17 8zm266 2 18-9 18 9-18 9z" fill="#b76d46"/>
+  <path d="m321 302 14-7m18 17 23-12m28 38 17-9m104-12 19-10m43 14 13-7m-355-18 11-6" stroke="#7d4c4d" stroke-width="4"/>
+  <path d="m318 304 14-7m19 17 22-11m30 37 17-9m105-12 18-9m44 13 12-6m-355-19 10-5" stroke="#bb7650" stroke-width="1"/>
+
+  <!-- restrained grime: deliberate flat clusters, not a global noise wash -->
+  <g fill="#211820" opacity=".75">
+    <path d="m8 302 38-19 24 12-37 19zm108 4 25-12 13 6-25 13zm73-91 21-11 17 9-20 10zm112 116 19-10 14 7-20 10zm168-40 24-12 17 9-24 12zm154 16 31-16 19 10-31 15zm142-25 35-17 23 11-36 18z"/>
+  </g>
+  <g fill="#8a554b">
+    <circle cx="95" cy="278" r="3"/>
+    <circle cx="102" cy="274" r="2"/>
+    <circle cx="452" cy="313" r="3"/>
+    <circle cx="460" cy="309" r="2"/>
+    <circle cx="690" cy="295" r="3"/>
+    <circle cx="697" cy="291" r="2"/>
+  </g>
+
+  <!-- hard occlusion strips keep the playable lane quieter -->
+  <path d="m0 350 20 10H0zm840 0-20 10h20z" fill="#120b10"/>
+</svg>
