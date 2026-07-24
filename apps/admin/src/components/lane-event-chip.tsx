@@ -1,15 +1,15 @@
-import type { LaneEventRecord } from "@hazard-pay/api/contract";
+import { builtinToolReceipt, type LaneEventRecord } from "@hazard-pay/api/contract";
 import { JsonInspector, StatusChip, TraceChip, type JsonLike } from "@hazard-pay/ui";
 import { Link } from "@tanstack/react-router";
 
-import { formatSeq, formatTime, linkedLaneId, summarizeLaneEvent } from "../lib/trace-format.ts";
+import { formatSeq, formatTime, summarizeLaneEvent } from "../lib/trace-format.ts";
 
 /**
  * One lane event as a progressive-disclosure chip: envelope-aware summary
  * up front, the full payload one click away (#11 rider). The deep-dives
  * render the envelope's own shapes — model turn parts (reasoning included),
- * tool receipts, inputs — and cross-link lanes named by tool receipts
- * (spawn_lane / send_message / cancel_lane outputs carry a laneId).
+ * tool receipts, inputs — and cross-link lanes through the envelope's
+ * typed `builtinToolReceipt` narrowing (CONTEXT.md: Receipt).
  */
 export function LaneEventChip({ record }: { record: LaneEventRecord }) {
   return (
@@ -75,17 +75,17 @@ function LaneEventDetail({ record }: { record: LaneEventRecord }) {
         </div>
       );
     case "tool_result": {
-      const targetLaneId = linkedLaneId(record);
+      const receipt = builtinToolReceipt(payload);
       return (
         <div className="flex flex-col gap-2 py-1">
           <JsonInspector value={payload.output as JsonLike} label="output" defaultOpenDepth={2} />
-          {targetLaneId !== null && (
+          {receipt !== null && (
             <Link
               to="/lanes/$laneId"
-              params={{ laneId: targetLaneId }}
+              params={{ laneId: receipt.laneId }}
               className="font-data text-[11px] font-bold tracking-[0.08em] text-accent uppercase underline decoration-dashed underline-offset-4 hover:text-accent-2"
             >
-              {payload.toolName === "spawn_lane" ? "open spawned mission →" : "open linked lane →"}
+              {receipt.tool === "spawn_lane" ? "open spawned mission →" : "open linked lane →"}
             </Link>
           )}
           <DetailMeta entries={[
