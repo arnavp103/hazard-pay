@@ -13,10 +13,19 @@ export const INK = "#120b10";
 
 let ramp: THREE.DataTexture | undefined;
 
-/** Hard 3-band ramp (deep shadow / mid / lit); nearest filtering keeps band edges knife-sharp. */
+/**
+ * Hard 3-band ramp (deep shadow / mid / lit); nearest filtering keeps band
+ * edges knife-sharp. NOTE: three samples the gradient map at
+ * `dotNL * 0.5 + 0.5`, so the texel run below spans dotNL -1..1 — shadow
+ * up to ~0.125, a narrow mid band, lit above ~0.625.
+ */
 export function toonRamp(): THREE.DataTexture {
   if (ramp === undefined) {
-    const bands = new Uint8Array([96, 172, 255]);
+    const bands = new Uint8Array([
+      30, 30, 30, 30, 30, 30, 30, 30, 30,
+      150, 150, 150, 150,
+      255, 255, 255,
+    ]);
     ramp = new THREE.DataTexture(bands, bands.length, 1, THREE.RedFormat);
     ramp.minFilter = THREE.NearestFilter;
     ramp.magFilter = THREE.NearestFilter;

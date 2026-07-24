@@ -60,9 +60,9 @@ function panOffset(t: number, out: THREE.Vector3): void {
 function makeLights(): THREE.Object3D[] {
   // Key from screen upper-right, matching the SVG board: tops brightest,
   // +X (screen lower-right) walls mid, +Z (lower-left) walls in shadow.
-  const key = new THREE.DirectionalLight("#fff1de", 2.6);
-  key.position.set(2.6, 4.2, 0.9);
-  const ambient = new THREE.AmbientLight("#cbb4c4", 0.85);
+  const key = new THREE.DirectionalLight("#fdeeda", 12);
+  key.position.set(3.2, 4.0, 0.2);
+  const ambient = new THREE.AmbientLight("#c9aec0", 1.9);
   return [key, ambient];
 }
 
@@ -113,10 +113,12 @@ export function mountRealtime3d(
   shadow.position.y = 0.012;
   stageScene.add(shadow);
 
-  // Still framing: feet at viewport (247, 209) like the pixel lane's controlled still.
+  // Still framing: feet at viewport (247, 209) like the pixel lane's
+  // controlled still — the camera aims up-left of the rig so the rig sits
+  // in the lower-right third.
   const target = new THREE.Vector3()
-    .addScaledVector(RIGHT, 7 / PX_PER_UNIT)
-    .addScaledVector(UP, -74 / PX_PER_UNIT);
+    .addScaledVector(RIGHT, -7 / PX_PER_UNIT)
+    .addScaledVector(UP, 74 / PX_PER_UNIT);
   const basePosition = target.clone().addScaledVector(VIEW, 22);
 
   const halfW = STAGE_WIDTH / (2 * PX_PER_UNIT * zoom);
@@ -145,7 +147,7 @@ export function mountRealtime3d(
     puck.rotation.x = -Math.PI / 2;
     loupeScene.add(puck);
 
-    const loupeTarget = new THREE.Vector3(0, 0.82, 0);
+    const loupeTarget = new THREE.Vector3(0, 0.78, 0);
     const lHalfW = LOUPE_WIDTH / (2 * LOUPE_PX_PER_UNIT);
     const lHalfH = LOUPE_HEIGHT / (2 * LOUPE_PX_PER_UNIT);
     loupeCamera = new THREE.OrthographicCamera(-lHalfW, lHalfW, lHalfH, -lHalfH, 0.1, 60);

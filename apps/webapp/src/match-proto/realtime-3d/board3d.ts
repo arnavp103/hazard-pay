@@ -105,16 +105,16 @@ function pallet(cx: number, cz: number, sizeX: number, sizeZ: number): THREE.Gro
 function cableRun(): THREE.Group {
   const group = new THREE.Group();
   const curve = new THREE.QuadraticBezierCurve3(
-    new THREE.Vector3(-5.9, 4.5, 3.2),
-    new THREE.Vector3(-1.2, 7.4, -1.2),
-    new THREE.Vector3(3.5, 4.6, -5.7),
+    new THREE.Vector3(-5.8, 4.45, 4.7),
+    new THREE.Vector3(-0.7, 6.9, -0.4),
+    new THREE.Vector3(4.3, 4.6, -5.2),
   );
   group.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 60, 0.055, 6, false), flat(INK)));
 
   // Broken canopy panels hung along the run, each with one copper glint.
   for (const t of [0.3, 0.46, 0.62, 0.76]) {
     const at = curve.getPoint(t);
-    const panel = inkBox(0.95, 0.06, 0.72, cel("#2a1e28"), 0.035);
+    const panel = inkBox(0.95, 0.06, 0.72, flat("#2a1e28"), 0.035);
     panel.position.set(at.x, at.y - 1.35, at.z);
     group.add(panel);
     group.add(slab([0.3, 0.05, 0.05], [at.x + 0.18, at.y - 1.3, at.z + 0.3], "#ad6849"));
@@ -124,13 +124,13 @@ function cableRun(): THREE.Group {
 
 function platform(): THREE.Group {
   const group = new THREE.Group();
-  const deck = inkBox(5.94, 0.12, 4.31, cel("#3c2d39"), 0.05);
+  const deck = inkBox(5.94, 0.12, 4.31, flat("#3c2d39"), 0.05);
   deck.position.set(-5.92, 0.06, -6.28);
   group.add(deck);
   group.add(floorPatch(-8.41, -4.24, 5.27, 3.71, "#2b262d", 0.135));
   const vents: Array<[number, number]> = [[-8.0, -4.6], [-6.6, -5.6], [-5.2, -6.4], [-4.4, -5.0]];
   for (const [x, z] of vents) {
-    const vent = inkBox(1.0, 0.09, 0.95, cel("#59404f"), 0.035);
+    const vent = inkBox(1.0, 0.09, 0.95, flat("#59404f"), 0.035);
     vent.position.set(x, 0.18, z);
     group.add(vent);
   }

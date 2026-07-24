@@ -309,7 +309,8 @@ const BIND: Rotations = {
   torso: [0.07, 0.1, 0],
 };
 
-const BASE_FACING = -Math.PI / 4;
+/** Authored front is +Z: on screen that is the SW three-quarter facing, chest rig toward camera. */
+const BASE_FACING = 0;
 
 function emptyPose(): Pose {
   return { dip: 0, facing: 0, flash: false, lunge: 0, rotations: {}, squash: 1 };
