@@ -15,10 +15,12 @@
  *                   fake). Deliberate, but reads stepped/flipbook.
  *   B. PROGRAMMATIC — one base sprite, driven continuously by grid-region
  *                   transforms: a hip-pivoted shear (whole-body lean /
- *                   weight shift, hole-free), vertical bob, a hand-drawn
- *                   motion smear on the fast frame, an emission flash, and
- *                   sub-pixel offsets at render time. Cheap and smooth, but
- *                   can read rubbery because pixels slide as rigid blocks.
+ *                   weight shift, hole-free), a translated leg-region step,
+ *                   a hand-drawn motion smear on the fast frame, and an
+ *                   emission flash — all snapped to whole pixels. (Round-1's
+ *                   sub-pixel offsets were tried and dropped: off-grid
+ *                   sampling breaks pixel-art crispness.) Cheap, but capped —
+ *                   translating regions can never author a genuinely new pose.
  *   C. HYBRID     — authored key poses as anchors, with programmatic
  *                   in-betweening (shear-interpolated) and a smear on the
  *                   snap frame. Deliberate extremes, smooth connective
@@ -174,7 +176,9 @@ export function paint(rows: string[], px: [number, number, string][]): string[] 
 const ARM_BOX = { x0: 23, y0: 31, x1: 45, y1: 37 };
 const HIP_Y = 38;
 /** Front (leading) leg column span, for the lunge step. */
-const FRONT_LEG = { x0: 24, y0: 49, x1: 34, y1: 61 };
+const FRONT_LEG = { x0: 23, y0: 48, x1: 33, y1: 61 };
+/** Back (trailing) leg column span, for the weight shift / push-off. */
+const BACK_LEG = { x0: 13, y0: 48, x1: 22, y1: 61 };
 /** Injector needle tip at rest (row, col) — where drawn extensions grow. */
 const TIP_Y = 36;
 const TIP_X = 40;
@@ -254,8 +258,11 @@ interface Pose {
   /** Injector forearm offset. */
   armDx: number;
   armDy: number;
-  /** Leading-leg forward lunge step. */
+  /** Leading-leg forward step (x) and lift (y). */
   legDx: number;
+  legDy: number;
+  /** Trailing-leg push-off (x). */
+  backLegDx: number;
   /** Drawn needle extension length past the tip. */
   needle: number;
   /** Emission burst at the tip. */
@@ -264,14 +271,20 @@ interface Pose {
   smear: number;
 }
 
-const REST: Pose = { lean: 0, bob: 0, headDip: 0, armDx: 0, armDy: 0, legDx: 0, needle: 0, flash: false, smear: 0 };
+const REST: Pose = {
+  lean: 0, bob: 0, headDip: 0, armDx: 0, armDy: 0,
+  legDx: 0, legDy: 0, backLegDx: 0, needle: 0, flash: false, smear: 0,
+};
 
 /** Compose one pose into a finished 48×64 grid. */
 export function renderPose(partial: Partial<Pose>): string[] {
   const p: Pose = { ...REST, ...partial };
   let body = medicSideBody;
-  if (p.legDx !== 0) {
-    body = moveRegion(body, FRONT_LEG.x0, FRONT_LEG.y0, FRONT_LEG.x1, FRONT_LEG.y1, p.legDx, 0);
+  if (p.legDx !== 0 || p.legDy !== 0) {
+    body = moveRegion(body, FRONT_LEG.x0, FRONT_LEG.y0, FRONT_LEG.x1, FRONT_LEG.y1, p.legDx, p.legDy);
+  }
+  if (p.backLegDx !== 0) {
+    body = moveRegion(body, BACK_LEG.x0, BACK_LEG.y0, BACK_LEG.x1, BACK_LEG.y1, p.backLegDx, 0);
   }
   if (p.headDip !== 0) {
     body = moveRegion(body, 8, 6, 31, 18, 0, p.headDip);
@@ -329,65 +342,87 @@ export const IDLE_CYCLE_MS = 1800;
 export const ATTACK_CYCLE_MS = 1100;
 
 const IDLE_KEYS: Partial<Pose>[] = [
-  { lean: 0.02, bob: 0, headDip: 0 },
-  { lean: 0.05, bob: 0, headDip: 1, armDy: 1 },
-  { lean: 0.02, bob: 1, headDip: 1, armDy: 1 },
-  { lean: -0.03, bob: 0, headDip: 0 },
+  // weight centred-forward, breath in
+  { lean: 0.03, headDip: 0, legDx: 0, backLegDx: 0 },
+  // settle onto the front foot, hood dips (breath out), weapon hand drifts
+  { lean: 0.06, headDip: 1, armDy: 1, legDx: 1 },
+  // hold the exhale
+  { lean: 0.03, headDip: 1, armDy: 1 },
+  // ease weight back onto the trailing foot (breath in) — arm returns to rest
+  { lean: -0.04, headDip: 0, backLegDx: -1 },
 ];
 const IDLE_KEY_MS = [520, 420, 420, 440];
 
 const ATTACK_KEYS: Partial<Pose>[] = [
   // 0 ready
   { lean: 0.02 },
-  // 1 windup: weight back, hood dips, forearm cocked to the chest, front knee draws in
-  { lean: -0.09, headDip: 1, armDx: -9, armDy: -3, legDx: -1 },
-  // 2 thrust: hard forward lunge, front foot plants ahead, arm + needle fully out
-  { lean: 0.12, armDx: 2, armDy: 1, legDx: 3, needle: 5 },
-  // 3 impact: held extension, emission burst, tiny recoil
-  { lean: 0.11, armDx: 2, armDy: 1, legDx: 3, needle: 5, flash: true },
-  // 4 recover: ease back through a shortened cock
-  { lean: -0.03, armDx: -3, armDy: -1, legDx: 1 },
+  // 1 windup: weight loads back onto the trailing leg — front foot lifts and
+  // draws in, hood dips, forearm cocked to the chest
+  { lean: -0.10, headDip: 1, armDx: -9, armDy: -3, legDx: -2, legDy: -1 },
+  // 2 thrust: explosive lunge — front foot plants well ahead, trailing leg
+  // pushes off, torso drives forward over the front knee, needle fully out
+  { lean: 0.14, armDx: 2, armDy: 1, legDx: 5, backLegDx: -2, needle: 5 },
+  // 3 impact: extension held, front foot planted, emission burst (hit-pause)
+  { lean: 0.13, armDx: 2, armDy: 1, legDx: 5, backLegDx: -2, needle: 5, flash: true },
+  // 4 recover: draw the front foot back under the body, arm retracts
+  { lean: -0.02, armDx: -3, armDy: -1, legDx: 2, backLegDx: -1 },
   // 5 settle
   { lean: 0.02 },
 ];
-const ATTACK_KEY_MS = [280, 200, 90, 140, 170, 220];
+const ATTACK_KEY_MS = [270, 210, 90, 150, 160, 220];
 
 const authoredIdleFrames = IDLE_KEYS.map((k) => renderPose(k));
 const authoredAttackFrames = ATTACK_KEYS.map((k) => renderPose(k));
 
 // --- B. PROGRAMMATIC: continuous transforms of the one base sprite -----
 
+/** Programmatic front-leg step: translate the leg region as a phase fn. */
+function stepFrontLeg(rows: string[], dx: number, dy: number): string[] {
+  if (dx === 0 && dy === 0) { return rows; }
+  return moveRegion(rows, FRONT_LEG.x0, FRONT_LEG.y0, FRONT_LEG.x1, FRONT_LEG.y1, dx, dy);
+}
+function pushBackLeg(rows: string[], dx: number): string[] {
+  if (dx === 0) { return rows; }
+  return moveRegion(rows, BACK_LEG.x0, BACK_LEG.y0, BACK_LEG.x1, BACK_LEG.y1, dx, 0);
+}
+
 function programmaticIdle(clockMs: number): RigFrame {
   const t = phase(clockMs, IDLE_CYCLE_MS);
   const wave = Math.sin(t * Math.PI * 2);
-  const breath = Math.sin(t * Math.PI * 2 - Math.PI / 2);
-  // whole-body weight shift (hip-pivot lean) + sub-pixel breathing bob
-  const rows = lean(medicSide, HIP_Y, 0.035 * wave);
-  return { rows, dx: 0.5 * wave, dy: 0.6 * (breath > 0 ? breath : breath * 0.4) };
+  // whole-body weight shift (hip-pivot lean, snapped on-grid) + a hood/head
+  // chin-tuck on the exhale half of the loop. No sub-pixel — kept crisp.
+  let rows = lean(medicSide, HIP_Y, 0.045 * wave);
+  if (wave > 0.4) { rows = moveRegion(rows, 8, 6, 31, 18, 0, 1); }
+  return { rows, dx: 0, dy: 0 };
 }
 
 function programmaticAttack(clockMs: number): RigFrame {
   const t = phase(clockMs, ATTACK_CYCLE_MS);
-  // piecewise ease: windup -> snap -> hold -> recover, all from one sprite
+  // piecewise ease from one sprite: whole-body lean AND a translated leg step
+  // (region transforms, no authored frames), + drawn smear + emission flash.
   if (t < 0.32) {
-    const u = t / 0.32; // ease back
-    const k = lerp(0, -0.12, u * u);
-    return { rows: shiftY(lean(medicSide, HIP_Y, k), Math.round(lerp(0, 1, u))), dx: 0, dy: 0 };
+    const u = t / 0.32; // load back onto the trailing leg, front foot lifts in
+    let rows = stepFrontLeg(medicSide, -Math.round(lerp(0, 2, u)), -Math.round(lerp(0, 1, u)));
+    rows = lean(rows, HIP_Y, lerp(0, -0.12, u * u));
+    return { rows, dx: 0, dy: 0 };
   }
   if (t < 0.46) {
-    const u = (t - 0.32) / 0.14; // explosive forward snap + smear
-    const k = lerp(-0.12, 0.16, u);
-    let rows = lean(medicSide, HIP_Y, k);
+    const u = (t - 0.32) / 0.14; // explosive forward snap: plant + push + smear
+    let rows = stepFrontLeg(medicSide, Math.round(lerp(-2, 5, u)), 0);
+    rows = pushBackLeg(rows, -Math.round(lerp(0, 2, u)));
+    rows = lean(rows, HIP_Y, lerp(-0.12, 0.16, u));
     rows = drawSmear(rows, Math.round(lerp(2, 7, u)), 0);
-    return { rows, dx: lerp(-1, 2, u), dy: 0 };
+    return { rows, dx: 0, dy: 0 };
   }
   if (t < 0.6) {
-    const rows = drawFlash(lean(medicSide, HIP_Y, 0.16), 6, 0);
-    return { rows, dx: 2, dy: 0 };
+    let rows = pushBackLeg(stepFrontLeg(medicSide, 5, 0), -2);
+    rows = drawFlash(lean(rows, HIP_Y, 0.16), 6, 0);
+    return { rows, dx: 0, dy: 0 };
   }
-  const u = (t - 0.6) / 0.4; // recover
-  const k = lerp(0.16, 0, u);
-  return { rows: lean(medicSide, HIP_Y, k), dx: lerp(2, 0, u), dy: 0 };
+  const u = (t - 0.6) / 0.4; // recover the foot back under the body
+  let rows = pushBackLeg(stepFrontLeg(medicSide, Math.round(lerp(5, 0, u)), 0), -Math.round(lerp(2, 0, u)));
+  rows = lean(rows, HIP_Y, lerp(0.16, 0, u));
+  return { rows, dx: 0, dy: 0 };
 }
 
 // --- C. HYBRID: authored keys + programmatic in-betweening + smear -----
@@ -403,6 +438,8 @@ function tween(a: Partial<Pose>, b: Partial<Pose>, u: number, extra?: Partial<Po
     armDx: Math.round(lerp(pa.armDx, pb.armDx, u)),
     armDy: Math.round(lerp(pa.armDy, pb.armDy, u)),
     legDx: Math.round(lerp(pa.legDx, pb.legDx, u)),
+    legDy: Math.round(lerp(pa.legDy, pb.legDy, u)),
+    backLegDx: Math.round(lerp(pa.backLegDx, pb.backLegDx, u)),
     needle: Math.round(lerp(pa.needle, pb.needle, u)),
     ...extra,
   });
@@ -410,15 +447,14 @@ function tween(a: Partial<Pose>, b: Partial<Pose>, u: number, extra?: Partial<Po
 
 function hybridIdle(clockMs: number): RigFrame {
   const t = phase(clockMs, IDLE_CYCLE_MS);
-  // walk the authored idle keys but tween between neighbours + sub-pixel
+  // walk the authored idle keys but tween between neighbours (on-grid)
   const n = IDLE_KEYS.length;
   const scaled = t * n;
   const i = Math.floor(scaled);
   const u = scaled - i;
   const a = IDLE_KEYS[i % n] ?? {};
   const b = IDLE_KEYS[(i + 1) % n] ?? {};
-  const wave = Math.sin(t * Math.PI * 2);
-  return { rows: tween(a, b, u), dx: 0.4 * wave, dy: 0 };
+  return { rows: tween(a, b, u), dx: 0, dy: 0 };
 }
 
 function atkKey(i: number): Partial<Pose> {
@@ -434,14 +470,14 @@ function hybridAttack(clockMs: number): RigFrame {
   if (t < 0.44) {
     const u = (t - 0.30) / 0.14;
     const rows = tween(atkKey(1), atkKey(2), u, { smear: Math.round(lerp(2, 6, u)) });
-    return { rows, dx: lerp(-1, 1, u), dy: 0 };
+    return { rows, dx: 0, dy: 0 };
   }
   if (t < 0.58) {
-    return { rows: renderPose(atkKey(3)), dx: 1, dy: 0 };
+    return { rows: renderPose(atkKey(3)), dx: 0, dy: 0 };
   }
   if (t < 0.78) {
     const u = (t - 0.58) / 0.20;
-    return { rows: tween(atkKey(3), atkKey(4), u), dx: lerp(1, 0, u), dy: 0 };
+    return { rows: tween(atkKey(3), atkKey(4), u), dx: 0, dy: 0 };
   }
   return { rows: tween(atkKey(4), atkKey(5), (t - 0.78) / 0.22), dx: 0, dy: 0 };
 }
@@ -469,7 +505,7 @@ const authoredTreatment: AnimTreatment = {
 const programmaticTreatment: AnimTreatment = {
   key: "programmatic",
   name: "Programmatic",
-  blurb: "one sprite, transformed + smear + sub-pixel",
+  blurb: "one sprite, region transforms + leg step + smear",
   idle: programmaticIdle,
   attack: programmaticAttack,
 };

@@ -121,7 +121,9 @@ function MedicCanvas({ frame, mirrored, scale }: MedicCanvasProps) {
     context.putImageData(new ImageData(new Uint8ClampedArray(rgba), MEDIC_WIDTH, MEDIC_HEIGHT), 0, 0);
   }, [frame.rows]);
 
-  const shift = `translate(${String(frame.dx * scale)}px, ${String(frame.dy * scale)}px)`;
+  // Snap any render offset to whole device pixels — off-grid translation
+  // would soften the nearest-neighbour sprite (deliberate-pixel-art axis).
+  const shift = `translate(${String(Math.round(frame.dx) * scale)}px, ${String(Math.round(frame.dy) * scale)}px)`;
   return (
     <canvas
       ref={ref}
