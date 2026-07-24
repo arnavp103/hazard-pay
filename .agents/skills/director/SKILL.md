@@ -221,3 +221,65 @@ Environment facts agents keep rediscovering; brief them or fix them:
   mid-tier (sonnet) agent ran a full ticket with zero permission workarounds —
   the hardened path (CLI worktree new, invocable /implement, `.worktrees/` file
   tools, checkout-root env) is confirmed carrying the workflow.
+- When the director itself runs as a background job, its engineer subagents
+  inherit the bg-isolation guard: their Write/Edit into `.worktrees/` trees is
+  refused with "parent session hasn't isolated" (both 2026-07-24 bake-off
+  agents hit this; both staged files in `/tmp/<lane>/` and `cp`'d into the
+  worktree via Bash — workable but double-bookkeeping, and lint-staged
+  autofixes force a worktree→staging re-sync before every Edit). Project
+  settings now allowlist `Read/Edit/Write(.worktrees/**)` and
+  `Bash(git worktree *)` to kill the interactive prompts. **Canary answered
+  (2026-07-24 round 2): the allowlist removed the prompts but the isolation
+  guard STILL refuses subagent Write/Edit into `.worktrees/` outright** — both
+  round-2 agents fell back to the `/tmp/<lane>/` staging + `cp` pattern again.
+  The guard is not a permission rule, so a permission allowlist can't clear it;
+  a real fix means either a settings knob to exempt subagents of an isolated
+  bg-director, or briefing agents to author-then-`cp` as the standard path.
+  Caveat: permission rules are prefix-matched, so the `git -C <path> worktree …`
+  shape is NOT covered — use plain `git worktree` from the repo root.
+- **Correctness hazard — subagent Bash cwd resets to the MAIN checkout between
+  calls.** A round-2 agent's first `pnpm --filter … type-check`/`test` ran
+  against `main`, not its worktree, and falsely reported green — the gate never
+  touched the agent's code. Brief every agent to prefix worktree commands with
+  the absolute worktree path (`cd <wt> && …`, or `pnpm -C <wt> --filter …`,
+  `git -C <wt> …`) and to distrust a gate result that didn't run from the
+  worktree. The director should treat "gates green" in a report as unverified
+  until the CI run on the pushed head SHA confirms it.
+- The Bash TOOL runs `/bin/bash`, not fish — even though the interactive shell
+  is fish. `for i in (seq …)` (fish syntax) errors; use bash `$(seq …)`. (Prior
+  facts about avoiding `cd X && cmd` are about cwd-pinning/classifier flakiness,
+  not shell dialect — both are real.)
+- `gh api -f body=@file` posts the LITERAL string `@/path` as the body; the
+  capital-F `gh api -F body=@file` reads the file. An agent shipped a literal
+  `@/tmp/...` comment before catching it on read-back. Same `-f` vs `-F`
+  gotcha as any file-valued field.
+- **Capture cadence is part of the artifact.** A round-2 agent's turn animation
+  had real acted beats (hop, head-lead, uneven dwell) that its GIF sampled
+  BELOW the animation's native step rate, aliasing the transients out — the
+  cold critic (correctly, from the pixels) read it as an unchanged turntable
+  and even cited the GIF frame-delay table as proof. Capture at the animation's
+  native quantized rate, and remember the critic judges the capture, not the
+  code: animation and its capture must be co-designed.
+- **Cold critics can't scrub GIFs cheaply** (they ffmpeg-decompose, ~6–9 min
+  each). Give them filmstrip PNGs — one row = one full cycle — so motion is
+  judgeable from a single still. Also `ffmpeg -start_number` is an OUTPUT
+  option and frames are 1-indexed by default (bit two agents on extraction).
+- `gh issue view <n>` and `gh pr edit` can die on a projectCards GraphQL
+  deprecation (both bake-off agents, every affected call) — go straight to
+  REST (`gh api repos/{owner}/{repo}/issues/<n>`), don't retry the porcelain.
+- `pnpm --filter <pkg> dev -- --port N` silently drops the port flag and vite
+  grabs 5173 (both agents) — use `pnpm exec vite dev --port N --strictPort`
+  (or the script form without `--`), and pin `--strictPort` so a collision
+  fails loudly instead of stealing a parallel agent's port.
+- agent-browser's daemon state is shared across parallel agents of one
+  session: the default session collides (one agent captured the other's page)
+  and `close --all` kills the OTHER agent's session too (happened 2026-07-24).
+  Always `--session <lane-name>`, always scoped `close`, `wait <selector>`
+  before element screenshots, and expect to install it first
+  (`pnpm add -g agent-browser`, then call by absolute path —
+  `~/.local/share/pnpm/agent-browser`).
+- `hazard-pay worktree new` fails from the launch checkout (`tsx` not found);
+  manual `git worktree add` is the reliable fallback.
+- Never build `raw.githubusercontent.com`/blob URLs from an abbreviated SHA
+  extended by hand — one agent fabricated a full SHA and shipped 404 gallery
+  links. `git rev-parse HEAD` first, always.
