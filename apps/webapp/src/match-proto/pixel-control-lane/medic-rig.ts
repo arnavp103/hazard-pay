@@ -251,8 +251,14 @@ function drawSmear(rows: string[], reach: number, dy: number): string[] {
 interface Pose {
   /** Hip-pivot shear (whole-body lean). */
   lean: number;
-  /** Vertical bob (breath / crouch). */
+  /** Row the lean pivots about (default the hip). Lower it to sway the
+   * pelvis/thighs over planted feet — a weighted idle shift below the waist. */
+  leanPivot: number;
+  /** Vertical bob (breath) — shifts the whole figure, feet included. */
   bob: number;
+  /** Knee-bend settle: everything above the knee sinks by this many rows
+   * while the feet stay planted — a breath the lower body participates in. */
+  crouch: number;
   /** Chin tuck: hood + head region dips by this many rows. */
   headDip: number;
   /** Injector forearm offset. */
@@ -272,9 +278,12 @@ interface Pose {
 }
 
 const REST: Pose = {
-  lean: 0, bob: 0, headDip: 0, armDx: 0, armDy: 0,
+  lean: 0, leanPivot: HIP_Y, bob: 0, crouch: 0, headDip: 0, armDx: 0, armDy: 0,
   legDx: 0, legDy: 0, backLegDx: 0, needle: 0, flash: false, smear: 0,
 };
+
+/** Row below which the shins/feet stay planted during a knee-bend crouch. */
+const KNEE_Y = 50;
 
 /** Compose one pose into a finished 48×64 grid. */
 export function renderPose(partial: Partial<Pose>): string[] {
@@ -297,7 +306,8 @@ export function renderPose(partial: Partial<Pose>): string[] {
   if (p.needle > 0) { g = drawNeedle(g, p.needle, p.armDx, p.armDy); }
   if (p.smear > 0) { g = drawSmear(g, p.smear, p.armDy); }
   if (p.flash) { g = drawFlash(g, p.armDx, p.armDy); }
-  if (p.lean !== 0) { g = lean(g, HIP_Y, p.lean); }
+  if (p.lean !== 0) { g = lean(g, p.leanPivot, p.lean); }
+  if (p.crouch !== 0) { g = moveRegion(g, 0, 0, W - 1, KNEE_Y - 1, 0, p.crouch); }
   if (p.bob !== 0) { g = shiftY(g, p.bob); }
   return g;
 }
@@ -342,14 +352,15 @@ export const IDLE_CYCLE_MS = 1800;
 export const ATTACK_CYCLE_MS = 1100;
 
 const IDLE_KEYS: Partial<Pose>[] = [
-  // weight centred-forward, breath in
-  { lean: 0.03, headDip: 0, legDx: 0, backLegDx: 0 },
-  // settle onto the front foot, hood dips (breath out), weapon hand drifts
-  { lean: 0.06, headDip: 1, armDy: 1, legDx: 1 },
-  // hold the exhale
-  { lean: 0.03, headDip: 1, armDy: 1 },
-  // ease weight back onto the trailing foot (breath in) — arm returns to rest
-  { lean: -0.04, headDip: 0, backLegDx: -1 },
+  // weight over the trailing foot, tall (breath in). Low pivot so the sway
+  // carries the pelvis, not just the shoulders.
+  { lean: -0.05, leanPivot: 44, headDip: 0 },
+  // settle forward + sink onto a bent knee (breath out), hood dips, hand drifts
+  { lean: 0.05, leanPivot: 44, crouch: 1, headDip: 1, armDy: 1 },
+  // hold the exhale, weight fully forward, knee still bent
+  { lean: 0.07, leanPivot: 44, crouch: 1, headDip: 1, armDy: 1 },
+  // rise and ease weight back onto the trailing foot — arm returns to rest
+  { lean: -0.02, leanPivot: 44, headDip: 0 },
 ];
 const IDLE_KEY_MS = [520, 420, 420, 440];
 
@@ -389,10 +400,10 @@ function pushBackLeg(rows: string[], dx: number): string[] {
 function programmaticIdle(clockMs: number): RigFrame {
   const t = phase(clockMs, IDLE_CYCLE_MS);
   const wave = Math.sin(t * Math.PI * 2);
-  // whole-body weight shift (hip-pivot lean, snapped on-grid) + a hood/head
-  // chin-tuck on the exhale half of the loop. No sub-pixel — kept crisp.
-  let rows = lean(medicSide, HIP_Y, 0.045 * wave);
-  if (wave > 0.4) { rows = moveRegion(rows, 8, 6, 31, 18, 0, 1); }
+  // low-pivot weight shift (pelvis sways over the feet) + a knee-bend settle
+  // on the exhale, so the lower body breathes too. All snapped on-grid.
+  let rows = lean(medicSide, 44, 0.05 * wave);
+  if (wave > 0.3) { rows = moveRegion(rows, 0, 0, W - 1, KNEE_Y - 1, 0, 1); }
   return { rows, dx: 0, dy: 0 };
 }
 
@@ -433,6 +444,8 @@ function tween(a: Partial<Pose>, b: Partial<Pose>, u: number, extra?: Partial<Po
   const pb: Pose = { ...REST, ...b };
   return renderPose({
     lean: lerp(pa.lean, pb.lean, u),
+    leanPivot: Math.round(lerp(pa.leanPivot, pb.leanPivot, u)),
+    crouch: Math.round(lerp(pa.crouch, pb.crouch, u)),
     bob: Math.round(lerp(pa.bob, pb.bob, u)),
     headDip: Math.round(lerp(pa.headDip, pb.headDip, u)),
     armDx: Math.round(lerp(pa.armDx, pb.armDx, u)),
