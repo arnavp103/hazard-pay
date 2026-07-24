@@ -8,7 +8,7 @@ import type { JsonValue } from "../envelope.ts";
 import type { LaneSnapshot } from "../fold.ts";
 import type { DefinedLeader } from "../leader.ts";
 import type { WakeReport } from "../runtime.ts";
-import type { LaneEventRow } from "../store.ts";
+import type { LaneEventRow } from "@hazard-pay/db";
 import type { LanguageModel } from "ai";
 
 /**

@@ -1,12 +1,9 @@
-import { type Db, lane, laneEvent } from "@hazard-pay/db";
+import { type Db, lane, laneEvent, type LaneEventRow, type LaneRow } from "@hazard-pay/db";
 import { asc, count, desc, eq, gt, and, max } from "drizzle-orm";
 import { ResultAsync } from "neverthrow";
 
 import type { DbUnreachableError } from "../domain/errors.ts";
 import { toDbUnreachable } from "./unreachable.ts";
-
-export type LaneRow = typeof lane.$inferSelect;
-export type LaneEventRow = typeof laneEvent.$inferSelect;
 
 /** One `(lane, type)` aggregate over the lane event log. */
 export interface LaneEventTally {

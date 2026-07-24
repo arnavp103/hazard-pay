@@ -45,14 +45,22 @@ lane read routes. The split of knowledge is deliberate:
   `pnpm --filter @hazard-pay/api dev` must be running; the screens state it
   honestly when they aren't (never canned data on these routes).
 - `src/lib/trace-format.ts` + `src/components/lane-event-chip.tsx` —
-  envelope semantics (summaries, mission links from tool receipts, model
-  turn parts). This knowledge is admin-local on purpose: the
-  `@hazard-pay/ui` trace components (TraceChip, JsonInspector) stay
-  payload-agnostic.
+  envelope semantics (summaries, model turn parts). Summaries stay
+  admin-local on purpose: the `@hazard-pay/ui` trace components
+  (TraceChip, JsonInspector) stay payload-agnostic. Lane cross-links are
+  NOT admin-local: they come from the contract's re-exported
+  `builtinToolReceipt` (CONTEXT.md: Receipt) — never duck-type
+  `output.laneId`.
 
 `src/routes/index.tsx` is still the hello screen with a canned
 leaders/lanes snapshot (labeled as such); its "Open lane trace" button now
 links to `/lanes`.
+
+## Tests
+
+`pnpm --filter @hazard-pay/admin test` — vitest, node env, pure helpers
+only (`trace-format.test.ts`); no Postgres, no DOM. The receipt narrowing
+itself is tested in `packages/agent`'s lane suite.
 
 ## Query conventions
 

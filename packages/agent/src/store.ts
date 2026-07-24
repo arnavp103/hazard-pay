@@ -5,20 +5,13 @@ import { ResultAsync, errAsync, okAsync } from "neverthrow";
 import { storeFailed } from "./errors.ts";
 import type { AgentError } from "./errors.ts";
 import type { JsonValue, LaneEventPayload } from "./envelope.ts";
-import type { DbTx } from "./leader.ts";
-import type { Db } from "@hazard-pay/db";
+import type { DbLike, LaneEventRow, LaneRow } from "@hazard-pay/db";
 
 /**
  * Store functions for the lane event log (issue #23: schemas live in
  * `packages/db`, store functions live here). All writes are appends or
  * guarded updates; nothing here ever mutates a lane event.
  */
-
-/** Both the pool-backed Db and an open transaction satisfy the query API. */
-export type DbLike = Db | DbTx;
-
-export type LaneRow = typeof lane.$inferSelect;
-export type LaneEventRow = typeof laneEvent.$inferSelect;
 
 function isUniqueViolation(error: unknown): boolean {
   if (typeof error !== "object" || error === null) {

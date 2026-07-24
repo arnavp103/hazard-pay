@@ -137,6 +137,10 @@ fills that gap.
 - No queue code here — agents never touch pg-boss (ADR 0003 §2).
 - Payloads are the versioned envelope in `src/envelope.ts`, never
   provider-raw JSON; new part kinds are an envelope version bump.
+  Built-in tool receipts (CONTEXT.md: Receipt) and the `{ tag, detail? }`
+  error output are typed there too: the runtime constructs them via
+  `satisfies`, and read surfaces narrow with `builtinToolReceipt` — never
+  by duck-typing `output.laneId`.
 - `@hazard-pay/agent/envelope` is the browser-safe subpath (zod only, no
   runtime imports) — it exists so read surfaces (the api contract, admin's
   trace viewer) can name payload shapes without dragging in drizzle or the

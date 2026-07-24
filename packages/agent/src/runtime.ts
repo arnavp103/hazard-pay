@@ -24,12 +24,17 @@ import {
   releaseWake,
   restampLaneConfig,
 } from "./store.ts";
-import type { DbLike } from "./store.ts";
 import type { AgentError } from "./errors.ts";
-import type { JsonValue } from "./envelope.ts";
+import type {
+  CancelLaneReceipt,
+  JsonValue,
+  SendMessageReceipt,
+  SpawnLaneReceipt,
+  ToolErrorOutput,
+} from "./envelope.ts";
 import type { LaneSnapshot, Obligation } from "./fold.ts";
-import type { DbTx, DefinedLeader } from "./leader.ts";
-import type { Db } from "@hazard-pay/db";
+import type { DefinedLeader } from "./leader.ts";
+import type { Db, DbLike, DbTx } from "@hazard-pay/db";
 import type { Logger } from "@hazard-pay/observability";
 import type { LanguageModel } from "ai";
 
@@ -319,12 +324,12 @@ export function createRuntime(options: CreateRuntimeOptions): Runtime {
           if (obligation.toolName === "spawn_lane") {
             const input = spawnLaneInputSchema.safeParse(obligation.input);
             if (!input.success) {
-              await appendToolResult(tx, { tag: "invalid_input" }, true);
+              await appendToolResult(tx, { tag: "invalid_input" } satisfies ToolErrorOutput, true);
               return;
             }
             const child = leaders.get(input.data.leader);
             if (child === undefined) {
-              await appendToolResult(tx, { tag: "unknown_leader" }, true);
+              await appendToolResult(tx, { tag: "unknown_leader" } satisfies ToolErrorOutput, true);
               return;
             }
             await unwrapOrRollback(ensureLeaderConfig(tx, { hash: child.configHash, config: child.config }));
@@ -345,7 +350,11 @@ export function createRuntime(options: CreateRuntimeOptions): Runtime {
                 payload: { v: ENVELOPE_VERSION, kind: "input", content: input.data.input },
               }),
             );
-            await appendToolResult(tx, { spawned: true, laneId: childLane.id }, false);
+            await appendToolResult(
+              tx,
+              { spawned: true, laneId: childLane.id } satisfies SpawnLaneReceipt,
+              false,
+            );
             args.report.spawnedLaneIds.push(childLane.id);
             emitEvent("mission.spawned", {
               laneId: childLane.id,
@@ -358,12 +367,12 @@ export function createRuntime(options: CreateRuntimeOptions): Runtime {
           if (obligation.toolName === "send_message") {
             const input = sendMessageInputSchema.safeParse(obligation.input);
             if (!input.success) {
-              await appendToolResult(tx, { tag: "invalid_input" }, true);
+              await appendToolResult(tx, { tag: "invalid_input" } satisfies ToolErrorOutput, true);
               return;
             }
             const target = await loadLane(tx, input.data.laneId);
             if (target.isErr() || target.value.status === "closed") {
-              await appendToolResult(tx, { tag: "lane_unavailable" }, true);
+              await appendToolResult(tx, { tag: "lane_unavailable" } satisfies ToolErrorOutput, true);
               return;
             }
             const targetSeq = await unwrapOrRollback(nextSeq(tx, target.value.id));
@@ -376,7 +385,11 @@ export function createRuntime(options: CreateRuntimeOptions): Runtime {
                 payload: { v: ENVELOPE_VERSION, kind: "input", content: input.data.content },
               }),
             );
-            await appendToolResult(tx, { delivered: true, laneId: target.value.id }, false);
+            await appendToolResult(
+              tx,
+              { delivered: true, laneId: target.value.id } satisfies SendMessageReceipt,
+              false,
+            );
             args.report.messagedLaneIds.push(target.value.id);
             emitEvent("lane.message_sent", { fromLaneId: laneId, toLaneId: target.value.id });
             return;
@@ -385,28 +398,32 @@ export function createRuntime(options: CreateRuntimeOptions): Runtime {
           if (obligation.toolName === "cancel_lane") {
             const input = cancelLaneInputSchema.safeParse(obligation.input);
             if (!input.success) {
-              await appendToolResult(tx, { tag: "invalid_input" }, true);
+              await appendToolResult(tx, { tag: "invalid_input" } satisfies ToolErrorOutput, true);
               return;
             }
             const target = await loadLane(tx, input.data.laneId);
             if (target.isErr() || target.value.kind !== "mission") {
-              await appendToolResult(tx, { tag: "not_a_mission" }, true);
+              await appendToolResult(tx, { tag: "not_a_mission" } satisfies ToolErrorOutput, true);
               return;
             }
             await unwrapOrRollback(closeLane(tx, target.value.id));
-            await appendToolResult(tx, { closed: true, laneId: target.value.id }, false);
+            await appendToolResult(
+              tx,
+              { closed: true, laneId: target.value.id } satisfies CancelLaneReceipt,
+              false,
+            );
             emitEvent("mission.cancelled", { laneId: target.value.id, byLaneId: laneId });
             return;
           }
 
           const definition = leader.tools[obligation.toolName];
           if (definition === undefined) {
-            await appendToolResult(tx, { tag: "unknown_tool" }, true);
+            await appendToolResult(tx, { tag: "unknown_tool" } satisfies ToolErrorOutput, true);
             return;
           }
           const input = definition.inputSchema.safeParse(obligation.input);
           if (!input.success) {
-            await appendToolResult(tx, { tag: "invalid_input" }, true);
+            await appendToolResult(tx, { tag: "invalid_input" } satisfies ToolErrorOutput, true);
             return;
           }
           let output: JsonValue;
@@ -435,7 +452,7 @@ export function createRuntime(options: CreateRuntimeOptions): Runtime {
               ...(thrown.toolError.detail === undefined
                 ? {}
                 : { detail: thrown.toolError.detail }),
-            };
+            } satisfies ToolErrorOutput;
             isError = true;
           }
           await appendToolResult(tx, output, isError);

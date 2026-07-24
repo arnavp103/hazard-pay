@@ -16,7 +16,7 @@ export {
   listLaneRows,
   tallyLaneEvents,
 } from "./lanes.ts";
-export type { LaneEventRow, LaneEventTally, LaneRow } from "./lanes.ts";
+export type { LaneEventTally } from "./lanes.ts";
 export {
   latestTick,
   recordDueTicks,

@@ -1,13 +1,11 @@
-import type { Db } from "@hazard-pay/db";
+import type { DbTx } from "@hazard-pay/db";
 import type { Logger } from "@hazard-pay/observability";
 import type { ResultAsync } from "neverthrow";
 import { z } from "zod";
 
 import { contentHash } from "./hash.ts";
+import { RESERVED_TOOL_NAMES } from "./envelope.ts";
 import type { JsonValue } from "./envelope.ts";
-
-/** The transaction handle Drizzle passes to `db.transaction` callbacks. */
-export type DbTx = Parameters<Parameters<Db["transaction"]>[0]>[0];
 
 /**
  * What a tool's `execute` sees: the open transaction (the game write and the
@@ -45,9 +43,6 @@ export interface LeaderTool {
    */
   execute: (ctx: ToolExecutionCtx, input: never) => ResultAsync<JsonValue, ToolError>;
 }
-
-/** Tool names owned by the harness itself — leaders cannot redefine them. */
-export const RESERVED_TOOL_NAMES = ["spawn_lane", "send_message", "cancel_lane"] as const;
 
 const leaderShapeSchema = z.object({
   name: z.string().regex(/^[a-z][a-z0-9_-]*$/),

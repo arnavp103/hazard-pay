@@ -30,20 +30,6 @@ export function summarizeLaneEvent(record: LaneEventRecord): string {
   }
 }
 
-/** The lane a tool receipt points at (spawn/send/cancel), if any. */
-export function linkedLaneId(record: LaneEventRecord): string | null {
-  const payload = record.payload;
-  if (payload.kind !== "tool_result" || payload.isError) {
-    return null;
-  }
-  const output = payload.output;
-  if (typeof output !== "object" || output === null || Array.isArray(output)) {
-    return null;
-  }
-  const laneId = output.laneId;
-  return typeof laneId === "string" ? laneId : null;
-}
-
 export function laneTitle(lane: LaneSummary): string {
   return `${lane.leaderName} — ${lane.kind === "foreground" ? "foreground lane" : "mission"}`;
 }

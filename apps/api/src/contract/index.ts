@@ -13,6 +13,17 @@ export {
 } from "./player.ts";
 
 /**
+ * Built-in tool receipts ride the same envelope path as the payload types:
+ * admin narrows tool_results with this helper instead of duck-typing
+ * `output.laneId`, and keeps its dependency set at api + ui.
+ */
+export {
+  builtinToolReceipt,
+  type BuiltinToolName,
+  type BuiltinToolReceipt,
+} from "@hazard-pay/agent/envelope";
+
+/**
  * The contract-first typed-client seam (ADR 0002 §2): route contracts are
  * defined once here in zod; `src/server.ts` implements them and
  * `apps/webapp` imports `@hazard-pay/api/contract` to build typed TanStack

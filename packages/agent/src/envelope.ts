@@ -121,3 +121,70 @@ export type ModelTurnPayload = z.infer<typeof modelTurnPayloadSchema>;
 export type ToolResultPayload = z.infer<typeof toolResultPayloadSchema>;
 export type CompactionPayload = z.infer<typeof compactionPayloadSchema>;
 export type LaneEventPayload = z.infer<typeof laneEventPayloadSchema>;
+
+/**
+ * Typed receipts for the harness's built-in tools (ADR 0003 §4: built-ins
+ * are versioned by the envelope, not the config hash). The wire schema
+ * above keeps `tool_result.output` opaque — custom leader tools return
+ * open JSON — while these name the subset the runtime itself emits. The
+ * runtime constructs receipts against these types (`satisfies`), so a
+ * drifted shape is a compile error there, not a mis-linked trace here.
+ */
+export const RESERVED_TOOL_NAMES = ["spawn_lane", "send_message", "cancel_lane"] as const;
+
+export type BuiltinToolName = (typeof RESERVED_TOOL_NAMES)[number];
+
+export const spawnLaneReceiptSchema = z.object({
+  spawned: z.literal(true),
+  laneId: z.string(),
+});
+
+export const sendMessageReceiptSchema = z.object({
+  delivered: z.literal(true),
+  laneId: z.string(),
+});
+
+export const cancelLaneReceiptSchema = z.object({
+  closed: z.literal(true),
+  laneId: z.string(),
+});
+
+/** A recoverable tool failure as recorded in an `isError` tool result. */
+export const toolErrorOutputSchema = z.object({
+  tag: z.string(),
+  detail: jsonValueSchema.optional(),
+});
+
+export type SpawnLaneReceipt = z.infer<typeof spawnLaneReceiptSchema>;
+export type SendMessageReceipt = z.infer<typeof sendMessageReceiptSchema>;
+export type CancelLaneReceipt = z.infer<typeof cancelLaneReceiptSchema>;
+export type ToolErrorOutput = z.infer<typeof toolErrorOutputSchema>;
+
+/** What a built-in receipt names: the tool and the lane it acted on. */
+export interface BuiltinToolReceipt {
+  tool: BuiltinToolName;
+  laneId: string;
+}
+
+const receiptSchemaFor: Record<BuiltinToolName, z.ZodType<{ laneId: string }>> = {
+  spawn_lane: spawnLaneReceiptSchema,
+  send_message: sendMessageReceiptSchema,
+  cancel_lane: cancelLaneReceiptSchema,
+};
+
+/**
+ * Narrows a lane-event payload to a built-in tool receipt, or null. The
+ * one defined source for lane cross-links in trace views — a custom tool's
+ * output never links, whatever fields it happens to carry.
+ */
+export function builtinToolReceipt(payload: LaneEventPayload): BuiltinToolReceipt | null {
+  if (payload.kind !== "tool_result" || payload.isError) {
+    return null;
+  }
+  const tool = RESERVED_TOOL_NAMES.find((name) => name === payload.toolName);
+  if (tool === undefined) {
+    return null;
+  }
+  const parsed = receiptSchemaFor[tool].safeParse(payload.output);
+  return parsed.success ? { tool, laneId: parsed.data.laneId } : null;
+}

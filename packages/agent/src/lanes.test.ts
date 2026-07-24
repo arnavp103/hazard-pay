@@ -6,7 +6,7 @@ import { afterAll, beforeAll, describe, expect, test } from "vitest";
 
 import { createRuntime } from "./runtime.ts";
 import { defineLeader } from "./leader.ts";
-import { inputPayloadSchema, toolResultPayloadSchema } from "./envelope.ts";
+import { builtinToolReceipt, inputPayloadSchema, toolResultPayloadSchema } from "./envelope.ts";
 import { scriptedModel, textTurn, toolCallTurn } from "./testing/mock-model.ts";
 import type { TestDatabase } from "@hazard-pay/db/testing";
 import type { LanguageModel } from "ai";
@@ -78,6 +78,12 @@ describe("octopus lanes", () => {
       spawned: true,
       laneId: missionLaneId,
     });
+    // The typed-receipt drift net: what the runtime wrote narrows through
+    // the envelope's helper — the same call admin's trace viewer makes.
+    expect(builtinToolReceipt(toolResultPayloadSchema.parse(receipt?.payload))).toEqual({
+      tool: "spawn_lane",
+      laneId: missionLaneId,
+    });
 
     // Phase 2 — the scout wakes and reports back to its parent.
     const scoutModel = scriptedModel([
@@ -105,6 +111,18 @@ describe("octopus lanes", () => {
     expect(reportInput?.author).toBe(missionLaneId);
     expect(inputPayloadSchema.parse(reportInput?.payload).content).toBe("found 3 things");
 
+    const sendReceipt = (
+      await tdb.db
+        .select()
+        .from(laneEvent)
+        .where(eq(laneEvent.laneId, missionLaneId))
+        .orderBy(asc(laneEvent.seq))
+    ).find((row) => row.type === "tool_result");
+    expect(builtinToolReceipt(toolResultPayloadSchema.parse(sendReceipt?.payload))).toEqual({
+      tool: "send_message",
+      laneId: bossLaneId,
+    });
+
     // Phase 3 — the boss cancels the mission; the lane closes for good.
     const cancelModel = scriptedModel([
       toolCallTurn([
@@ -117,6 +135,18 @@ describe("octopus lanes", () => {
 
     const [closedRow] = await tdb.db.select().from(lane).where(eq(lane.id, missionLaneId));
     expect(closedRow?.status).toBe("closed");
+
+    const cancelReceipt = (
+      await tdb.db
+        .select()
+        .from(laneEvent)
+        .where(eq(laneEvent.laneId, bossLaneId))
+        .orderBy(asc(laneEvent.seq))
+    ).filter((row) => row.type === "tool_result").at(-1);
+    expect(builtinToolReceipt(toolResultPayloadSchema.parse(cancelReceipt?.payload))).toEqual({
+      tool: "cancel_lane",
+      laneId: missionLaneId,
+    });
 
     const deadWake = (await runtime3.wake({ laneId: missionLaneId }))._unsafeUnwrapErr();
     expect(deadWake.tag).toBe("LaneClosed");

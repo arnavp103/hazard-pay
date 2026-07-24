@@ -104,6 +104,11 @@ results, player messages, other lanes' messages.
 **Model turn**:
 One recorded model call within a lane.
 
+**Receipt**:
+The structured output a harness built-in tool (spawn_lane, send_message,
+cancel_lane) records in its tool_result lane event, naming the lane it
+acted on. The only defined source of lane cross-links in trace views.
+
 **Fold**:
 Deriving a lane's current state from its log.
 

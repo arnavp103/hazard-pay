@@ -4,7 +4,7 @@ import { canonicalJson } from "./hash.ts";
 import { laneEventPayloadSchema } from "./envelope.ts";
 import type { AgentError } from "./errors.ts";
 import type { JsonValue } from "./envelope.ts";
-import type { LaneEventRow } from "./store.ts";
+import type { LaneEventRow } from "@hazard-pay/db";
 import type { AssistantModelMessage, ModelMessage } from "ai";
 
 /** A model-requested tool call that has no recorded `tool_result` yet. */

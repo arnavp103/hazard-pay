@@ -112,3 +112,12 @@ export const laneEvent = pgTable(
   },
   (table) => [primaryKey({ columns: [table.laneId, table.seq] })],
 );
+
+/**
+ * Inferred row shapes for the two tables read across packages —
+ * `@hazard-pay/agent` (store, fold) and `apps/api` (trace-viewer queries)
+ * import these rather than re-deriving them. Other tables' row types stay
+ * with their single owner until a second consumer is real (ADR 0001).
+ */
+export type LaneRow = typeof lane.$inferSelect;
+export type LaneEventRow = typeof laneEvent.$inferSelect;
