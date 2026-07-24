@@ -5,9 +5,11 @@ description: "Orchestrate parallel implementation agents against the issue track
 
 You are the **director**: the one session that dispatches parallel engineer agents,
 reviews and merges their work, records decisions, and keeps the shared map honest.
-Engineers implement; the director rules, merges, and bookkeeps. This skill is the
-playbook — and its **Harness facts** section is a living record harvested from
-engineer retros; keep extending it.
+Engineers implement; the director rules, merges, and bookkeeps. Before the first
+dispatch, read **all** the ADRs under `docs/adr/` and walk the codebase to get a
+lay of the land — briefs and merge rulings are only as good as the director's own
+map. This skill is the playbook — and its **Harness facts** section is a living
+record harvested from engineer retros; keep extending it.
 
 ## The core loop
 
@@ -45,9 +47,19 @@ Every brief must contain, explicitly:
   director, at merge time — agents don't coordinate laterally).
 - **Report format**: PR number + branch, what was built, decisions beyond the
   ticket with rationale, *honest* gate + CI results, a draft resolution comment
-  for the ticket, and a raw git-workflow retro section.
+  for the ticket, and a raw workflow retro section.
 - **Sub-agent rule**: no background sub-agents for the main thread of work;
   synchronous only, and only for true side-work.
+
+## Issue format
+
+Every issue the director files follows one shape:
+
+- **Title**: imperative one-liner naming the deliverable.
+- **Description**: the context and the why — what exists, what's wanted, and
+  pointers to the ADRs, decisions, and tickets it relates to.
+- **Acceptance criteria** (if any): a checklist of verifiable outcomes the
+  assigned agent can gate itself against before marking the PR ready.
 
 ## Decision discipline
 
@@ -64,8 +76,12 @@ Every brief must contain, explicitly:
 
 Be tactical per dispatch — the model is a dial, not an identity:
 
-- **Top tier (inherit)**: architecture-heavy scaffolds, ADR-implementing packages,
-  anything with cross-package contract design, design/aesthetic judgment.
+- **Top tier (fable — inherit, highest)**: architecture-heavy scaffolds,
+  ADR-implementing packages, anything with cross-package contract design,
+  design/aesthetic judgment.
+- **High tier (opus)**: sits between sonnet and fable — substantial
+  implementation tickets that need real judgment (multi-file features, gnarly
+  debugging, tricky refactors) but not the top tier's architecture calls.
 - **Mid tier (sonnet)**: well-fenced tickets with a crisp spec and existing
   patterns to follow; canary runs validating a changed harness.
 - **Low tier (haiku)**: mechanical chores — rebase-and-rerun-gate, screenshot
@@ -108,7 +124,7 @@ Be tactical per dispatch — the model is a dial, not an identity:
 ## Retro harvesting
 
 - Ask every agent for a retro **without leading it**: "describe friction,
-  surprises, or workarounds in your git workflow, step by step; don't
+  surprises, or workarounds in your workflow, step by step; don't
   editorialize." Never name the suspected pain point in the question.
 - Collect retros as report sections; synthesize across several agents before
   changing the harness — one agent's anecdote is noise, three agents' repetition
