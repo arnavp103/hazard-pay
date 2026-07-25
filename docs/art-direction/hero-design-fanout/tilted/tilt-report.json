@@ -1,0 +1,372 @@
+{
+  "camera": {
+    "tilted": [
+      -30,
+      -62
+    ],
+    "previousRound": [
+      -178,
+      -92
+    ]
+  },
+  "anchor": [
+    214,
+    196
+  ],
+  "stage": [
+    480,
+    270
+  ],
+  "fodderTiles": [
+    [
+      -1,
+      -1
+    ],
+    [
+      -1,
+      0
+    ],
+    [
+      0,
+      -1
+    ],
+    [
+      -1,
+      1
+    ],
+    [
+      1,
+      -1
+    ],
+    [
+      1,
+      0
+    ]
+  ],
+  "designs": {
+    "flat-graphic": {
+      "44px": {
+        "tilted": {
+          "w": 30,
+          "h": 41,
+          "inkPixels": 834,
+          "coloursSurviving": 38,
+          "lumaSpread": 64.4,
+          "dissolvingEdgePct": 6.7,
+          "dissolvingEdgePctFlatField": 0.0,
+          "contactRowRuns": 1,
+          "footStagger": 0,
+          "asternHiddenPct": 66.0,
+          "asternPokeAboveCrownPx": 11,
+          "canvas": [
+            32,
+            44
+          ],
+          "authoredShadowPx": 77,
+          "heroFodderRatio": 1.21
+        },
+        "flatElevation": {
+          "w": 29,
+          "h": 44,
+          "inkPixels": 863,
+          "coloursSurviving": 54,
+          "lumaSpread": 58.0,
+          "dissolvingEdgePct": 26.3,
+          "dissolvingEdgePctFlatField": 29.7,
+          "contactRowRuns": 2,
+          "footStagger": 0,
+          "asternHiddenPct": 66.0,
+          "asternPokeAboveCrownPx": 8,
+          "heroFodderRatio": 1.29
+        }
+      },
+      "28px": {
+        "tilted": {
+          "w": 19,
+          "h": 27,
+          "inkPixels": 370,
+          "coloursSurviving": 34,
+          "lumaSpread": 68.4,
+          "dissolvingEdgePct": 0.0,
+          "dissolvingEdgePctFlatField": 0.0,
+          "contactRowRuns": 1,
+          "footStagger": 0,
+          "asternHiddenPct": 58.5,
+          "asternPokeAboveCrownPx": 9,
+          "canvas": [
+            21,
+            28
+          ],
+          "authoredShadowPx": 26,
+          "heroFodderRatio": 1.23
+        },
+        "flatElevation": {
+          "w": 19,
+          "h": 28,
+          "inkPixels": 372,
+          "coloursSurviving": 50,
+          "lumaSpread": 51.6,
+          "dissolvingEdgePct": 43.1,
+          "dissolvingEdgePctFlatField": 46.9,
+          "contactRowRuns": 1,
+          "footStagger": 0,
+          "asternHiddenPct": 60.6,
+          "asternPokeAboveCrownPx": 8,
+          "heroFodderRatio": 1.27
+        }
+      }
+    },
+    "chunky-silhouette": {
+      "44px": {
+        "tilted": {
+          "w": 29,
+          "h": 42,
+          "inkPixels": 907,
+          "coloursSurviving": 37,
+          "lumaSpread": 58.3,
+          "dissolvingEdgePct": 18.3,
+          "dissolvingEdgePctFlatField": 17.8,
+          "contactRowRuns": 1,
+          "footStagger": 0,
+          "asternHiddenPct": 72.0,
+          "asternPokeAboveCrownPx": 10,
+          "canvas": [
+            32,
+            44
+          ],
+          "authoredShadowPx": 53,
+          "heroFodderRatio": 1.24
+        },
+        "flatElevation": {
+          "w": 34,
+          "h": 44,
+          "inkPixels": 955,
+          "coloursSurviving": 54,
+          "lumaSpread": 50.9,
+          "dissolvingEdgePct": 14.9,
+          "dissolvingEdgePctFlatField": 8.6,
+          "contactRowRuns": 2,
+          "footStagger": 0,
+          "asternHiddenPct": 75.2,
+          "asternPokeAboveCrownPx": 8,
+          "heroFodderRatio": 1.29
+        }
+      },
+      "28px": {
+        "tilted": {
+          "w": 21,
+          "h": 27,
+          "inkPixels": 426,
+          "coloursSurviving": 29,
+          "lumaSpread": 58.1,
+          "dissolvingEdgePct": 14.5,
+          "dissolvingEdgePctFlatField": 21.0,
+          "contactRowRuns": 1,
+          "footStagger": 0,
+          "asternHiddenPct": 61.2,
+          "asternPokeAboveCrownPx": 9,
+          "canvas": [
+            21,
+            28
+          ],
+          "authoredShadowPx": 37,
+          "heroFodderRatio": 1.23
+        },
+        "flatElevation": {
+          "w": 21,
+          "h": 28,
+          "inkPixels": 380,
+          "coloursSurviving": 50,
+          "lumaSpread": 40.3,
+          "dissolvingEdgePct": 34.1,
+          "dissolvingEdgePctFlatField": 39.9,
+          "contactRowRuns": 2,
+          "footStagger": 0,
+          "asternHiddenPct": 60.6,
+          "asternPokeAboveCrownPx": 8,
+          "heroFodderRatio": 1.27
+        }
+      }
+    },
+    "quasimorph-grime": {
+      "44px": {
+        "tilted": {
+          "w": 26,
+          "h": 33,
+          "inkPixels": 581,
+          "coloursSurviving": 25,
+          "lumaSpread": 53.0,
+          "dissolvingEdgePct": 7.6,
+          "dissolvingEdgePctFlatField": 11.4,
+          "contactRowRuns": 1,
+          "footStagger": 0,
+          "asternHiddenPct": 43.8,
+          "asternPokeAboveCrownPx": 19,
+          "canvas": [
+            32,
+            44
+          ],
+          "authoredShadowPx": 89,
+          "heroFodderRatio": 0.97
+        },
+        "flatElevation": {
+          "w": 30,
+          "h": 44,
+          "inkPixels": 829,
+          "coloursSurviving": 20,
+          "lumaSpread": 38.5,
+          "dissolvingEdgePct": 19.0,
+          "dissolvingEdgePctFlatField": 12.9,
+          "contactRowRuns": 2,
+          "footStagger": 0,
+          "asternHiddenPct": 70.9,
+          "asternPokeAboveCrownPx": 8,
+          "heroFodderRatio": 1.29
+        }
+      },
+      "28px": {
+        "tilted": {
+          "w": 17,
+          "h": 24,
+          "inkPixels": 290,
+          "coloursSurviving": 21,
+          "lumaSpread": 55.1,
+          "dissolvingEdgePct": 8.2,
+          "dissolvingEdgePctFlatField": 16.4,
+          "contactRowRuns": 1,
+          "footStagger": 0,
+          "asternHiddenPct": 43.6,
+          "asternPokeAboveCrownPx": 12,
+          "canvas": [
+            21,
+            28
+          ],
+          "authoredShadowPx": 51,
+          "heroFodderRatio": 1.09
+        },
+        "flatElevation": {
+          "w": 19,
+          "h": 28,
+          "inkPixels": 329,
+          "coloursSurviving": 17,
+          "lumaSpread": 32.1,
+          "dissolvingEdgePct": 52.7,
+          "dissolvingEdgePctFlatField": 55.4,
+          "contactRowRuns": 2,
+          "footStagger": 0,
+          "asternHiddenPct": 59.0,
+          "asternPokeAboveCrownPx": 8,
+          "heroFodderRatio": 1.27
+        }
+      }
+    },
+    "metal-slug-tactics": {
+      "44px": {
+        "tilted": {
+          "w": 29,
+          "h": 39,
+          "inkPixels": 691,
+          "coloursSurviving": 50,
+          "lumaSpread": 55.5,
+          "dissolvingEdgePct": 6.0,
+          "dissolvingEdgePctFlatField": 6.9,
+          "contactRowRuns": 1,
+          "footStagger": 0,
+          "asternHiddenPct": 57.3,
+          "asternPokeAboveCrownPx": 13,
+          "canvas": [
+            32,
+            44
+          ],
+          "authoredShadowPx": 84,
+          "heroFodderRatio": 1.15
+        },
+        "flatElevation": {
+          "w": 32,
+          "h": 44,
+          "inkPixels": 745,
+          "coloursSurviving": 48,
+          "lumaSpread": 45.9,
+          "dissolvingEdgePct": 30.4,
+          "dissolvingEdgePctFlatField": 19.6,
+          "contactRowRuns": 1,
+          "footStagger": 0,
+          "asternHiddenPct": 68.8,
+          "asternPokeAboveCrownPx": 8,
+          "heroFodderRatio": 1.29
+        }
+      },
+      "28px": {
+        "tilted": {
+          "w": 19,
+          "h": 25,
+          "inkPixels": 308,
+          "coloursSurviving": 47,
+          "lumaSpread": 56.0,
+          "dissolvingEdgePct": 9.7,
+          "dissolvingEdgePctFlatField": 10.4,
+          "contactRowRuns": 1,
+          "footStagger": 0,
+          "asternHiddenPct": 46.3,
+          "asternPokeAboveCrownPx": 11,
+          "canvas": [
+            21,
+            28
+          ],
+          "authoredShadowPx": 27,
+          "heroFodderRatio": 1.14
+        },
+        "flatElevation": {
+          "w": 20,
+          "h": 28,
+          "inkPixels": 306,
+          "coloursSurviving": 41,
+          "lumaSpread": 38.5,
+          "dissolvingEdgePct": 50.7,
+          "dissolvingEdgePctFlatField": 35.5,
+          "contactRowRuns": 1,
+          "footStagger": 0,
+          "asternHiddenPct": 58.5,
+          "asternPokeAboveCrownPx": 8,
+          "heroFodderRatio": 1.27
+        }
+      }
+    },
+    "lane-reference-mara": {
+      "44px": {
+        "tilted": {
+          "w": 25,
+          "h": 44,
+          "inkPixels": 716,
+          "coloursSurviving": 18,
+          "lumaSpread": 40.1,
+          "dissolvingEdgePct": 9.9,
+          "dissolvingEdgePctFlatField": 0.5,
+          "contactRowRuns": 2,
+          "footStagger": 0,
+          "asternHiddenPct": 76.9,
+          "asternPokeAboveCrownPx": 8,
+          "authoredShadowPx": 0,
+          "heroFodderRatio": 1.29
+        }
+      },
+      "28px": {
+        "tilted": {
+          "w": 18,
+          "h": 28,
+          "inkPixels": 326,
+          "coloursSurviving": 16,
+          "lumaSpread": 40.6,
+          "dissolvingEdgePct": 1.0,
+          "dissolvingEdgePctFlatField": 1.0,
+          "contactRowRuns": 1,
+          "footStagger": 0,
+          "asternHiddenPct": 63.8,
+          "asternPokeAboveCrownPx": 8,
+          "authoredShadowPx": 0,
+          "heroFodderRatio": 1.27
+        }
+      }
+    }
+  }
+}
