@@ -1,0 +1,38 @@
+=== VALUE BUDGET / FACTION SHARE (captured PNGs, marked) ===
+ R4 left/rust    unit px  2925 | quiet  76.3 | accent  17.3 | emis  6.4 | warm  18.8 | cool   0.5 | mean L  66.1
+ R4 right/slate  unit px  2850 | quiet  85.3 | accent  13.2 | emis  1.5 | warm   0.0 | cool  12.7 | mean L  59.9
+ R4 own-hue accent share: rust 18.8 % vs slate 12.7 %  -> asymmetry 6.17 pts
+ R4 warm-only detector (the record's number): rust 18.8 % vs slate 0.0 %
+ R4 frame budget: quiet 87.9 / accent 11.9 / emission 0.18  peak L 196
+
+ R5 left/rust    unit px  2841 | quiet  73.4 | accent  19.5 | emis  7.1 | warm  21.2 | cool   0.5 | mean L  68.3
+ R5 right/slate  unit px  2776 | quiet  77.4 | accent  20.7 | emis  1.9 | warm   0.0 | cool  20.2 | mean L  60.8
+ R5 own-hue accent share: rust 21.2 % vs slate 20.2 %  -> asymmetry 0.98 pts
+ R5 warm-only detector (the record's number): rust 21.2 % vs slate 0.0 %
+ R5 frame budget: quiet 87.7 / accent 12.1 / emission 0.20  peak L 196
+
+=== GRAYSCALE: gear against coat (unmarked, so the ring is out of it) ===
+ R4 left/rust    GRAY gear mean L   91.3 (n= 538)  coat mean L   72.7  separation  +18.5
+ R4 right/slate  GRAY gear mean L   81.3 (n= 258)  coat mean L   70.1  separation  +11.2
+ R5 left/rust    GRAY gear mean L   98.7 (n= 588)  coat mean L   70.7  separation  +28.0
+ R5 right/slate  GRAY gear mean L   78.1 (n= 483)  coat mean L   68.1  separation  +10.1
+
+=== LIVERY RUN LENGTHS in the clump (unmarked) ===
+ R4 left/rust    livery runs: longest 8 px | runs >= 5 px: 22 | >= 4 px: 51
+ R4 right/slate  livery runs: longest 8 px | runs >= 5 px: 3 | >= 4 px: 11
+ R5 left/rust    livery runs: longest 6 px | runs >= 5 px: 14 | >= 4 px: 55
+ R5 right/slate  livery runs: longest 7 px | runs >= 5 px: 12 | >= 4 px: 48
+
+=== CONFOUND C2, per archetype on the lineup ===
+ R4 rust melee    longest livery run 8 px | livery px 36
+ R4 rust ranged   longest livery run 4 px | livery px 16
+ R4 slate melee   longest livery run 6 px | livery px 32
+ R4 slate ranged  longest livery run 3 px | livery px 16
+ R5 rust melee    longest livery run 6 px | livery px 38
+ R5 rust ranged   longest livery run 4 px | livery px 19
+ R5 slate melee   longest livery run 5 px | livery px 33
+ R5 slate ranged  longest livery run 4 px | livery px 19
+
+=== GRAYSCALE FACTION SEPARATION (the canon-68 test) ===
+ R4 GRAYSCALE faction gear separation: rust 91.3 vs slate 81.3 -> 10.0 luma apart
+ R5 GRAYSCALE faction gear separation: rust 98.7 vs slate 78.1 -> 20.6 luma apart
