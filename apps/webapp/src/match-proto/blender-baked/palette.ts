@@ -231,6 +231,58 @@ export function darkerStep(r: number, g: number, b: number): [number, number, nu
   return darkerCache.get((r << 16) | (g << 8) | b) ?? [r, g, b];
 }
 
+/**
+ * The second faction's livery, as a palette-entry substitution.
+ *
+ * A crowd still needs two armies, and at 22 px the only thing that separates
+ * them is the largest colour mass. In an indexed-palette lane that separation
+ * costs nothing: both factions are the SAME renders with different indices, so
+ * the enemy army is a table lookup rather than a second Blender pass. Sage and
+ * rust go cool — violet cloth, steel kit — while skin, ink, signal teal and
+ * the medic's pale cross are deliberately shared, because those read as
+ * materials rather than as allegiance.
+ *
+ * Honest limitation, stated where it is implemented: this separates the
+ * factions on HUE at close luminance. It does not survive grayscale, which is
+ * why the grayscale crowd stills are in the round-4 gallery rather than
+ * quietly left out.
+ */
+export const FACTION_B_LIVERY: Readonly<Record<string, string>> = {
+  "#262a2e": "#211820", // sage-1 -> plum-2
+  "#3e4744": "#46414a", // sage-2 -> violet-3
+  "#4c5752": "#5e404e", // sage-3 -> violet-4
+  "#5e2b28": "#504b5e", // rust-1 -> steel-1
+  "#647167": "#75505a", // sage-4 -> plum-7
+  "#7e382f": "#696477", // rust-2 -> steel-2
+  "#c46047": "#a5a4ab", // rust-3 -> steel-3
+  "#fc7c5a": "#d4d2d3", // rust-4 -> steel-4
+};
+
+/**
+ * Substitute palette entries in place. Only exact palette colours are touched,
+ * so a remap can never introduce an off-palette pixel: the atlas stays
+ * indexable and the round-trip check stays exact.
+ */
+export function remapPalette(
+  rgba: Uint8Array | Uint8ClampedArray,
+  mapping: Readonly<Record<string, string>>,
+): void {
+  const table = new Map<number, [number, number, number]>();
+  for (const [from, to] of Object.entries(mapping)) {
+    const [fr, fg, fb] = hexToRgb(from);
+    table.set((fr << 16) | (fg << 8) | fb, hexToRgb(to));
+  }
+  for (let i = 0; i < rgba.length; i += 4) {
+    if ((rgba[i + 3] ?? 0) === 0) { continue; }
+    const key = ((rgba[i] ?? 0) << 16) | ((rgba[i + 1] ?? 0) << 8) | (rgba[i + 2] ?? 0);
+    const swap = table.get(key);
+    if (swap === undefined) { continue; }
+    rgba[i] = swap[0];
+    rgba[i + 1] = swap[1];
+    rgba[i + 2] = swap[2];
+  }
+}
+
 /** Distinct palette entries actually used by an RGBA buffer, for reporting. */
 export function paletteCoverage(rgba: Uint8Array | Uint8ClampedArray): Set<string> {
   const byKey = new Map<number, string>();

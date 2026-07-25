@@ -8,14 +8,18 @@
  *
  * `?mode=idle|attack|turn` · `?facing=0..7` · `?zoom=` · `?capture=1` hides
  * dev chrome · `?freeze=<ms>` renders one deterministic frame ·
- * `?view=quant` swaps in the quantization comparison. Run at `/match-proto`.
+ * `?view=quant` swaps in the quantization comparison ·
+ * `?view=crowd&config=small|large&treatment=sync|phase|full` runs the round-4
+ * crowd. Run at `/match-proto`.
  */
 
 import { useEffect, useRef, useState } from "react";
 
 import { StatusChip } from "@hazard-pay/ui";
 
-import { FACINGS } from "./framing.ts";
+import { mountCrowdStage } from "./crowd-stage.ts";
+import type { Treatment } from "./crowd.ts";
+import { configByKey, FACINGS } from "./framing.ts";
 import {
   type BakedStageHandle,
   COMPARISON_STRIPS,
@@ -79,7 +83,71 @@ function readFlag(name: string): boolean {
   return params().get(name) === "1";
 }
 
+function readTreatment(): Treatment {
+  const raw = params().get("treatment");
+  return raw === "sync" || raw === "full" || raw === "variants" ? raw : "phase";
+}
+
+/**
+ * The round-4 crowd surface. It is a separate mount rather than a mode on the
+ * hero stage because it answers a different question: not "is this character
+ * good" but "does a baked army read, and does it move like an army or like
+ * thirty-six copies of one toy".
+ */
+function CrowdSurface() {
+  const hostRef = useRef<HTMLDivElement | null>(null);
+  const config = configByKey(params().get("config"));
+  const treatment = readTreatment();
+
+  useEffect(() => {
+    const host = hostRef.current;
+    if (host === null) { return; }
+    const handle = mountCrowdStage(host, {
+      config: configByKey(params().get("config")),
+      freezeMs: readFreezeMs(),
+      treatment: readTreatment(),
+    });
+    void handle.ready;
+    return () => { handle.destroy(); };
+  }, []);
+
+  return (
+    <main className="flex min-h-screen flex-col bg-shell">
+      <div className="grid flex-1 place-items-center px-5 py-4">
+        <div className="flex flex-col gap-3" style={{ width: STAGE_WIDTH }}>
+          {!readFlag("capture") && (
+            <div className="flex items-end justify-between font-data uppercase">
+              <div>
+                <div className="text-[9px] tracking-[0.15em] text-ink-dim">crowd · fodder tier</div>
+                <div className="text-xs tracking-[0.08em] text-ink">{config.label}</div>
+              </div>
+              <span className="text-[9px] tracking-[0.12em] text-accent-2">
+                {config.note}
+                {" · "}
+                {treatment}
+              </span>
+            </div>
+          )}
+          <div
+            className="relative overflow-hidden border-2 border-line bg-shell"
+            data-prototype-stage
+            style={{ height: STAGE_HEIGHT, width: STAGE_WIDTH }}
+          >
+            <div ref={hostRef} data-testid="crowd-stage-host" className="absolute inset-0" />
+          </div>
+        </div>
+      </div>
+    </main>
+  );
+}
+
 export function BlenderBakedPrototype() {
+  const [crowd] = useState(() => params().get("view") === "crowd");
+  if (crowd) { return <CrowdSurface />; }
+  return <HeroSurface />;
+}
+
+function HeroSurface() {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const handleRef = useRef<BakedStageHandle | null>(null);
   const [mode, setMode] = useState<Mode>("idle");

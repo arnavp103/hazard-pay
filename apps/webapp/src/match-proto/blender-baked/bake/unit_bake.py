@@ -1,9 +1,16 @@
-"""Blender-side of the #82 bake-off lane: low-poly field medic -> pixel sprites.
+"""Blender-side of the #82 bake-off lane: low-poly units -> pixel sprites.
 
-Runs inside Blender's embedded interpreter (`blender -b -P medic_bake.py --
+Runs inside Blender's embedded interpreter (`blender -b -P unit_bake.py --
 <spec.json>`). Everything outside this file is TypeScript; this script owns
 only what `bpy` can own — scene, rig, poses, camera, render — and hands the
 result back as a manifest JSON file (never stdout: Blender is chatty).
+
+Round 4 added the fodder tier (#69's two-tier ruling): the same seam now bakes
+three rigs — the hero medic plus two fodder archetypes that must part on
+SILHOUETTE alone (a broad shield-carrying brute, a narrow long-barrelled
+marksman) — at any requested world scale. Tier separation is a slight size
+boost plus higher detail density and nothing else; no rim light, no banner, no
+ground decal, because marking was explicitly deferred by the cofounder.
 
 Design notes that matter:
 
@@ -79,6 +86,26 @@ HOLSTER = "#221b25"
 KNEEPAD = "#7d4136"
 AERIAL = "#1a1218"
 SCUFF = "#312c36"
+# --- fodder-only materials ------------------------------------------------
+# Fodder wears the muted 70%. Two rules drive these away from the hero kit,
+# and neither of them is tier marking:
+#   * 36 units each carrying an emissive optic would spend the whole 5% signal
+#     budget on ambient decoration, which #68 forbids outright. Fodder optics
+#     are therefore DARK, and the only fodder emission in the roster is the
+#     marksman muzzle flash, which exists for one frame.
+#   * the brute shield is the largest single mass in the crowd. As bright
+#     steel it out-values everything including the board; as a dark slab it
+#     does what a shield should do at 11 px, which is make a shape.
+# Fodder cloth is deliberately a step LIGHTER than the hero coat. At 11 px a
+# 1 px plum-black contour takes the outer ring of a 7 px-wide body, so a unit
+# authored at the hero's value simply becomes a hole in the board. Legs stay
+# dark: a light torso over dark legs is the one internal value break that
+# still reads when the whole figure is eleven pixels tall.
+FODDER_CLOTH = "#55635e"
+FODDER_PLATE = "#585460"
+FODDER_SHIELD = "#2e2a33"
+FODDER_TRIM = "#8a4436"
+FODDER_OPTIC = "#241a22"
 
 # --- minimum feature size -------------------------------------------------
 # A finding, not a fudge. The rival rig was authored for a REAL-TIME 60-px
@@ -89,12 +116,35 @@ SCUFF = "#312c36"
 # is floored at ~1.2 art px, and the features that cannot be grown without
 # lying about the kit (the unit stencil) are dropped outright.
 ART_PX = 1.0 / 16.0
+# Rig-LOCAL minimum feature size, rebound per bake by `set_unit_scale`. A rig
+# rendered at 0.31x has to floor its details at 1/0.31 of the authored size to
+# still land ~1.2 art px on screen. This is the whole reason a procedural rig
+# can be re-rendered at a new size for free while a hand-authored sprite has
+# to be redrawn: the minimum readable feature is a property of the OUTPUT
+# resolution, and only a generator can honour it at every scale.
 MIN_FEATURE = ART_PX * 1.2
+# A decorative feature that cannot reach the floor without more growth than
+# this is not drawn at all. Inflating a 0.055-unit visor slit fourfold is not
+# "the artist chose a bigger mark", it is a deformity; a pixel artist working
+# at 14 px simply omits the pocket. Every omission is counted and reported.
+MAX_DETAIL_GROWTH = 1.75
+_DROPPED = [0]
+
+
+def set_unit_scale(scale):
+    """Rebind the readable-feature floor for a rig about to be scaled."""
+    global MIN_FEATURE
+    MIN_FEATURE = (ART_PX * 1.2) / scale
 
 
 def feat(*dims):
     """Floor each dimension at the minimum readable feature size."""
     return tuple(max(d, MIN_FEATURE) for d in dims)
+
+
+def readable(size):
+    """Can this decorative feature reach the floor without lying about it?"""
+    return max(size) * MAX_DETAIL_GROWTH >= MIN_FEATURE
 
 # Key direction (surface -> light), the rival lane's key mapped into Blender.
 KEY = (0.6245, -0.039, 0.7807)
@@ -289,6 +339,20 @@ def box(name, size, at, mat, parent, rot=None):
     return _register(obj, mat)
 
 
+def detail_box(name, size, at, mat, parent, rot=None):
+    """A decorative box: drawn at the readable floor, or not drawn at all.
+
+    Structural masses (chest, legs, head, weapon) always draw. Everything that
+    only carries surface history goes through here, so shrinking the rig
+    prunes the trim instead of turning it into sub-pixel confetti that flicks
+    on and off between facings.
+    """
+    if not readable(size):
+        _DROPPED[0] += 1
+        return None
+    return box(name, feat(*size), at, mat, parent, rot=rot)
+
+
 def cylinder(name, radius, length, at, mat, parent, axis="z"):
     mesh = bpy.data.meshes.new(name)
     bm = bmesh.new()
@@ -316,11 +380,11 @@ def build_leg(side, root):
     knee = empty(f"knee{side}", hip, (0.0, 0.0, -0.38))
     box("shin", (0.15, 0.3, 0.16), (0, -0.16, 0), cel_material(SHIN, CLOTH_BANDS), knee)
     if side == -1:
-        box("shin_tape", feat(0.175, 0.06, 0.185), (0, -0.12, 0.005), flat_material(TAPE), knee)
+        detail_box("shin_tape", (0.175, 0.06, 0.185), (0, -0.12, 0.005), flat_material(TAPE), knee)
     box("boot", (0.24, 0.15, 0.42), (0, -0.385, 0.09), cel_material(BOOT, CLOTH_BANDS), knee)
     box("toe", (0.245, 0.11, 0.13), (0, -0.41, 0.28), cel_material(METAL, METAL_BANDS), knee)
     # Chip-led wear: a notched, scuffed heel block (the r2 critique's lesson).
-    box("boot_scuff", feat(0.09, 0.05, 0.1), (side * 0.07, -0.325, -0.115), flat_material(SCUFF), knee)
+    detail_box("boot_scuff", (0.09, 0.05, 0.1), (side * 0.07, -0.325, -0.115), flat_material(SCUFF), knee)
     return hip, knee
 
 
@@ -332,7 +396,7 @@ def build_arm(side, cyber, torso):
         box("forearm", (0.14, 0.27, 0.15), (0, -0.15, 0), cel_material(METAL, METAL_BANDS), elbow)
     else:
         box("forearm", (0.13, 0.26, 0.14), (0, -0.15, 0), cel_material(COAT_DARK, CLOTH_BANDS), elbow)
-        box("wrist_wrap", feat(0.155, 0.07, 0.165), (0, -0.03, 0.005), flat_material(TAPE), elbow)
+        detail_box("wrist_wrap", (0.155, 0.07, 0.165), (0, -0.03, 0.005), flat_material(TAPE), elbow)
     hand = empty(f"hand{side}", elbow, (0.0, 0.0, -0.33))
     if cyber:
         box("fist", (0.2, 0.16, 0.18), (0, -0.06, 0), cel_material(METAL, METAL_BANDS), hand)
@@ -344,14 +408,14 @@ def build_arm(side, cyber, torso):
 def cross_plate(width, at, parent, flip=False):
     """The pale cross: the mark that must survive grayscale and 31 px."""
     del flip
-    box("cross_v", feat(width * 0.4, width * 1.15, 0.03), at, flat_material(PALE), parent)
-    box("cross_h", feat(width, width * 0.4, 0.03), at, flat_material(PALE), parent)
+    detail_box("cross_v", (width * 0.4, width * 1.15, 0.03), at, flat_material(PALE), parent)
+    detail_box("cross_h", (width, width * 0.4, 0.03), at, flat_material(PALE), parent)
 
 
 def build_injector(hand):
     tool = empty("tool", hand, (0.0, -0.04, -0.08))
     cylinder("inj_body", 0.065, 0.4, (0, -0.02, 0.16), cel_material(METAL, METAL_BANDS), tool)
-    box("inj_gleam", feat(0.03, 0.03, 0.34), (0, 0.055, 0.16), flat_material(METAL_HI), tool)
+    detail_box("inj_gleam", (0.03, 0.03, 0.34), (0, 0.055, 0.16), flat_material(METAL_HI), tool)
     box("inj_tank", (0.1, 0.1, 0.14), (0, 0.07, 0.05), cel_material(LIVERY), tool)
     box("inj_grip", (0.06, 0.12, 0.07), (0, -0.1, 0.02), cel_material(BOOT, CLOTH_BANDS), tool)
     tip = empty("tip", tool, (0.0, -0.4, -0.02))
@@ -372,18 +436,18 @@ def build_medic():
     # is a mass that leaves the body outline, so the read survives grayscale
     # and survives being 21 px wide.
     box("kit", (0.26, 0.24, 0.20), (-0.31, 0.02, 0.05), cel_material(LIVERY), pelvis)
-    box("kit_lid", feat(0.26, 0.06, 0.20), (-0.31, 0.15, 0.05), cel_material(LIVERY_DK), pelvis)
+    detail_box("kit_lid", (0.26, 0.06, 0.20), (-0.31, 0.15, 0.05), cel_material(LIVERY_DK), pelvis)
     cross_plate(0.14, (-0.31, 0.02, 0.16), pelvis)
     cross_plate(0.14, (-0.31, 0.02, -0.06), pelvis)
-    box("kit_sling", feat(0.07, 0.5, 0.07), (-0.22, 0.32, 0.11), flat_material(STRAP), pelvis, rot=(0, 0, -0.5))
+    detail_box("kit_sling", (0.07, 0.5, 0.07), (-0.22, 0.32, 0.11), flat_material(STRAP), pelvis, rot=(0, 0, -0.5))
 
     torso = empty("torso", pelvis, (0.0, 0.0, 0.12))
     box("chest", (0.5, 0.44, 0.34), (0, 0.28, 0), cel_material(COAT, CLOTH_BANDS), torso)
-    box("pocket", feat(0.16, 0.13, 0.03), (-0.16, 0.15, 0.185), flat_material(COAT_DARK), torso)
+    detail_box("pocket", (0.16, 0.13, 0.03), (-0.16, 0.15, 0.185), flat_material(COAT_DARK), torso)
     # Chest rig + cross plate + strap + steel buckle.
     box("chest_rig", (0.33, 0.30, 0.08), (0.05, 0.235, 0.19), cel_material(LIVERY), torso)
     cross_plate(0.17, (0.05, 0.235, 0.245), torso)
-    box("strap", feat(0.56, 0.085, 0.03), (-0.02, 0.3, 0.19), flat_material(STRAP), torso, rot=(0, 0, 0.55))
+    detail_box("strap", (0.56, 0.085, 0.03), (-0.02, 0.3, 0.19), flat_material(STRAP), torso, rot=(0, 0, 0.55))
     box("buckle", (0.09, 0.08, 0.035), (-0.14, 0.36, 0.2), flat_material(METAL), torso)
     # Field pack.
     box("pack", (0.40, 0.46, 0.30), (0, 0.22, -0.32), cel_material(PACK, CLOTH_BANDS), torso)
@@ -391,21 +455,21 @@ def build_medic():
     cross_plate(0.15, (-0.02, 0.25, -0.505), torso, flip=True)
     # The rival's three-tick unit stencil is 0.3 art px per tick — dropped, and
     # its history re-spent as one readable painted bar.
-    box("stencil_bar", feat(0.17, 0.05, 0.025), (-0.02, 0.055, -0.51), flat_material(STENCIL), torso)
-    box("pack_scuff", feat(0.22, 0.07, 0.16), (0.05, 0.44, -0.32), flat_material(SCUFF), torso)
-    box("pack_worn", feat(0.085, 0.32, 0.085), (-0.21, 0.22, -0.33), flat_material(LIVERY_DK), torso)
+    detail_box("stencil_bar", (0.17, 0.05, 0.025), (-0.02, 0.055, -0.51), flat_material(STENCIL), torso)
+    detail_box("pack_scuff", (0.22, 0.07, 0.16), (0.05, 0.44, -0.32), flat_material(SCUFF), torso)
+    detail_box("pack_worn", (0.085, 0.32, 0.085), (-0.21, 0.22, -0.33), flat_material(LIVERY_DK), torso)
 
     head = empty("head", torso, (0.0, 0.0, 0.46))
     box("neck", (0.14, 0.1, 0.13), (0, 0.02, 0), cel_material(SKIN), head)
     box("hood", (0.36, 0.34, 0.34), (0, 0.17, -0.02), cel_material(HOOD, CLOTH_BANDS), head)
     box("face", (0.24, 0.18, 0.08), (0, 0.13, 0.15), cel_material(SKIN), head)
     box("brow", (0.27, 0.09, 0.1), (0, 0.205, 0.15), flat_material(BROW), head)
-    box("visor", feat(0.2, 0.055, 0.025), (0, 0.155, 0.205), flat_material(SIGNAL), head)
+    detail_box("visor", (0.2, 0.055, 0.025), (0, 0.155, 0.205), flat_material(SIGNAL), head)
 
     shoulder_l, elbow_l, hand_l = build_arm(-1, True, torso)
     shoulder_r, elbow_r, hand_r = build_arm(1, False, torso)
     box("pad", (0.24, 0.11, 0.26), (-0.04, 0.06, 0), cel_material(LIVERY), shoulder_l)
-    box("pad_chip", feat(0.085, 0.06, 0.1), (-0.14, 0.09, 0.095), flat_material(LIVERY_DK), shoulder_l)
+    detail_box("pad_chip", (0.085, 0.06, 0.1), (-0.14, 0.09, 0.095), flat_material(LIVERY_DK), shoulder_l)
 
     tip, needle, burst = build_injector(hand_r)
 
@@ -419,6 +483,165 @@ def build_medic():
         "shoulderR": shoulder_r, "elbowR": elbow_r,
         "hipL": hip_l, "kneeL": knee_l, "hipR": hip_r, "kneeR": knee_r,
         "tip": tip, "needle": needle, "burst": burst,
+        "_bind": BIND,
+    }
+
+
+# --- fodder tier ----------------------------------------------------------
+# Two archetypes that have to be told apart at ELEVEN art pixels, where
+# neither material nor colour survives. Everything is spent on gross shape:
+#
+#   brute    — wide, low, short-legged, carrying a tall slab shield that
+#              doubles the body's width on one side;
+#   marksman — narrow, upright, with a long barrel breaking the silhouette
+#              forward at chest height and an aerial spiking above the head.
+#
+# They share one cloth palette on purpose. Round 4's question is whether
+# SILHOUETTE alone separates two fodder archetypes, so letting colour do the
+# work would answer a different one. Faction livery is applied downstream as a
+# palette-index remap, which costs no render at all.
+
+BRUTE_BIND = {
+    "elbowL": (-0.34, 0, 0.10),
+    "elbowR": (-0.62, 0, -0.10),
+    "head": (0.14, 0, 0),
+    "hipL": (0.06, 0, 0.05),
+    "hipR": (-0.06, 0, -0.05),
+    "kneeL": (-0.10, 0, 0),
+    "kneeR": (-0.10, 0, 0),
+    "shoulderL": (0.10, 0, 0.30),
+    "shoulderR": (-0.30, 0, -0.34),
+    "torso": (0.16, 0.06, 0),
+}
+
+MARKSMAN_BIND = {
+    "elbowL": (-0.95, 0, 0.14),
+    "elbowR": (-0.80, 0, -0.10),
+    "head": (-0.06, 0, 0),
+    "hipL": (0.16, 0, 0),
+    "hipR": (-0.14, 0.12, 0),
+    "kneeL": (-0.20, 0, 0),
+    "kneeR": (-0.08, 0, 0),
+    "shoulderL": (-0.55, 0, 0.20),
+    "shoulderR": (-0.42, 0, -0.12),
+    "torso": (0.12, 0.22, 0),
+}
+
+
+def build_fodder_legs(side, root, hip_z, thigh, shin, boot, mat_a, mat_b):
+    hip = empty(f"hip{side}", root, (side * 0.15, 0.0, hip_z))
+    box("thigh", thigh, (0, -thigh[1] / 2 - 0.02, 0), cel_material(mat_a, CLOTH_BANDS), hip)
+    knee = empty(f"knee{side}", hip, (0.0, 0.0, -(thigh[1] + 0.02)))
+    box("shin", shin, (0, -shin[1] / 2, 0), cel_material(mat_b, CLOTH_BANDS), knee)
+    box("boot", boot, (0, -shin[1] - boot[1] / 2 + 0.02, 0.05), cel_material(BOOT, CLOTH_BANDS), knee)
+    return hip, knee
+
+
+def build_brute():
+    """Heavy melee fodder: a wide wedge with a slab shield."""
+    root = empty("root")
+    pelvis = empty("pelvis", root, (0.0, 0.0, 0.92))
+    box("hem", (0.54, 0.28, 0.36), (0, 0.0, 0), cel_material(PANTS, CLOTH_BANDS), pelvis)
+
+    torso = empty("torso", pelvis, (0.0, 0.0, 0.16))
+    # Deliberately the widest mass in the roster: at 11 px the only thing that
+    # says "heavy" is being wider than everything beside you.
+    box("chest", (0.74, 0.50, 0.44), (0, 0.25, 0), cel_material(FODDER_CLOTH, CLOTH_BANDS), torso)
+    box("plate", (0.52, 0.36, 0.11), (0, 0.22, 0.24), cel_material(FODDER_PLATE, CLOTH_BANDS), torso)
+    detail_box("plate_chip", (0.14, 0.10, 0.04), (-0.16, 0.12, 0.29), flat_material(SCUFF), torso)
+    box("collar", (0.60, 0.16, 0.34), (0, 0.46, -0.02), cel_material(COAT_DARK, CLOTH_BANDS), torso)
+
+    head = empty("head", torso, (0.0, 0.0, 0.46))
+    box("helm", (0.34, 0.32, 0.32), (0, 0.13, -0.02), cel_material(HOOD, CLOTH_BANDS), head)
+    detail_box("slit", (0.22, 0.05, 0.03), (0, 0.10, 0.16), flat_material(FODDER_OPTIC), head)
+
+    shoulder_l = empty("shoulderL", torso, (-0.40, 0.0, 0.40))
+    box("armL", (0.22, 0.32, 0.24), (0, -0.17, 0), cel_material(FODDER_CLOTH, CLOTH_BANDS), shoulder_l)
+    elbow_l = empty("elbowL", shoulder_l, (0.0, 0.0, -0.36))
+    box("foreL", (0.20, 0.26, 0.22), (0, -0.14, 0), cel_material(COAT_DARK, CLOTH_BANDS), elbow_l)
+    # The read. A 0.30 x 0.92 slab hung off the left arm, forward of the body:
+    # from every facing it puts a hard rectangle beside the torso, which is the
+    # one silhouette event that survives being nine pixels tall.
+    box("shield", (0.34, 0.98, 0.18), (-0.10, -0.20, 0.26), cel_material(FODDER_SHIELD, CLOTH_BANDS), elbow_l)
+    box("shield_rim", (0.38, 0.14, 0.20), (-0.10, -0.66, 0.26), cel_material(FODDER_PLATE, CLOTH_BANDS), elbow_l)
+    detail_box("shield_mark", (0.18, 0.22, 0.05), (-0.10, -0.16, 0.36), flat_material(FODDER_TRIM), elbow_l)
+
+    shoulder_r = empty("shoulderR", torso, (0.40, 0.0, 0.40))
+    box("armR", (0.22, 0.32, 0.24), (0, -0.17, 0), cel_material(FODDER_CLOTH, CLOTH_BANDS), shoulder_r)
+    elbow_r = empty("elbowR", shoulder_r, (0.0, 0.0, -0.36))
+    box("foreR", (0.20, 0.26, 0.22), (0, -0.14, 0), cel_material(SKIN), elbow_r)
+    hand_r = empty("handR", elbow_r, (0.0, 0.0, -0.28))
+    box("haft", (0.08, 0.26, 0.08), (0, -0.10, 0.02), cel_material(BOOT, CLOTH_BANDS), hand_r)
+    box("cleaver", (0.13, 0.50, 0.38), (0, -0.38, 0.12), cel_material(TOE_METAL, METAL_BANDS), hand_r)
+
+    hip_l, knee_l = build_fodder_legs(
+        -1, root, 0.76, (0.24, 0.32, 0.26), (0.22, 0.28, 0.24), (0.28, 0.16, 0.40), PANTS, SHIN,
+    )
+    hip_r, knee_r = build_fodder_legs(
+        1, root, 0.76, (0.24, 0.32, 0.26), (0.22, 0.28, 0.24), (0.28, 0.16, 0.40), PANTS, SHIN,
+    )
+
+    return {
+        "root": root, "pelvis": pelvis, "torso": torso, "head": head,
+        "shoulderL": shoulder_l, "elbowL": elbow_l,
+        "shoulderR": shoulder_r, "elbowR": elbow_r,
+        "hipL": hip_l, "kneeL": knee_l, "hipR": hip_r, "kneeR": knee_r,
+        "_bind": BRUTE_BIND,
+    }
+
+
+def build_marksman():
+    """Ranged fodder: a narrow upright with a long barrel and an aerial."""
+    root = empty("root")
+    pelvis = empty("pelvis", root, (0.0, 0.0, 0.98))
+    box("hem", (0.34, 0.26, 0.28), (0, 0.0, 0), cel_material(PANTS, CLOTH_BANDS), pelvis)
+
+    torso = empty("torso", pelvis, (0.0, 0.0, 0.14))
+    box("chest", (0.40, 0.48, 0.28), (0, 0.24, 0), cel_material(FODDER_CLOTH, CLOTH_BANDS), torso)
+    detail_box("bandolier", (0.36, 0.09, 0.04), (0, 0.26, 0.16), flat_material(STRAP), torso, rot=(0, 0, 0.6))
+    # Tall thin pack + aerial: the top of this silhouette must not be a dome,
+    # because a dome at 11 px is the same shape as the brute's helm.
+    box("pack", (0.26, 0.44, 0.20), (0, 0.20, -0.24), cel_material(PACK, CLOTH_BANDS), torso)
+    box("aerial", (0.05, 0.42, 0.05), (0.09, 0.55, -0.24), cel_material(AERIAL), torso, rot=(0, 0, -0.13))
+
+    head = empty("head", torso, (0.0, 0.0, 0.44))
+    box("cowl", (0.26, 0.28, 0.28), (0, 0.12, -0.01), cel_material(HOOD, CLOTH_BANDS), head)
+    detail_box("optic", (0.18, 0.06, 0.03), (0, 0.10, 0.15), flat_material(FODDER_OPTIC), head)
+
+    shoulder_l = empty("shoulderL", torso, (-0.24, 0.0, 0.38))
+    box("armL", (0.15, 0.28, 0.16), (0, -0.15, 0), cel_material(FODDER_CLOTH, CLOTH_BANDS), shoulder_l)
+    elbow_l = empty("elbowL", shoulder_l, (0.0, 0.0, -0.30))
+    box("foreL", (0.14, 0.24, 0.15), (0, -0.13, 0), cel_material(COAT_DARK, CLOTH_BANDS), elbow_l)
+
+    shoulder_r = empty("shoulderR", torso, (0.24, 0.0, 0.38))
+    box("armR", (0.15, 0.28, 0.16), (0, -0.15, 0), cel_material(FODDER_CLOTH, CLOTH_BANDS), shoulder_r)
+    elbow_r = empty("elbowR", shoulder_r, (0.0, 0.0, -0.30))
+    box("foreR", (0.14, 0.24, 0.15), (0, -0.13, 0), cel_material(SKIN), elbow_r)
+
+    # The barrel rides the TORSO, not the hand: at this size a weapon that
+    # swings with a 3-px forearm reads as jitter rather than as a weapon.
+    weapon = empty("weapon", torso, (0.14, 0.10, 0.12))
+    box("barrel", (0.11, 0.11, 0.94), (0, 0, 0.44), cel_material(TOE_METAL, METAL_BANDS), weapon)
+    box("stock", (0.11, 0.16, 0.30), (0, -0.04, -0.10), cel_material(BOOT, CLOTH_BANDS), weapon)
+    detail_box("scope", (0.08, 0.10, 0.18), (0, 0.11, 0.16), cel_material(FODDER_PLATE, CLOTH_BANDS), weapon)
+    muzzle = empty("muzzle", weapon, (0.0, 0.02, 0.90))
+    box("flash_core", (0.16, 0.16, 0.14), (0, 0, 0), flat_material(SIGNAL_HOT), muzzle)
+    box("flash_bar", (0.30, 0.06, 0.10), (0, 0, 0), flat_material(SIGNAL), muzzle)
+
+    hip_l, knee_l = build_fodder_legs(
+        -1, root, 0.82, (0.17, 0.36, 0.19), (0.15, 0.32, 0.17), (0.22, 0.14, 0.34), PANTS, SHIN,
+    )
+    hip_r, knee_r = build_fodder_legs(
+        1, root, 0.82, (0.17, 0.36, 0.19), (0.15, 0.32, 0.17), (0.22, 0.14, 0.34), PANTS, SHIN,
+    )
+
+    return {
+        "root": root, "pelvis": pelvis, "torso": torso, "head": head,
+        "shoulderL": shoulder_l, "elbowL": elbow_l,
+        "shoulderR": shoulder_r, "elbowR": elbow_r,
+        "hipL": hip_l, "kneeL": knee_l, "hipR": hip_r, "kneeR": knee_r,
+        "muzzle": muzzle,
+        "_bind": MARKSMAN_BIND,
     }
 
 
@@ -544,12 +767,118 @@ def pivot_pose(frame, count):
     return pose
 
 
-CLIPS = {"idle": idle_pose, "attack": attack_pose, "pivot": pivot_pose}
+# --- fodder clips ---------------------------------------------------------
+# Four frames at 6 fps, twice over. `idle` and `idle_b` are NOT the same beat
+# resampled: one breathes on the vertical, the other shifts weight and scans
+# on the horizontal. That distinction is the entire point — playback phase
+# offset changes when a unit moves, and only a second baked clip changes what
+# it does. At 8 facings a fodder idle costs 32 cells of ~500 px, which is what
+# makes buying a second one reasonable.
+
+FODDER_LIFT = (0.0, 0.07, 0.12, 0.05)
+FODDER_SWAY = (0.0, 0.055, 0.02, -0.045)
+FODDER_SCAN = (0.0, -0.34, -0.34, 0.16)
+
+
+def fodder_idle(frame, count):
+    """Vertical beat: settle, breathe in, hold, fall."""
+    del count
+    pose = empty_pose()
+    lift = FODDER_LIFT[frame]
+    pose["dip"] = -lift
+    pose["rot"]["torso"] = (-0.18 * lift, 0.0, 0.0)
+    pose["rot"]["head"] = (-0.14 * lift, 0.0, 0.0)
+    pose["rot"]["shoulderL"] = (-0.30 * lift, 0, 0)
+    pose["rot"]["shoulderR"] = (-0.30 * lift, 0, 0)
+    return pose
+
+
+def fodder_idle_b(frame, count):
+    """Horizontal beat: shift weight onto one leg and scan the line."""
+    del count
+    pose = empty_pose()
+    sway = FODDER_SWAY[frame]
+    pose["sway"] = sway
+    pose["rot"]["torso"] = (0.02, 1.6 * sway, -0.8 * sway)
+    pose["rot"]["head"] = (0.0, FODDER_SCAN[frame], 0.0)
+    pose["rot"]["hipL"] = (0.0, 0.0, -2.2 * sway)
+    pose["rot"]["hipR"] = (0.0, 0.0, -2.2 * sway)
+    pose["rot"]["shoulderR"] = (0.0, 0.0, -1.4 * sway)
+    return pose
+
+
+def brute_attack(frame, count):
+    """6 frames at 10 fps: coil, swing, held contact, recover."""
+    del count
+    pose = empty_pose()
+    if frame <= 1:
+        coil = frame / 1.0
+        pose["rot"]["torso"] = (-0.10 * coil, 0.42 * coil, 0)
+        pose["rot"]["shoulderR"] = (0.55 * coil, 0, -0.45 * coil)
+        pose["rot"]["shoulderL"] = (0, 0, 0.18 * coil)
+        pose["lunge"] = -0.12 * coil
+    elif frame <= 3:
+        swing = (frame - 1) / 1.0
+        pose["rot"]["torso"] = (0.12 * swing, 0.42 - 0.95 * swing, 0)
+        pose["rot"]["shoulderR"] = (0.55 - 1.85 * swing, 0, -0.45 + 0.30 * swing)
+        pose["rot"]["shoulderL"] = (0, 0, 0.18 - 0.34 * swing)
+        pose["rot"]["hipL"] = (0.42 * swing, 0, 0)
+        pose["lunge"] = -0.12 + 0.46 * swing
+        # Contact squashes; the shield arm counter-rotates so the wide
+        # silhouette narrows for exactly one frame and then opens again.
+        pose["squash"] = 1.10 if frame == 2 else 0.90
+        pose["flash"] = frame == 3
+    else:
+        back = 1.0 - (frame - 3) / 2.0
+        pose["rot"]["torso"] = (0.12 * back, -0.5 * back, 0)
+        pose["rot"]["shoulderR"] = (-1.30 * back, 0, -0.15 * back)
+        pose["rot"]["hipL"] = (0.42 * back, 0, 0)
+        pose["lunge"] = 0.34 * back
+    return pose
+
+
+def marksman_attack(frame, count):
+    """6 frames at 10 fps: level the barrel, fire, absorb, re-level."""
+    del count
+    pose = empty_pose()
+    if frame <= 1:
+        raise_ = frame / 1.0
+        pose["rot"]["torso"] = (-0.14 * raise_, -0.10 * raise_, 0)
+        pose["rot"]["head"] = (-0.08 * raise_, 0, 0)
+        pose["lunge"] = -0.03 * raise_
+    elif frame <= 3:
+        # One frame of muzzle flash and one of recoil. The 5% emission budget
+        # exists for this and nothing else on a fodder unit.
+        pose["rot"]["torso"] = (-0.14 + 0.24 * (frame - 2), -0.10, 0)
+        pose["rot"]["head"] = (-0.08, 0, 0)
+        pose["lunge"] = -0.03 - 0.10 * (frame - 2)
+        pose["squash"] = 1.04 if frame == 2 else 0.97
+        pose["spark"] = frame == 2
+        pose["flash"] = frame == 3
+    else:
+        back = 1.0 - (frame - 3) / 2.0
+        pose["rot"]["torso"] = (0.10 * back, -0.10 * back, 0)
+        pose["lunge"] = -0.13 * back
+    return pose
+
+
+RIGS = {
+    "brute": build_brute,
+    "marksman": build_marksman,
+    "medic": build_medic,
+}
+
+CLIPS = {
+    "brute": {"attack": brute_attack, "idle": fodder_idle, "idle_b": fodder_idle_b},
+    "marksman": {"attack": marksman_attack, "idle": fodder_idle, "idle_b": fodder_idle_b},
+    "medic": {"attack": attack_pose, "idle": idle_pose, "pivot": pivot_pose},
+}
 
 
 def apply_pose(rig, pose, facing):
+    bind_table = rig["_bind"]
     for name in JOINTS:
-        bind = BIND.get(name, (0.0, 0.0, 0.0))
+        bind = bind_table.get(name, (0.0, 0.0, 0.0))
         delta = pose["rot"].get(name, (0.0, 0.0, 0.0))
         rx = bind[0] + delta[0]
         ry = bind[1] + delta[1]
@@ -575,9 +904,15 @@ def apply_pose(rig, pose, facing):
     # for exactly the two frames of contact. r1: "nothing spends any part of the
     # 5% emission budget on the one moment the budget exists for."
     burst = 1.0 if pose["spark"] else (0.62 if pose["flash"] else 0.001)
-    rig["burst"].scale = (burst, burst, burst)
-    rig["tip"].scale = (tip_scale, tip_scale, tip_scale)
-    rig["needle"].data.materials[0] = flat_material(SIGNAL_HOT if pose["flash"] else SIGNAL)
+    if "burst" in rig:
+        rig["burst"].scale = (burst, burst, burst)
+        rig["tip"].scale = (tip_scale, tip_scale, tip_scale)
+        rig["needle"].data.materials[0] = flat_material(SIGNAL_HOT if pose["flash"] else SIGNAL)
+    # The fodder marksman's muzzle flash rides the same budget: one bright
+    # frame, one dim frame, invisible otherwise.
+    if "muzzle" in rig:
+        flash = 1.0 if pose["spark"] else (0.5 if pose["flash"] else 0.001)
+        rig["muzzle"].scale = (flash, flash, flash)
 
 
 # --- camera + render ------------------------------------------------------
@@ -651,19 +986,32 @@ def main():
     with open(argv[0], encoding="utf-8") as fh:
         spec = json.load(fh)
 
+    unit = spec.get("unit", "medic")
+    unit_scale = float(spec.get("unitScale", 1.0))
+
     scene = setup_scene(spec)
-    rig = build_medic()
+    # Rebind the readable-feature floor BEFORE the rig is built: the pruning
+    # decision is geometry, not a render setting.
+    set_unit_scale(unit_scale)
+    rig = RIGS[unit]()
+    # A mount above the root carries the tier's size boost, so `apply_pose`
+    # keeps owning root scale (squash) and root location (lunge) unchanged and
+    # both end up correctly scaled by being children of it.
+    mount = empty("mount")
+    rig["root"].parent = mount
+    mount.scale = (unit_scale, unit_scale, unit_scale)
     setup_camera(spec)
 
     out_dir = spec["workDir"]
     facings = spec["facings"]
     frames = []
     render_seconds = 0.0
+    posers = CLIPS[unit]
 
     for clip in spec["clips"]:
         name = clip["name"]
         count = clip["frames"]
-        poser = CLIPS[name]
+        poser = posers[name]
         for frame in range(count):
             pose = poser(frame, count)
             for facing in range(facings):
@@ -688,9 +1036,12 @@ def main():
                 })
 
     manifest = {
-        "version": 1,
+        "version": 2,
         "generator": f"blender {bpy.app.version_string}",
         "engine": f"{scene.render.engine}/{scene.cycles.device}",
+        "unit": unit,
+        "unitScale": unit_scale,
+        "droppedDetails": _DROPPED[0],
         "cell": spec["cell"],
         "supersample": spec["supersample"],
         "pixelsPerUnit": spec["pixelsPerUnit"],

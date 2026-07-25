@@ -17,9 +17,12 @@ function manifestFixture(overrides: Record<string, unknown> = {}): unknown {
       }))).flat());
 
   return {
-    version: 1,
+    version: 2,
     generator: "blender 5.2.0 LTS",
     engine: "CYCLES/CPU",
+    unit: "medic",
+    unitScale: 1,
+    droppedDetails: 0,
     cell: { width: CELL.width, height: CELL.height },
     supersample: 1,
     pixelsPerUnit: spec.pixelsPerUnit,
@@ -34,7 +37,7 @@ function manifestFixture(overrides: Record<string, unknown> = {}): unknown {
 }
 
 describe("bakeManifestSchema", () => {
-  it("parses what medic_bake.py actually writes", () => {
+  it("parses what unit_bake.py actually writes", () => {
     const parsed = bakeManifestSchema.parse(manifestFixture());
     expect(parsed.frames).toHaveLength(
       CLIPS.reduce((sum, clip) => sum + clip.frames, 0) * FACINGS,
@@ -42,7 +45,12 @@ describe("bakeManifestSchema", () => {
   });
 
   it("rejects a manifest from a future script version rather than guessing", () => {
-    expect(() => bakeManifestSchema.parse(manifestFixture({ version: 2 }))).toThrow();
+    expect(() => bakeManifestSchema.parse(manifestFixture({ version: 3 }))).toThrow();
+  });
+
+  it("rejects a manifest that forgot to say which rig it baked", () => {
+    const { unit: _unit, ...withoutUnit } = manifestFixture() as Record<string, unknown>;
+    expect(() => bakeManifestSchema.parse(withoutUnit)).toThrow();
   });
 
   it("rejects a bake that rendered nothing", () => {
@@ -76,6 +84,11 @@ describe("assertManifestMatchesSpec", () => {
   it("catches a facing-count drift", () => {
     const drifted = bakeManifestSchema.parse(manifestFixture({ facings: 4 }));
     expect(() => { assertManifestMatchesSpec(drifted, spec); }).toThrow(/facing count/);
+  });
+
+  it("catches Blender baking a different rig than the spec asked for", () => {
+    const wrong = bakeManifestSchema.parse(manifestFixture({ unit: "brute" }));
+    expect(() => { assertManifestMatchesSpec(wrong, spec); }).toThrow(/unit/);
   });
 });
 

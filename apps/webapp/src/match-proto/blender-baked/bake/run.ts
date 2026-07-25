@@ -2,7 +2,7 @@
  * THROWAWAY PROTOTYPE (#82): the bake driver. `pnpm --filter
  * @hazard-pay/webapp bake`.
  *
- * Shells out to Blender, validates what comes back, compiles the atlas, and
+ * Shells out to Blender, validates what comes back, compiles the atlases, and
  * writes both the runtime assets and the evidence the gallery needs.
  *
  * Why execa and not zx: this needs exactly one subprocess call with an argv
@@ -16,6 +16,10 @@
  *
  * Blender's stdout is NOT parsed. It is chatty and its format is not a
  * contract; the only thing this reads back is the manifest file.
+ *
+ * Round 4 added the crowd bakes. Where a hand-authored lane owes a second set
+ * of drawings for every on-screen size, this drives the same rigs through the
+ * same seam at a different world scale, twice, and reports what that cost.
  */
 
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -25,10 +29,19 @@ import { fileURLToPath } from "node:url";
 import { execa } from "execa";
 import { PNG } from "pngjs";
 
-import { ANCHOR, ATLAS_BASENAME, ATLAS_PUBLIC_DIR, CELL } from "../framing.ts";
+import { islandStats } from "../consolidate.ts";
+import { buildRoster, crowdMotionStats, FACING_NOTE, lockFacings, TREATMENTS } from "../crowd.ts";
+import {
+  ANCHOR,
+  ATLAS_BASENAME,
+  ATLAS_PUBLIC_DIR,
+  CELL,
+  CROWD_CONFIGS,
+  type CrowdConfig,
+} from "../framing.ts";
 import { consolidate } from "../consolidate.ts";
-import { DIRECTION_B_PALETTE, quantizeToPalette } from "../palette.ts";
-import { compile } from "./compile.ts";
+import { DIRECTION_B_PALETTE, FACTION_B_LIVERY, quantizeToPalette } from "../palette.ts";
+import { compile, compileAtlas, type CompileInput } from "./compile.ts";
 import { DEFAULT_INK, inkSprite } from "./ink.ts";
 import {
   assertManifestMatchesSpec,
@@ -36,6 +49,7 @@ import {
   bakeManifestSchema,
   type BakeSpec,
   buildSpec,
+  buildUnitSpec,
 } from "./seam.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -44,7 +58,7 @@ const webappDir = join(laneDir, "..", "..", "..");
 const workDir = join(webappDir, ".bake");
 const publicDir = join(webappDir, "public", ATLAS_PUBLIC_DIR);
 const shotsDir = join(webappDir, "screenshots", "blender-baked-lane");
-const scriptPath = join(here, "medic_bake.py");
+const scriptPath = join(here, "unit_bake.py");
 
 /** The comparison crop, relative to the cell anchor. */
 const CROP = { x: ANCHOR.x - 18, y: ANCHOR.y - 36, width: 36, height: 42 };
@@ -56,8 +70,8 @@ async function runBlender(spec: BakeSpec, specPath: string): Promise<BakeManifes
   await execa("blender", ["-b", "-P", scriptPath, "--", specPath], {
     // Blender is loud and its stdout is not a contract; keep it out of the way
     // but hold on to stderr so a Python traceback survives into the rejection.
-    stdout: "ignore",
     stderr: "pipe",
+    stdout: "ignore",
     timeout: 15 * 60 * 1000,
   });
   const wallClockMs = Date.now() - started;
@@ -65,7 +79,8 @@ async function runBlender(spec: BakeSpec, specPath: string): Promise<BakeManifes
   const manifest = bakeManifestSchema.parse(JSON.parse(readFileSync(spec.manifestPath, "utf8")));
   assertManifestMatchesSpec(manifest, spec);
   process.stdout.write(
-    `  blender ${manifest.generator} · ${manifest.engine} · ${String(manifest.partCount)} parts · `
+    `  ${manifest.unit} @${manifest.unitScale.toFixed(3)}x · ${String(manifest.partCount)} parts `
+    + `(${String(manifest.droppedDetails)} details below the readable floor) · `
     + `${String(manifest.timing.renderCount)} renders in ${manifest.timing.renderSeconds.toFixed(2)}s `
     + `(${(wallClockMs / 1000).toFixed(2)}s wall clock incl. startup)\n`,
   );
@@ -109,8 +124,8 @@ function boxDownsample(src: Uint8Array, width: number, height: number, factor: n
 function strip(cells: Uint8Array[]): PNG {
   const gap = 2;
   const png = new PNG({
-    width: cells.length * CROP.width + (cells.length - 1) * gap,
     height: CROP.height,
+    width: cells.length * CROP.width + (cells.length - 1) * gap,
   });
   png.data.fill(0);
   cells.forEach((cell, index) => {
@@ -136,7 +151,7 @@ function strip(cells: Uint8Array[]): PNG {
  *  - `shrunk`    — the naive thing: render at 8x, box-downsample to cell size.
  *  - `native`    — the same pose rendered at 1x with a ~0 reconstruction
  *                  filter, straight out of Blender, full colour.
- *  - `quantized` — native forced onto the 33-entry Direction B palette.
+ *  - `quantized` — native forced onto the 35-entry Direction B palette.
  *  - `inked`     — quantized plus the 1-px contour and internal seams.
  *
  * Same rig, same camera, same frame. The route renders the four with labels.
@@ -191,6 +206,82 @@ async function buildQuantizationComparison(): Promise<void> {
   process.stdout.write(`  wrote ${String(Object.keys(variants).length)} comparison strips to public/${ATLAS_PUBLIC_DIR}\n`);
 }
 
+/**
+ * Measure cluster density on the PNG FILE that ships, decoded from disk.
+ *
+ * The pipeline already reports a `shipped` figure computed on its in-memory
+ * finished cells. That is the same data, but it is the pipeline marking its
+ * own homework, and this lane has published a mid-stage number as if it were
+ * the artifact once already. So: read back the encoded atlas, label islands
+ * over the whole decoded image (packed frames are separated by a transparent
+ * gutter, so no island can span two frames), and report what the file says.
+ */
+function measureShippedAtlas(pngPath: string): {
+  islands: number;
+  pixels: number;
+  ratio: number;
+  singletonShare: number;
+} {
+  const png = PNG.sync.read(readFileSync(pngPath));
+  const stats = islandStats(Uint8Array.from(png.data), png.width, png.height);
+  return {
+    islands: stats.islands,
+    pixels: stats.pixels,
+    ratio: Number(stats.ratio.toFixed(4)),
+    singletonShare: Number(stats.singletonShare.toFixed(4)),
+  };
+}
+
+async function bakeCrowdConfig(config: CrowdConfig): Promise<{
+  wallClockSeconds: number;
+  renderSeconds: number;
+  renders: number;
+  result: ReturnType<typeof compileAtlas>;
+  manifests: BakeManifest[];
+}> {
+  process.stdout.write(`baking the ${config.key} crowd (${config.note})…\n`);
+  const started = Date.now();
+  const inputs: CompileInput[] = [];
+  const manifests: BakeManifest[] = [];
+  let renderSeconds = 0;
+  let renders = 0;
+
+  for (const unit of config.units) {
+    const dir = join(workDir, `${config.key}-${unit.id}`);
+    rmSync(dir, { force: true, recursive: true });
+    mkdirSync(dir, { recursive: true });
+    const spec = buildUnitSpec(dir, join(dir, "manifest.json"), unit);
+    const manifest = await runBlender(spec, join(dir, "spec.json"));
+    manifests.push(manifest);
+    renderSeconds += manifest.timing.renderSeconds;
+    renders += manifest.timing.renderCount;
+    // Faction A is the render. Faction B is the SAME render with eight palette
+    // entries swapped — no Blender pass, no extra Python, and the atlas stays
+    // exactly indexable because a remap can only produce palette colours.
+    inputs.push({ id: `${unit.id}_a`, manifest, tier: unit.tier, workDir: dir });
+    inputs.push({ id: `${unit.id}_b`, manifest, remap: FACTION_B_LIVERY, tier: unit.tier, workDir: dir });
+  }
+
+  const image = `${config.atlas}.png`;
+  const result = compileAtlas(inputs, image);
+  writeFileSync(join(publicDir, image), result.png);
+  writeFileSync(join(publicDir, `${config.atlas}.json`), `${JSON.stringify(result.sheet, null, 2)}\n`);
+  if (result.mismatchedPixels !== 0) {
+    throw new Error(`${config.key} atlas round-trip failed: ${String(result.mismatchedPixels)} pixels differ`);
+  }
+
+  const wallClockSeconds = (Date.now() - started) / 1000;
+  const { cost } = result;
+  process.stdout.write(
+    `  ${String(cost.cells)} cells · packed ${String(cost.trimmed.width)}x${String(cost.trimmed.height)} `
+    + `(${(cost.trimmed.occupancy * 100).toFixed(1)}% occupied) · `
+    + `${(cost.indexedPngBytes / 1024).toFixed(1)} KiB indexed `
+    + `(${(cost.rgbaPngBytes / 1024).toFixed(1)} KiB truecolour) · round-trip exact\n`
+    + `  bake wall clock ${wallClockSeconds.toFixed(2)}s\n`,
+  );
+  return { manifests, renderSeconds, renders, result, wallClockSeconds };
+}
+
 async function main(): Promise<void> {
   mkdirSync(workDir, { recursive: true });
   writeFileSync(join(workDir, ".gitignore"), "*\n");
@@ -201,7 +292,7 @@ async function main(): Promise<void> {
   rmSync(sheetWork, { force: true, recursive: true });
   mkdirSync(sheetWork, { recursive: true });
 
-  process.stdout.write("baking the field medic…\n");
+  process.stdout.write("baking the field medic (hero portrait)…\n");
   const spec = buildSpec(sheetWork, join(sheetWork, "manifest.json"));
   const wallStart = Date.now();
   const manifest = await runBlender(spec, join(sheetWork, "spec.json"));
@@ -217,6 +308,7 @@ async function main(): Promise<void> {
   }
 
   const { cost } = result;
+  const shippedAudit = measureShippedAtlas(join(publicDir, image));
   writeFileSync(
     join(shotsDir, "atlas-cost.json"),
     `${JSON.stringify({
@@ -226,6 +318,13 @@ async function main(): Promise<void> {
       blenderTotalSeconds: manifest.timing.totalSeconds,
       bakeWallClockSeconds: Number(wallClockSeconds.toFixed(2)),
       atlasRoundTripMismatchedPixels: result.mismatchedPixels,
+      // Independent re-measurement of the number an earlier round published
+      // from a mid-pipeline stage: this one is read back off the encoded PNG.
+      clusterDensityAudit: {
+        measuredOn: `public/${ATLAS_PUBLIC_DIR}/${image}`,
+        method: "island labelling over the decoded indexed atlas",
+        ...shippedAudit,
+      },
     }, null, 2)}\n`,
   );
 
@@ -245,8 +344,89 @@ async function main(): Promise<void> {
     + `${cost.clusterDensity.shipped.toFixed(3)} SHIPPED islands/px `
     + `(singletons ${(cost.clusterDensity.singletonShareQuantized * 100).toFixed(0)}% -> `
     + `${(cost.clusterDensity.singletonShareShipped * 100).toFixed(0)}%)\n`
+    + `  AUDIT, measured on the written PNG: ${shippedAudit.ratio.toFixed(3)} islands/px, `
+    + `${(shippedAudit.singletonShare * 100).toFixed(1)}% singletons `
+    + `over ${String(shippedAudit.pixels)} opaque px\n`
     + `  bake wall clock ${wallClockSeconds.toFixed(2)}s\n`,
   );
+
+  const configs: Record<string, unknown> = {};
+  let crowdWallClock = 0;
+  for (const config of CROWD_CONFIGS) {
+    const baked = await bakeCrowdConfig(config);
+    crowdWallClock += baked.wallClockSeconds;
+    const audit = measureShippedAtlas(join(publicDir, `${config.atlas}.png`));
+    const roster = buildRoster(config);
+    const clipsFor = (unit: { rig: string }): typeof config.units[number]["clips"] => {
+      const found = config.units.find((entry) => entry.id === unit.rig);
+      if (found === undefined) { throw new Error(`no bake spec for ${unit.rig}`); }
+      return found.clips;
+    };
+    configs[config.key] = {
+      label: config.label,
+      note: config.note,
+      units: config.units.map((unit) => ({
+        id: unit.id,
+        tier: unit.tier,
+        scale: Number(unit.scale.toFixed(4)),
+        screenPx: unit.screenPx,
+        bodyArtPx: Number(unit.bodyArtPx.toFixed(2)),
+        cell: unit.cell,
+        anchor: unit.anchor,
+        clips: unit.clips,
+        facings: unit.facings,
+        partCount: baked.manifests.find((m) => m.unit === unit.id)?.partCount ?? 0,
+        droppedDetails: baked.manifests.find((m) => m.unit === unit.id)?.droppedDetails ?? 0,
+        measuredStandingArtPx: baked.result.sheet.meta.units[`${unit.id}_a`]?.standingArtPx ?? 0,
+        measuredMaxArtPx: baked.result.sheet.meta.units[`${unit.id}_a`]?.maxArtPx ?? 0,
+      })),
+      cost: baked.result.cost,
+      blenderRenders: baked.renders,
+      blenderRenderSeconds: Number(baked.renderSeconds.toFixed(2)),
+      bakeWallClockSeconds: Number(baked.wallClockSeconds.toFixed(2)),
+      atlasRoundTripMismatchedPixels: baked.result.mismatchedPixels,
+      clusterDensityAudit: {
+        measuredOn: `public/${ATLAS_PUBLIC_DIR}/${config.atlas}.png`,
+        ...audit,
+      },
+      crowd: {
+        units: roster.length,
+        fodderPerSide: roster.filter((unit) => unit.side === 0 && unit.tier === "fodder").length,
+        heroesPerSide: roster.filter((unit) => unit.side === 0 && unit.tier === "hero").length,
+        facingNote: FACING_NOTE,
+        motion: Object.fromEntries(
+          TREATMENTS.map((treatment) => [
+            treatment,
+            crowdMotionStats(roster, clipsFor, treatment),
+          ]),
+        ),
+        // Same measurement with facing spread removed: how much of the crowd's
+        // variety is the animation, and how much is just the formation not
+        // pointing the same way.
+        motionLockedFacing: Object.fromEntries(
+          TREATMENTS.map((treatment) => [
+            treatment,
+            crowdMotionStats(lockFacings(roster), clipsFor, treatment),
+          ]),
+        ),
+      },
+    };
+  }
+
+  writeFileSync(
+    join(shotsDir, "crowd-cost.json"),
+    `${JSON.stringify({
+      generatedBy: "pnpm --filter @hazard-pay/webapp bake",
+      heroPortraitAtlas: {
+        cells: cost.cells,
+        indexedPngBytes: cost.indexedPngBytes,
+        bakeWallClockSeconds: Number(wallClockSeconds.toFixed(2)),
+      },
+      crowdWallClockSeconds: Number(crowdWallClock.toFixed(2)),
+      configs,
+    }, null, 2)}\n`,
+  );
+  process.stdout.write(`  wrote crowd-cost.json (${CROWD_CONFIGS.length} configs)\n`);
 
   await buildQuantizationComparison();
 }

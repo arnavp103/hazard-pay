@@ -63,3 +63,168 @@ export const FEET = {
 export const ATLAS_BASENAME = "medic";
 /** Served from apps/webapp/public; Pixi loads the sheet JSON from here. */
 export const ATLAS_PUBLIC_DIR = "blender-baked";
+
+/* ---------------------------------------------------------------------- *
+ * Round 4 — the fodder tier (#69's two-tier ruling).
+ *
+ * Everything above is the hero PORTRAIT test this lane was originally
+ * specced for. Everything below is the CROWD test: two fodder archetypes
+ * plus the hero, baked at two on-screen sizes, so the open pixel-resolution
+ * fork on #69 gets a measurement instead of an argument.
+ * ---------------------------------------------------------------------- */
+
+/**
+ * The authored hero rig spans 1.82 world units — 29 art px of body at
+ * PIXELS_PER_UNIT, plus the 1 px contour on each side, which is the 31 px the
+ * first three rounds reported. Every tier size below is expressed as a target
+ * SCREEN height and converted back into a rig scale through this constant, so
+ * the numbers in the gallery are literally the numbers in the bake spec.
+ */
+export const HERO_BODY_ART_PX = 29;
+/** The ink pass grows 1 px outward, so a body gains 2 px of height. */
+export const CONTOUR_ART_PX = 2;
+
+/**
+ * Tier separation, exactly as ruled on #69: a SLIGHT size boost plus higher
+ * detail density. No rim light, no banner, no ground decal — marking was
+ * explicitly deferred, and leaning on it would answer a different question.
+ */
+export const TIER_SIZE_BOOST = 1.28;
+
+export type UnitId = "brute" | "marksman" | "medic";
+export type TierKey = "fodder" | "hero";
+
+export interface ClipSpec { readonly name: string; readonly frames: number; readonly fps: number }
+
+/**
+ * Fodder acting budget: 14 frames across three short clips against the hero's
+ * 26 across three long ones. `idle_b` is not padding — it is this lane's
+ * answer to the crowd-motion problem. Playback phase offset decorrelates WHEN
+ * units move but cannot change WHAT they do; a second baked idle is the
+ * cheapest thing that adds pose vocabulary to a mass, and a nine-second bake
+ * is what makes it cheap.
+ */
+export const FODDER_CLIPS: readonly ClipSpec[] = [
+  { fps: 6, frames: 4, name: "idle" },
+  { fps: 6, frames: 4, name: "idle_b" },
+  { fps: 10, frames: 6, name: "attack" },
+];
+
+/** A hero inside a crowd never pivots on the spot, so the pivot clip is cut. */
+export const HERO_CROWD_CLIPS: readonly ClipSpec[] = [
+  { fps: 8, frames: 8, name: "idle" },
+  { fps: 12, frames: 12, name: "attack" },
+];
+
+export interface UnitBake {
+  readonly id: UnitId;
+  readonly tier: TierKey;
+  /** Uniform world scale applied to the authored rig. */
+  readonly scale: number;
+  /** Rendered body height in art px, contour excluded. */
+  readonly bodyArtPx: number;
+  /** On-screen height in device px at ART_SCALE, contour included. */
+  readonly screenPx: number;
+  readonly cell: { readonly width: number; readonly height: number };
+  readonly anchor: { readonly x: number; readonly y: number };
+  readonly clips: readonly ClipSpec[];
+  readonly facings: number;
+}
+
+function evenCeil(value: number): number {
+  return Math.ceil(value / 2) * 2;
+}
+
+/**
+ * Extra cell margin over the hero's proportions. The hero cell was sized for
+ * one rig's lunge; the brute carries a slab shield well outside its body line
+ * and needs more room. Inflating the cell is free in the shipped atlas — every
+ * frame is trimmed to its alpha bbox before packing — so the margin is spent
+ * generously and only shows up in the untrimmed-grid comparison.
+ */
+const CELL_MARGIN = 1.4;
+
+/**
+ * Derive a unit's whole bake geometry from one number: how tall it should be
+ * on screen. Cell and anchor scale with the rig, so a 22 px fodder unit does
+ * not carry the hero cell's slack around the atlas.
+ */
+function unitBake(
+  id: UnitId,
+  tier: TierKey,
+  screenPx: number,
+  clips: readonly ClipSpec[],
+  facings = FACINGS,
+): UnitBake {
+  const bodyArtPx = screenPx / ART_SCALE - CONTOUR_ART_PX;
+  const scale = bodyArtPx / HERO_BODY_ART_PX;
+  const cellScale = scale * CELL_MARGIN;
+  return {
+    anchor: { x: Math.round(ANCHOR.x * cellScale), y: Math.round(ANCHOR.y * cellScale) },
+    bodyArtPx,
+    cell: { height: evenCeil(CELL.height * cellScale), width: evenCeil(CELL.width * cellScale) },
+    clips,
+    facings,
+    id,
+    screenPx,
+    scale,
+    tier,
+  };
+}
+
+export interface CrowdConfig {
+  readonly key: "large" | "small";
+  readonly label: string;
+  readonly note: string;
+  readonly atlas: string;
+  readonly units: readonly UnitBake[];
+  /** Formation spacing in art px, proportional to unit size. */
+  readonly spacing: {
+    readonly along: readonly [number, number];
+    readonly rank: readonly [number, number];
+  };
+}
+
+function crowdConfig(
+  key: CrowdConfig["key"],
+  label: string,
+  note: string,
+  fodderScreenPx: number,
+): CrowdConfig {
+  const heroScreenPx = Math.round(fodderScreenPx * TIER_SIZE_BOOST);
+  // A rank runs up-right and ranks stack down-right: the 2:1 dimetric block.
+  // Spacing tracks unit size so both configs read as the same formation
+  // density — the comparison is meant to isolate resolution, not crowding.
+  const step = fodderScreenPx / ART_SCALE;
+  return {
+    atlas: `crowd-${key}`,
+    key,
+    label,
+    note,
+    spacing: {
+      along: [step * 1.2, -step * 0.6],
+      rank: [step * 0.72, step * 0.36],
+    },
+    units: [
+      unitBake("brute", "fodder", fodderScreenPx, FODDER_CLIPS),
+      unitBake("marksman", "fodder", fodderScreenPx, FODDER_CLIPS),
+      unitBake("medic", "hero", heroScreenPx, HERO_CROWD_CLIPS),
+    ],
+  };
+}
+
+/**
+ * The two configs the #69 resolution fork is stuck between. `small` is the
+ * Hero's Hour register the cofounder's stated likes point at; `large` is where
+ * a hand-authored pixel lane would owe a second set of drawings. Re-rendering
+ * is nine seconds here, so this lane can just answer the question.
+ */
+export const CROWD_CONFIGS: readonly CrowdConfig[] = [
+  crowdConfig("small", "Small — Hero's Hour register", "fodder 22px · hero 28px on screen", 22),
+  crowdConfig("large", "Large", "fodder 36px · hero 46px on screen", 36),
+];
+
+export function configByKey(key: string | null): CrowdConfig {
+  const found = CROWD_CONFIGS.find((config) => config.key === key);
+  return found ?? (CROWD_CONFIGS[0] as CrowdConfig);
+}

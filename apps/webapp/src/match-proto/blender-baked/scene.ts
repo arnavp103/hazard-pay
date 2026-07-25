@@ -57,7 +57,7 @@ const base = `/${ATLAS_PUBLIC_DIR}`;
  * vector is re-rendered at 336x144, not downsampled from 840x360 — then force
  * it onto the Direction B palette.
  */
-async function loadBoardTexture(): Promise<Texture> {
+export async function loadBoardTexture(): Promise<Texture> {
   const image = new Image();
   image.src = `${base}/grime-market-board.svg`;
   await image.decode();
@@ -85,9 +85,7 @@ async function loadBoardTexture(): Promise<Texture> {
 }
 
 /** Hard-edged contact shadow, built on the art grid so it never gets a soft edge. */
-function shadowTexture(): Texture {
-  const width = 15;
-  const height = 6;
+export function shadowTexture(width = 15, height = 6): Texture {
   const [r, g, b] = hexToRgb(INK);
   const data = new Uint8Array(width * height * 4);
   for (let y = 0; y < height; y += 1) {
