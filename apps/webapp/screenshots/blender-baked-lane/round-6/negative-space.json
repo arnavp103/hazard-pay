@@ -1,0 +1,2643 @@
+{
+  "generatedBy": "pnpm --filter @hazard-pay/webapp bake",
+  "what": "interior background runs per archetype per register, at three pipeline stages",
+  "method": {
+    "gap": "a run of transparent pixels with opaque pixels on both sides of it in the same row",
+    "bands": "upper 60% of drawn height is arms/torso, lower 40% is legs",
+    "stages": "render = Blender alpha; quantized = palette + consolidation; shipped = decoded back out of the atlas PNG the browser loads",
+    "contour": "the ink pass dilates the silhouette 1 px on all eight neighbours, so it closes an interior gap from both sides: a 3 px render gap ships as 1 px, a 2 px gap ships as nothing",
+    "facings": "all eight idle facings; every figure is reported as a count of facings that keep the gap, never as the best one"
+  },
+  "registers": {
+    "small": {
+      "brute": {
+        "tier": "fodder",
+        "targetBodyArtPx": 8,
+        "scale": 0.2176,
+        "render": {
+          "aspect": 0.754,
+          "facings": 8,
+          "facingsWithBothArmGaps": 1,
+          "facingsWithLegGap": 4,
+          "maxArmGapWidth": 3,
+          "maxLegGapWidth": 2,
+          "meanArmRowsWithGap": 1.13,
+          "meanContactRatio": 0.45,
+          "meanContactSpan": 3.38,
+          "meanHeight": 7.63,
+          "meanLegRowsWithGap": 0.75,
+          "meanWidth": 5.75,
+          "totals": {
+            "arm": {
+              "gapPixels": 12,
+              "longestSustainedRows": 2,
+              "maxWidth": 3,
+              "meanWidth": 8,
+              "rowsWithBothSides": 1,
+              "rowsWithGap": 9,
+              "rowsWithLeftGap": 4,
+              "rowsWithRightGap": 6
+            },
+            "leg": {
+              "gapPixels": 11,
+              "longestSustainedRows": 1,
+              "maxWidth": 2,
+              "meanWidth": 6.17,
+              "rowsWithBothSides": 1,
+              "rowsWithGap": 6,
+              "rowsWithLeftGap": 2,
+              "rowsWithRightGap": 5
+            }
+          }
+        },
+        "quantized": {
+          "aspect": 0.754,
+          "facings": 8,
+          "facingsWithBothArmGaps": 1,
+          "facingsWithLegGap": 4,
+          "maxArmGapWidth": 3,
+          "maxLegGapWidth": 2,
+          "meanArmRowsWithGap": 1.13,
+          "meanContactRatio": 0.45,
+          "meanContactSpan": 3.38,
+          "meanHeight": 7.63,
+          "meanLegRowsWithGap": 0.75,
+          "meanWidth": 5.75,
+          "totals": {
+            "arm": {
+              "gapPixels": 12,
+              "longestSustainedRows": 2,
+              "maxWidth": 3,
+              "meanWidth": 8,
+              "rowsWithBothSides": 1,
+              "rowsWithGap": 9,
+              "rowsWithLeftGap": 4,
+              "rowsWithRightGap": 6
+            },
+            "leg": {
+              "gapPixels": 11,
+              "longestSustainedRows": 1,
+              "maxWidth": 2,
+              "meanWidth": 6.17,
+              "rowsWithBothSides": 1,
+              "rowsWithGap": 6,
+              "rowsWithLeftGap": 2,
+              "rowsWithRightGap": 5
+            }
+          }
+        },
+        "shipped": {
+          "aspect": 0.805,
+          "facings": 8,
+          "facingsWithBothArmGaps": 0,
+          "facingsWithLegGap": 0,
+          "maxArmGapWidth": 1,
+          "maxLegGapWidth": 0,
+          "meanArmRowsWithGap": 0.13,
+          "meanContactRatio": 0.57,
+          "meanContactSpan": 5.38,
+          "meanHeight": 9.63,
+          "meanLegRowsWithGap": 0,
+          "meanWidth": 7.75,
+          "totals": {
+            "arm": {
+              "gapPixels": 1,
+              "longestSustainedRows": 1,
+              "maxWidth": 1,
+              "meanWidth": 1,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 1,
+              "rowsWithLeftGap": 0,
+              "rowsWithRightGap": 1
+            },
+            "leg": {
+              "gapPixels": 0,
+              "longestSustainedRows": 0,
+              "maxWidth": 0,
+              "meanWidth": 0,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 0,
+              "rowsWithLeftGap": 0,
+              "rowsWithRightGap": 0
+            }
+          }
+        }
+      },
+      "marksman": {
+        "tier": "fodder",
+        "targetBodyArtPx": 9,
+        "scale": 0.2092,
+        "render": {
+          "aspect": 0.491,
+          "facings": 8,
+          "facingsWithBothArmGaps": 0,
+          "facingsWithLegGap": 2,
+          "maxArmGapWidth": 1,
+          "maxLegGapWidth": 1,
+          "meanArmRowsWithGap": 0.25,
+          "meanContactRatio": 0.31,
+          "meanContactSpan": 2.13,
+          "meanHeight": 7.13,
+          "meanLegRowsWithGap": 0.25,
+          "meanWidth": 3.5,
+          "totals": {
+            "arm": {
+              "gapPixels": 2,
+              "longestSustainedRows": 1,
+              "maxWidth": 1,
+              "meanWidth": 2,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 2,
+              "rowsWithLeftGap": 0,
+              "rowsWithRightGap": 2
+            },
+            "leg": {
+              "gapPixels": 2,
+              "longestSustainedRows": 1,
+              "maxWidth": 1,
+              "meanWidth": 2,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 2,
+              "rowsWithLeftGap": 0,
+              "rowsWithRightGap": 2
+            }
+          }
+        },
+        "quantized": {
+          "aspect": 0.491,
+          "facings": 8,
+          "facingsWithBothArmGaps": 0,
+          "facingsWithLegGap": 2,
+          "maxArmGapWidth": 1,
+          "maxLegGapWidth": 1,
+          "meanArmRowsWithGap": 0.25,
+          "meanContactRatio": 0.31,
+          "meanContactSpan": 2.13,
+          "meanHeight": 7.13,
+          "meanLegRowsWithGap": 0.25,
+          "meanWidth": 3.5,
+          "totals": {
+            "arm": {
+              "gapPixels": 2,
+              "longestSustainedRows": 1,
+              "maxWidth": 1,
+              "meanWidth": 2,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 2,
+              "rowsWithLeftGap": 0,
+              "rowsWithRightGap": 2
+            },
+            "leg": {
+              "gapPixels": 2,
+              "longestSustainedRows": 1,
+              "maxWidth": 1,
+              "meanWidth": 2,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 2,
+              "rowsWithLeftGap": 0,
+              "rowsWithRightGap": 2
+            }
+          }
+        },
+        "shipped": {
+          "aspect": 0.602,
+          "facings": 8,
+          "facingsWithBothArmGaps": 0,
+          "facingsWithLegGap": 0,
+          "maxArmGapWidth": 0,
+          "maxLegGapWidth": 0,
+          "meanArmRowsWithGap": 0,
+          "meanContactRatio": 0.46,
+          "meanContactSpan": 4.13,
+          "meanHeight": 9.13,
+          "meanLegRowsWithGap": 0,
+          "meanWidth": 5.5,
+          "totals": {
+            "arm": {
+              "gapPixels": 0,
+              "longestSustainedRows": 0,
+              "maxWidth": 0,
+              "meanWidth": 0,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 0,
+              "rowsWithLeftGap": 0,
+              "rowsWithRightGap": 0
+            },
+            "leg": {
+              "gapPixels": 0,
+              "longestSustainedRows": 0,
+              "maxWidth": 0,
+              "meanWidth": 0,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 0,
+              "rowsWithLeftGap": 0,
+              "rowsWithRightGap": 0
+            }
+          }
+        }
+      },
+      "medic": {
+        "tier": "hero",
+        "targetBodyArtPx": 12,
+        "scale": 0.3926,
+        "render": {
+          "aspect": 0.605,
+          "facings": 8,
+          "facingsWithBothArmGaps": 0,
+          "facingsWithLegGap": 0,
+          "maxArmGapWidth": 1,
+          "maxLegGapWidth": 0,
+          "meanArmRowsWithGap": 0.13,
+          "meanContactRatio": 0.36,
+          "meanContactSpan": 4.13,
+          "meanHeight": 11.38,
+          "meanLegRowsWithGap": 0,
+          "meanWidth": 6.88,
+          "totals": {
+            "arm": {
+              "gapPixels": 1,
+              "longestSustainedRows": 1,
+              "maxWidth": 1,
+              "meanWidth": 1,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 1,
+              "rowsWithLeftGap": 1,
+              "rowsWithRightGap": 0
+            },
+            "leg": {
+              "gapPixels": 0,
+              "longestSustainedRows": 0,
+              "maxWidth": 0,
+              "meanWidth": 0,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 0,
+              "rowsWithLeftGap": 0,
+              "rowsWithRightGap": 0
+            }
+          }
+        },
+        "quantized": {
+          "aspect": 0.605,
+          "facings": 8,
+          "facingsWithBothArmGaps": 0,
+          "facingsWithLegGap": 0,
+          "maxArmGapWidth": 1,
+          "maxLegGapWidth": 0,
+          "meanArmRowsWithGap": 0.13,
+          "meanContactRatio": 0.36,
+          "meanContactSpan": 4.13,
+          "meanHeight": 11.38,
+          "meanLegRowsWithGap": 0,
+          "meanWidth": 6.88,
+          "totals": {
+            "arm": {
+              "gapPixels": 1,
+              "longestSustainedRows": 1,
+              "maxWidth": 1,
+              "meanWidth": 1,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 1,
+              "rowsWithLeftGap": 1,
+              "rowsWithRightGap": 0
+            },
+            "leg": {
+              "gapPixels": 0,
+              "longestSustainedRows": 0,
+              "maxWidth": 0,
+              "meanWidth": 0,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 0,
+              "rowsWithLeftGap": 0,
+              "rowsWithRightGap": 0
+            }
+          }
+        },
+        "shipped": {
+          "aspect": 0.664,
+          "facings": 8,
+          "facingsWithBothArmGaps": 0,
+          "facingsWithLegGap": 0,
+          "maxArmGapWidth": 0,
+          "maxLegGapWidth": 0,
+          "meanArmRowsWithGap": 0,
+          "meanContactRatio": 0.46,
+          "meanContactSpan": 6.13,
+          "meanHeight": 13.38,
+          "meanLegRowsWithGap": 0,
+          "meanWidth": 8.88,
+          "totals": {
+            "arm": {
+              "gapPixels": 0,
+              "longestSustainedRows": 0,
+              "maxWidth": 0,
+              "meanWidth": 0,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 0,
+              "rowsWithLeftGap": 0,
+              "rowsWithRightGap": 0
+            },
+            "leg": {
+              "gapPixels": 0,
+              "longestSustainedRows": 0,
+              "maxWidth": 0,
+              "meanWidth": 0,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 0,
+              "rowsWithLeftGap": 0,
+              "rowsWithRightGap": 0
+            }
+          }
+        },
+        "shippedWithOutwardMark": {
+          "aspect": 0.707,
+          "facings": 8,
+          "facingsWithBothArmGaps": 0,
+          "facingsWithLegGap": 0,
+          "maxArmGapWidth": 0,
+          "maxLegGapWidth": 0,
+          "meanArmRowsWithGap": 0,
+          "meanContactRatio": 0.53,
+          "meanContactSpan": 8.13,
+          "meanHeight": 15.38,
+          "meanLegRowsWithGap": 0,
+          "meanWidth": 10.88,
+          "totals": {
+            "arm": {
+              "gapPixels": 0,
+              "longestSustainedRows": 0,
+              "maxWidth": 0,
+              "meanWidth": 0,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 0,
+              "rowsWithLeftGap": 0,
+              "rowsWithRightGap": 0
+            },
+            "leg": {
+              "gapPixels": 0,
+              "longestSustainedRows": 0,
+              "maxWidth": 0,
+              "meanWidth": 0,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 0,
+              "rowsWithLeftGap": 0,
+              "rowsWithRightGap": 0
+            }
+          }
+        }
+      },
+      "ranger": {
+        "tier": "hero",
+        "targetBodyArtPx": 12,
+        "scale": 0.2913,
+        "render": {
+          "aspect": 0.584,
+          "facings": 8,
+          "facingsWithBothArmGaps": 2,
+          "facingsWithLegGap": 4,
+          "maxArmGapWidth": 2,
+          "maxLegGapWidth": 2,
+          "meanArmRowsWithGap": 1.5,
+          "meanContactRatio": 0.43,
+          "meanContactSpan": 4.75,
+          "meanHeight": 11.13,
+          "meanLegRowsWithGap": 1.63,
+          "meanWidth": 6.5,
+          "totals": {
+            "arm": {
+              "gapPixels": 19,
+              "longestSustainedRows": 4,
+              "maxWidth": 2,
+              "meanWidth": 7.58,
+              "rowsWithBothSides": 3,
+              "rowsWithGap": 12,
+              "rowsWithLeftGap": 8,
+              "rowsWithRightGap": 7
+            },
+            "leg": {
+              "gapPixels": 24,
+              "longestSustainedRows": 4,
+              "maxWidth": 2,
+              "meanWidth": 7.34,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 13,
+              "rowsWithLeftGap": 3,
+              "rowsWithRightGap": 10
+            }
+          }
+        },
+        "quantized": {
+          "aspect": 0.584,
+          "facings": 8,
+          "facingsWithBothArmGaps": 2,
+          "facingsWithLegGap": 4,
+          "maxArmGapWidth": 2,
+          "maxLegGapWidth": 2,
+          "meanArmRowsWithGap": 1.5,
+          "meanContactRatio": 0.43,
+          "meanContactSpan": 4.75,
+          "meanHeight": 11.13,
+          "meanLegRowsWithGap": 1.63,
+          "meanWidth": 6.5,
+          "totals": {
+            "arm": {
+              "gapPixels": 19,
+              "longestSustainedRows": 4,
+              "maxWidth": 2,
+              "meanWidth": 7.58,
+              "rowsWithBothSides": 3,
+              "rowsWithGap": 12,
+              "rowsWithLeftGap": 8,
+              "rowsWithRightGap": 7
+            },
+            "leg": {
+              "gapPixels": 24,
+              "longestSustainedRows": 4,
+              "maxWidth": 2,
+              "meanWidth": 7.34,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 13,
+              "rowsWithLeftGap": 3,
+              "rowsWithRightGap": 10
+            }
+          }
+        },
+        "shipped": {
+          "aspect": 0.647,
+          "facings": 8,
+          "facingsWithBothArmGaps": 0,
+          "facingsWithLegGap": 0,
+          "maxArmGapWidth": 0,
+          "maxLegGapWidth": 0,
+          "meanArmRowsWithGap": 0,
+          "meanContactRatio": 0.52,
+          "meanContactSpan": 6.75,
+          "meanHeight": 13.13,
+          "meanLegRowsWithGap": 0,
+          "meanWidth": 8.5,
+          "totals": {
+            "arm": {
+              "gapPixels": 0,
+              "longestSustainedRows": 0,
+              "maxWidth": 0,
+              "meanWidth": 0,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 0,
+              "rowsWithLeftGap": 0,
+              "rowsWithRightGap": 0
+            },
+            "leg": {
+              "gapPixels": 0,
+              "longestSustainedRows": 0,
+              "maxWidth": 0,
+              "meanWidth": 0,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 0,
+              "rowsWithLeftGap": 0,
+              "rowsWithRightGap": 0
+            }
+          }
+        },
+        "shippedWithOutwardMark": {
+          "aspect": 0.694,
+          "facings": 8,
+          "facingsWithBothArmGaps": 0,
+          "facingsWithLegGap": 0,
+          "maxArmGapWidth": 0,
+          "maxLegGapWidth": 0,
+          "meanArmRowsWithGap": 0,
+          "meanContactRatio": 0.58,
+          "meanContactSpan": 8.75,
+          "meanHeight": 15.13,
+          "meanLegRowsWithGap": 0,
+          "meanWidth": 10.5,
+          "totals": {
+            "arm": {
+              "gapPixels": 0,
+              "longestSustainedRows": 0,
+              "maxWidth": 0,
+              "meanWidth": 0,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 0,
+              "rowsWithLeftGap": 0,
+              "rowsWithRightGap": 0
+            },
+            "leg": {
+              "gapPixels": 0,
+              "longestSustainedRows": 0,
+              "maxWidth": 0,
+              "meanWidth": 0,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 0,
+              "rowsWithLeftGap": 0,
+              "rowsWithRightGap": 0
+            }
+          }
+        }
+      }
+    },
+    "mid": {
+      "brute": {
+        "tier": "fodder",
+        "targetBodyArtPx": 11,
+        "scale": 0.2992,
+        "render": {
+          "aspect": 0.744,
+          "facings": 8,
+          "facingsWithBothArmGaps": 2,
+          "facingsWithLegGap": 6,
+          "maxArmGapWidth": 4,
+          "maxLegGapWidth": 2,
+          "meanArmRowsWithGap": 2.38,
+          "meanContactRatio": 0.35,
+          "meanContactSpan": 3.75,
+          "meanHeight": 10.75,
+          "meanLegRowsWithGap": 1.88,
+          "meanWidth": 8,
+          "totals": {
+            "arm": {
+              "gapPixels": 38,
+              "longestSustainedRows": 5,
+              "maxWidth": 4,
+              "meanWidth": 12.01,
+              "rowsWithBothSides": 5,
+              "rowsWithGap": 19,
+              "rowsWithLeftGap": 8,
+              "rowsWithRightGap": 16
+            },
+            "leg": {
+              "gapPixels": 27,
+              "longestSustainedRows": 4,
+              "maxWidth": 2,
+              "meanWidth": 8.91,
+              "rowsWithBothSides": 1,
+              "rowsWithGap": 15,
+              "rowsWithLeftGap": 3,
+              "rowsWithRightGap": 13
+            }
+          }
+        },
+        "quantized": {
+          "aspect": 0.744,
+          "facings": 8,
+          "facingsWithBothArmGaps": 2,
+          "facingsWithLegGap": 6,
+          "maxArmGapWidth": 4,
+          "maxLegGapWidth": 2,
+          "meanArmRowsWithGap": 2.38,
+          "meanContactRatio": 0.35,
+          "meanContactSpan": 3.75,
+          "meanHeight": 10.75,
+          "meanLegRowsWithGap": 1.88,
+          "meanWidth": 8,
+          "totals": {
+            "arm": {
+              "gapPixels": 38,
+              "longestSustainedRows": 5,
+              "maxWidth": 4,
+              "meanWidth": 12.01,
+              "rowsWithBothSides": 5,
+              "rowsWithGap": 19,
+              "rowsWithLeftGap": 8,
+              "rowsWithRightGap": 16
+            },
+            "leg": {
+              "gapPixels": 27,
+              "longestSustainedRows": 4,
+              "maxWidth": 2,
+              "meanWidth": 8.91,
+              "rowsWithBothSides": 1,
+              "rowsWithGap": 15,
+              "rowsWithLeftGap": 3,
+              "rowsWithRightGap": 13
+            }
+          }
+        },
+        "shipped": {
+          "aspect": 0.784,
+          "facings": 8,
+          "facingsWithBothArmGaps": 0,
+          "facingsWithLegGap": 0,
+          "maxArmGapWidth": 1,
+          "maxLegGapWidth": 0,
+          "meanArmRowsWithGap": 0.13,
+          "meanContactRatio": 0.45,
+          "meanContactSpan": 5.75,
+          "meanHeight": 12.75,
+          "meanLegRowsWithGap": 0,
+          "meanWidth": 10,
+          "totals": {
+            "arm": {
+              "gapPixels": 1,
+              "longestSustainedRows": 1,
+              "maxWidth": 1,
+              "meanWidth": 1,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 1,
+              "rowsWithLeftGap": 0,
+              "rowsWithRightGap": 1
+            },
+            "leg": {
+              "gapPixels": 0,
+              "longestSustainedRows": 0,
+              "maxWidth": 0,
+              "meanWidth": 0,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 0,
+              "rowsWithLeftGap": 0,
+              "rowsWithRightGap": 0
+            }
+          }
+        }
+      },
+      "marksman": {
+        "tier": "fodder",
+        "targetBodyArtPx": 12,
+        "scale": 0.2789,
+        "render": {
+          "aspect": 0.542,
+          "facings": 8,
+          "facingsWithBothArmGaps": 0,
+          "facingsWithLegGap": 3,
+          "maxArmGapWidth": 3,
+          "maxLegGapWidth": 2,
+          "meanArmRowsWithGap": 0.75,
+          "meanContactRatio": 0.3,
+          "meanContactSpan": 3.13,
+          "meanHeight": 10.38,
+          "meanLegRowsWithGap": 0.38,
+          "meanWidth": 5.63,
+          "totals": {
+            "arm": {
+              "gapPixels": 10,
+              "longestSustainedRows": 1,
+              "maxWidth": 3,
+              "meanWidth": 10,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 6,
+              "rowsWithLeftGap": 5,
+              "rowsWithRightGap": 1
+            },
+            "leg": {
+              "gapPixels": 5,
+              "longestSustainedRows": 1,
+              "maxWidth": 2,
+              "meanWidth": 5,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 3,
+              "rowsWithLeftGap": 1,
+              "rowsWithRightGap": 2
+            }
+          }
+        },
+        "quantized": {
+          "aspect": 0.542,
+          "facings": 8,
+          "facingsWithBothArmGaps": 0,
+          "facingsWithLegGap": 3,
+          "maxArmGapWidth": 3,
+          "maxLegGapWidth": 2,
+          "meanArmRowsWithGap": 0.75,
+          "meanContactRatio": 0.3,
+          "meanContactSpan": 3.13,
+          "meanHeight": 10.38,
+          "meanLegRowsWithGap": 0.38,
+          "meanWidth": 5.63,
+          "totals": {
+            "arm": {
+              "gapPixels": 10,
+              "longestSustainedRows": 1,
+              "maxWidth": 3,
+              "meanWidth": 10,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 6,
+              "rowsWithLeftGap": 5,
+              "rowsWithRightGap": 1
+            },
+            "leg": {
+              "gapPixels": 5,
+              "longestSustainedRows": 1,
+              "maxWidth": 2,
+              "meanWidth": 5,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 3,
+              "rowsWithLeftGap": 1,
+              "rowsWithRightGap": 2
+            }
+          }
+        },
+        "shipped": {
+          "aspect": 0.616,
+          "facings": 8,
+          "facingsWithBothArmGaps": 0,
+          "facingsWithLegGap": 0,
+          "maxArmGapWidth": 1,
+          "maxLegGapWidth": 0,
+          "meanArmRowsWithGap": 0.25,
+          "meanContactRatio": 0.42,
+          "meanContactSpan": 5.13,
+          "meanHeight": 12.38,
+          "meanLegRowsWithGap": 0,
+          "meanWidth": 7.63,
+          "totals": {
+            "arm": {
+              "gapPixels": 2,
+              "longestSustainedRows": 1,
+              "maxWidth": 1,
+              "meanWidth": 2,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 2,
+              "rowsWithLeftGap": 1,
+              "rowsWithRightGap": 1
+            },
+            "leg": {
+              "gapPixels": 0,
+              "longestSustainedRows": 0,
+              "maxWidth": 0,
+              "meanWidth": 0,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 0,
+              "rowsWithLeftGap": 0,
+              "rowsWithRightGap": 0
+            }
+          }
+        }
+      },
+      "medic": {
+        "tier": "hero",
+        "targetBodyArtPx": 15,
+        "scale": 0.4907,
+        "render": {
+          "aspect": 0.628,
+          "facings": 8,
+          "facingsWithBothArmGaps": 0,
+          "facingsWithLegGap": 2,
+          "maxArmGapWidth": 1,
+          "maxLegGapWidth": 1,
+          "meanArmRowsWithGap": 0.38,
+          "meanContactRatio": 0.35,
+          "meanContactSpan": 5,
+          "meanHeight": 14.13,
+          "meanLegRowsWithGap": 0.25,
+          "meanWidth": 8.88,
+          "totals": {
+            "arm": {
+              "gapPixels": 3,
+              "longestSustainedRows": 1,
+              "maxWidth": 1,
+              "meanWidth": 3,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 3,
+              "rowsWithLeftGap": 1,
+              "rowsWithRightGap": 2
+            },
+            "leg": {
+              "gapPixels": 2,
+              "longestSustainedRows": 1,
+              "maxWidth": 1,
+              "meanWidth": 2,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 2,
+              "rowsWithLeftGap": 1,
+              "rowsWithRightGap": 1
+            }
+          }
+        },
+        "quantized": {
+          "aspect": 0.628,
+          "facings": 8,
+          "facingsWithBothArmGaps": 0,
+          "facingsWithLegGap": 2,
+          "maxArmGapWidth": 1,
+          "maxLegGapWidth": 1,
+          "meanArmRowsWithGap": 0.38,
+          "meanContactRatio": 0.35,
+          "meanContactSpan": 5,
+          "meanHeight": 14.13,
+          "meanLegRowsWithGap": 0.25,
+          "meanWidth": 8.88,
+          "totals": {
+            "arm": {
+              "gapPixels": 3,
+              "longestSustainedRows": 1,
+              "maxWidth": 1,
+              "meanWidth": 3,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 3,
+              "rowsWithLeftGap": 1,
+              "rowsWithRightGap": 2
+            },
+            "leg": {
+              "gapPixels": 2,
+              "longestSustainedRows": 1,
+              "maxWidth": 1,
+              "meanWidth": 2,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 2,
+              "rowsWithLeftGap": 1,
+              "rowsWithRightGap": 1
+            }
+          }
+        },
+        "shipped": {
+          "aspect": 0.675,
+          "facings": 8,
+          "facingsWithBothArmGaps": 0,
+          "facingsWithLegGap": 0,
+          "maxArmGapWidth": 0,
+          "maxLegGapWidth": 0,
+          "meanArmRowsWithGap": 0,
+          "meanContactRatio": 0.44,
+          "meanContactSpan": 7,
+          "meanHeight": 16.13,
+          "meanLegRowsWithGap": 0,
+          "meanWidth": 10.88,
+          "totals": {
+            "arm": {
+              "gapPixels": 0,
+              "longestSustainedRows": 0,
+              "maxWidth": 0,
+              "meanWidth": 0,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 0,
+              "rowsWithLeftGap": 0,
+              "rowsWithRightGap": 0
+            },
+            "leg": {
+              "gapPixels": 0,
+              "longestSustainedRows": 0,
+              "maxWidth": 0,
+              "meanWidth": 0,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 0,
+              "rowsWithLeftGap": 0,
+              "rowsWithRightGap": 0
+            }
+          }
+        },
+        "shippedWithOutwardMark": {
+          "aspect": 0.71,
+          "facings": 8,
+          "facingsWithBothArmGaps": 0,
+          "facingsWithLegGap": 0,
+          "maxArmGapWidth": 0,
+          "maxLegGapWidth": 0,
+          "meanArmRowsWithGap": 0,
+          "meanContactRatio": 0.5,
+          "meanContactSpan": 9,
+          "meanHeight": 18.13,
+          "meanLegRowsWithGap": 0,
+          "meanWidth": 12.88,
+          "totals": {
+            "arm": {
+              "gapPixels": 0,
+              "longestSustainedRows": 0,
+              "maxWidth": 0,
+              "meanWidth": 0,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 0,
+              "rowsWithLeftGap": 0,
+              "rowsWithRightGap": 0
+            },
+            "leg": {
+              "gapPixels": 0,
+              "longestSustainedRows": 0,
+              "maxWidth": 0,
+              "meanWidth": 0,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 0,
+              "rowsWithLeftGap": 0,
+              "rowsWithRightGap": 0
+            }
+          }
+        }
+      },
+      "ranger": {
+        "tier": "hero",
+        "targetBodyArtPx": 15,
+        "scale": 0.3641,
+        "render": {
+          "aspect": 0.581,
+          "facings": 8,
+          "facingsWithBothArmGaps": 2,
+          "facingsWithLegGap": 4,
+          "maxArmGapWidth": 3,
+          "maxLegGapWidth": 3,
+          "meanArmRowsWithGap": 2,
+          "meanContactRatio": 0.34,
+          "meanContactSpan": 4.88,
+          "meanHeight": 14.63,
+          "meanLegRowsWithGap": 2.38,
+          "meanWidth": 8.5,
+          "totals": {
+            "arm": {
+              "gapPixels": 34,
+              "longestSustainedRows": 4,
+              "maxWidth": 3,
+              "meanWidth": 12.31,
+              "rowsWithBothSides": 4,
+              "rowsWithGap": 16,
+              "rowsWithLeftGap": 10,
+              "rowsWithRightGap": 10
+            },
+            "leg": {
+              "gapPixels": 40,
+              "longestSustainedRows": 6,
+              "maxWidth": 3,
+              "meanWidth": 8.23,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 19,
+              "rowsWithLeftGap": 4,
+              "rowsWithRightGap": 15
+            }
+          }
+        },
+        "quantized": {
+          "aspect": 0.581,
+          "facings": 8,
+          "facingsWithBothArmGaps": 2,
+          "facingsWithLegGap": 4,
+          "maxArmGapWidth": 3,
+          "maxLegGapWidth": 3,
+          "meanArmRowsWithGap": 2,
+          "meanContactRatio": 0.34,
+          "meanContactSpan": 4.88,
+          "meanHeight": 14.63,
+          "meanLegRowsWithGap": 2.38,
+          "meanWidth": 8.5,
+          "totals": {
+            "arm": {
+              "gapPixels": 34,
+              "longestSustainedRows": 4,
+              "maxWidth": 3,
+              "meanWidth": 12.31,
+              "rowsWithBothSides": 4,
+              "rowsWithGap": 16,
+              "rowsWithLeftGap": 10,
+              "rowsWithRightGap": 10
+            },
+            "leg": {
+              "gapPixels": 40,
+              "longestSustainedRows": 6,
+              "maxWidth": 3,
+              "meanWidth": 8.23,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 19,
+              "rowsWithLeftGap": 4,
+              "rowsWithRightGap": 15
+            }
+          }
+        },
+        "shipped": {
+          "aspect": 0.631,
+          "facings": 8,
+          "facingsWithBothArmGaps": 0,
+          "facingsWithLegGap": 2,
+          "maxArmGapWidth": 0,
+          "maxLegGapWidth": 1,
+          "meanArmRowsWithGap": 0,
+          "meanContactRatio": 0.42,
+          "meanContactSpan": 6.88,
+          "meanHeight": 16.63,
+          "meanLegRowsWithGap": 0.25,
+          "meanWidth": 10.5,
+          "totals": {
+            "arm": {
+              "gapPixels": 0,
+              "longestSustainedRows": 0,
+              "maxWidth": 0,
+              "meanWidth": 0,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 0,
+              "rowsWithLeftGap": 0,
+              "rowsWithRightGap": 0
+            },
+            "leg": {
+              "gapPixels": 2,
+              "longestSustainedRows": 1,
+              "maxWidth": 1,
+              "meanWidth": 2,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 2,
+              "rowsWithLeftGap": 0,
+              "rowsWithRightGap": 2
+            }
+          }
+        },
+        "shippedWithOutwardMark": {
+          "aspect": 0.671,
+          "facings": 8,
+          "facingsWithBothArmGaps": 0,
+          "facingsWithLegGap": 0,
+          "maxArmGapWidth": 0,
+          "maxLegGapWidth": 0,
+          "meanArmRowsWithGap": 0,
+          "meanContactRatio": 0.48,
+          "meanContactSpan": 8.88,
+          "meanHeight": 18.63,
+          "meanLegRowsWithGap": 0,
+          "meanWidth": 12.5,
+          "totals": {
+            "arm": {
+              "gapPixels": 0,
+              "longestSustainedRows": 0,
+              "maxWidth": 0,
+              "meanWidth": 0,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 0,
+              "rowsWithLeftGap": 0,
+              "rowsWithRightGap": 0
+            },
+            "leg": {
+              "gapPixels": 0,
+              "longestSustainedRows": 0,
+              "maxWidth": 0,
+              "meanWidth": 0,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 0,
+              "rowsWithLeftGap": 0,
+              "rowsWithRightGap": 0
+            }
+          }
+        }
+      }
+    },
+    "large": {
+      "brute": {
+        "tier": "fodder",
+        "targetBodyArtPx": 14,
+        "scale": 0.3808,
+        "render": {
+          "aspect": 0.769,
+          "facings": 8,
+          "facingsWithBothArmGaps": 4,
+          "facingsWithLegGap": 7,
+          "maxArmGapWidth": 5,
+          "maxLegGapWidth": 5,
+          "meanArmRowsWithGap": 3.13,
+          "meanContactRatio": 0.37,
+          "meanContactSpan": 4.75,
+          "meanHeight": 13,
+          "meanLegRowsWithGap": 3.13,
+          "meanWidth": 10,
+          "totals": {
+            "arm": {
+              "gapPixels": 67,
+              "longestSustainedRows": 5,
+              "maxWidth": 5,
+              "meanWidth": 13.350000000000001,
+              "rowsWithBothSides": 11,
+              "rowsWithGap": 25,
+              "rowsWithLeftGap": 13,
+              "rowsWithRightGap": 23
+            },
+            "leg": {
+              "gapPixels": 53,
+              "longestSustainedRows": 5,
+              "maxWidth": 5,
+              "meanWidth": 12.129999999999999,
+              "rowsWithBothSides": 2,
+              "rowsWithGap": 25,
+              "rowsWithLeftGap": 10,
+              "rowsWithRightGap": 17
+            }
+          }
+        },
+        "quantized": {
+          "aspect": 0.769,
+          "facings": 8,
+          "facingsWithBothArmGaps": 4,
+          "facingsWithLegGap": 7,
+          "maxArmGapWidth": 5,
+          "maxLegGapWidth": 5,
+          "meanArmRowsWithGap": 3.13,
+          "meanContactRatio": 0.37,
+          "meanContactSpan": 4.75,
+          "meanHeight": 13,
+          "meanLegRowsWithGap": 3.13,
+          "meanWidth": 10,
+          "totals": {
+            "arm": {
+              "gapPixels": 67,
+              "longestSustainedRows": 5,
+              "maxWidth": 5,
+              "meanWidth": 13.350000000000001,
+              "rowsWithBothSides": 11,
+              "rowsWithGap": 25,
+              "rowsWithLeftGap": 13,
+              "rowsWithRightGap": 23
+            },
+            "leg": {
+              "gapPixels": 53,
+              "longestSustainedRows": 5,
+              "maxWidth": 5,
+              "meanWidth": 12.129999999999999,
+              "rowsWithBothSides": 2,
+              "rowsWithGap": 25,
+              "rowsWithLeftGap": 10,
+              "rowsWithRightGap": 17
+            }
+          }
+        },
+        "shipped": {
+          "aspect": 0.8,
+          "facings": 8,
+          "facingsWithBothArmGaps": 0,
+          "facingsWithLegGap": 2,
+          "maxArmGapWidth": 3,
+          "maxLegGapWidth": 3,
+          "meanArmRowsWithGap": 0.63,
+          "meanContactRatio": 0.45,
+          "meanContactSpan": 6.75,
+          "meanHeight": 15,
+          "meanLegRowsWithGap": 0.5,
+          "meanWidth": 12,
+          "totals": {
+            "arm": {
+              "gapPixels": 9,
+              "longestSustainedRows": 3,
+              "maxWidth": 3,
+              "meanWidth": 5,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 5,
+              "rowsWithLeftGap": 1,
+              "rowsWithRightGap": 4
+            },
+            "leg": {
+              "gapPixels": 6,
+              "longestSustainedRows": 2,
+              "maxWidth": 3,
+              "meanWidth": 3,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 4,
+              "rowsWithLeftGap": 1,
+              "rowsWithRightGap": 3
+            }
+          }
+        }
+      },
+      "marksman": {
+        "tier": "fodder",
+        "targetBodyArtPx": 16,
+        "scale": 0.3719,
+        "render": {
+          "aspect": 0.614,
+          "facings": 8,
+          "facingsWithBothArmGaps": 1,
+          "facingsWithLegGap": 5,
+          "maxArmGapWidth": 4,
+          "maxLegGapWidth": 2,
+          "meanArmRowsWithGap": 2.5,
+          "meanContactRatio": 0.28,
+          "meanContactSpan": 3.75,
+          "meanHeight": 13.25,
+          "meanLegRowsWithGap": 2.38,
+          "meanWidth": 8.13,
+          "totals": {
+            "arm": {
+              "gapPixels": 30,
+              "longestSustainedRows": 4,
+              "maxWidth": 4,
+              "meanWidth": 10.37,
+              "rowsWithBothSides": 1,
+              "rowsWithGap": 20,
+              "rowsWithLeftGap": 8,
+              "rowsWithRightGap": 13
+            },
+            "leg": {
+              "gapPixels": 36,
+              "longestSustainedRows": 5,
+              "maxWidth": 2,
+              "meanWidth": 8.75,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 19,
+              "rowsWithLeftGap": 3,
+              "rowsWithRightGap": 16
+            }
+          }
+        },
+        "quantized": {
+          "aspect": 0.614,
+          "facings": 8,
+          "facingsWithBothArmGaps": 1,
+          "facingsWithLegGap": 5,
+          "maxArmGapWidth": 4,
+          "maxLegGapWidth": 2,
+          "meanArmRowsWithGap": 2.5,
+          "meanContactRatio": 0.28,
+          "meanContactSpan": 3.75,
+          "meanHeight": 13.25,
+          "meanLegRowsWithGap": 2.38,
+          "meanWidth": 8.13,
+          "totals": {
+            "arm": {
+              "gapPixels": 30,
+              "longestSustainedRows": 4,
+              "maxWidth": 4,
+              "meanWidth": 10.37,
+              "rowsWithBothSides": 1,
+              "rowsWithGap": 20,
+              "rowsWithLeftGap": 8,
+              "rowsWithRightGap": 13
+            },
+            "leg": {
+              "gapPixels": 36,
+              "longestSustainedRows": 5,
+              "maxWidth": 2,
+              "meanWidth": 8.75,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 19,
+              "rowsWithLeftGap": 3,
+              "rowsWithRightGap": 16
+            }
+          }
+        },
+        "shipped": {
+          "aspect": 0.664,
+          "facings": 8,
+          "facingsWithBothArmGaps": 0,
+          "facingsWithLegGap": 0,
+          "maxArmGapWidth": 2,
+          "maxLegGapWidth": 0,
+          "meanArmRowsWithGap": 0.13,
+          "meanContactRatio": 0.38,
+          "meanContactSpan": 5.75,
+          "meanHeight": 15.25,
+          "meanLegRowsWithGap": 0,
+          "meanWidth": 10.13,
+          "totals": {
+            "arm": {
+              "gapPixels": 2,
+              "longestSustainedRows": 1,
+              "maxWidth": 2,
+              "meanWidth": 2,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 1,
+              "rowsWithLeftGap": 0,
+              "rowsWithRightGap": 1
+            },
+            "leg": {
+              "gapPixels": 0,
+              "longestSustainedRows": 0,
+              "maxWidth": 0,
+              "meanWidth": 0,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 0,
+              "rowsWithLeftGap": 0,
+              "rowsWithRightGap": 0
+            }
+          }
+        }
+      },
+      "medic": {
+        "tier": "hero",
+        "targetBodyArtPx": 20,
+        "scale": 0.6543,
+        "render": {
+          "aspect": 0.588,
+          "facings": 8,
+          "facingsWithBothArmGaps": 0,
+          "facingsWithLegGap": 3,
+          "maxArmGapWidth": 3,
+          "maxLegGapWidth": 1,
+          "meanArmRowsWithGap": 0.75,
+          "meanContactRatio": 0.34,
+          "meanContactSpan": 6.5,
+          "meanHeight": 19.13,
+          "meanLegRowsWithGap": 0.75,
+          "meanWidth": 11.25,
+          "totals": {
+            "arm": {
+              "gapPixels": 12,
+              "longestSustainedRows": 2,
+              "maxWidth": 3,
+              "meanWidth": 8,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 6,
+              "rowsWithLeftGap": 2,
+              "rowsWithRightGap": 4
+            },
+            "leg": {
+              "gapPixels": 6,
+              "longestSustainedRows": 3,
+              "maxWidth": 1,
+              "meanWidth": 3,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 6,
+              "rowsWithLeftGap": 1,
+              "rowsWithRightGap": 5
+            }
+          }
+        },
+        "quantized": {
+          "aspect": 0.588,
+          "facings": 8,
+          "facingsWithBothArmGaps": 0,
+          "facingsWithLegGap": 3,
+          "maxArmGapWidth": 3,
+          "maxLegGapWidth": 1,
+          "meanArmRowsWithGap": 0.75,
+          "meanContactRatio": 0.34,
+          "meanContactSpan": 6.5,
+          "meanHeight": 19.13,
+          "meanLegRowsWithGap": 0.75,
+          "meanWidth": 11.25,
+          "totals": {
+            "arm": {
+              "gapPixels": 12,
+              "longestSustainedRows": 2,
+              "maxWidth": 3,
+              "meanWidth": 8,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 6,
+              "rowsWithLeftGap": 2,
+              "rowsWithRightGap": 4
+            },
+            "leg": {
+              "gapPixels": 6,
+              "longestSustainedRows": 3,
+              "maxWidth": 1,
+              "meanWidth": 3,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 6,
+              "rowsWithLeftGap": 1,
+              "rowsWithRightGap": 5
+            }
+          }
+        },
+        "shipped": {
+          "aspect": 0.627,
+          "facings": 8,
+          "facingsWithBothArmGaps": 0,
+          "facingsWithLegGap": 0,
+          "maxArmGapWidth": 0,
+          "maxLegGapWidth": 0,
+          "meanArmRowsWithGap": 0,
+          "meanContactRatio": 0.4,
+          "meanContactSpan": 8.5,
+          "meanHeight": 21.13,
+          "meanLegRowsWithGap": 0,
+          "meanWidth": 13.25,
+          "totals": {
+            "arm": {
+              "gapPixels": 0,
+              "longestSustainedRows": 0,
+              "maxWidth": 0,
+              "meanWidth": 0,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 0,
+              "rowsWithLeftGap": 0,
+              "rowsWithRightGap": 0
+            },
+            "leg": {
+              "gapPixels": 0,
+              "longestSustainedRows": 0,
+              "maxWidth": 0,
+              "meanWidth": 0,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 0,
+              "rowsWithLeftGap": 0,
+              "rowsWithRightGap": 0
+            }
+          }
+        },
+        "shippedWithOutwardMark": {
+          "aspect": 0.659,
+          "facings": 8,
+          "facingsWithBothArmGaps": 0,
+          "facingsWithLegGap": 0,
+          "maxArmGapWidth": 0,
+          "maxLegGapWidth": 0,
+          "meanArmRowsWithGap": 0,
+          "meanContactRatio": 0.45,
+          "meanContactSpan": 10.5,
+          "meanHeight": 23.13,
+          "meanLegRowsWithGap": 0,
+          "meanWidth": 15.25,
+          "totals": {
+            "arm": {
+              "gapPixels": 0,
+              "longestSustainedRows": 0,
+              "maxWidth": 0,
+              "meanWidth": 0,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 0,
+              "rowsWithLeftGap": 0,
+              "rowsWithRightGap": 0
+            },
+            "leg": {
+              "gapPixels": 0,
+              "longestSustainedRows": 0,
+              "maxWidth": 0,
+              "meanWidth": 0,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 0,
+              "rowsWithLeftGap": 0,
+              "rowsWithRightGap": 0
+            }
+          }
+        }
+      },
+      "ranger": {
+        "tier": "hero",
+        "targetBodyArtPx": 20,
+        "scale": 0.4855,
+        "render": {
+          "aspect": 0.603,
+          "facings": 8,
+          "facingsWithBothArmGaps": 3,
+          "facingsWithLegGap": 6,
+          "maxArmGapWidth": 5,
+          "maxLegGapWidth": 4,
+          "meanArmRowsWithGap": 3.25,
+          "meanContactRatio": 0.23,
+          "meanContactSpan": 4.38,
+          "meanHeight": 18.88,
+          "meanLegRowsWithGap": 3.5,
+          "meanWidth": 11.38,
+          "totals": {
+            "arm": {
+              "gapPixels": 57,
+              "longestSustainedRows": 5,
+              "maxWidth": 5,
+              "meanWidth": 11.87,
+              "rowsWithBothSides": 6,
+              "rowsWithGap": 26,
+              "rowsWithLeftGap": 13,
+              "rowsWithRightGap": 19
+            },
+            "leg": {
+              "gapPixels": 77,
+              "longestSustainedRows": 7,
+              "maxWidth": 4,
+              "meanWidth": 13.74,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 28,
+              "rowsWithLeftGap": 8,
+              "rowsWithRightGap": 20
+            }
+          }
+        },
+        "quantized": {
+          "aspect": 0.603,
+          "facings": 8,
+          "facingsWithBothArmGaps": 3,
+          "facingsWithLegGap": 6,
+          "maxArmGapWidth": 5,
+          "maxLegGapWidth": 4,
+          "meanArmRowsWithGap": 3.25,
+          "meanContactRatio": 0.23,
+          "meanContactSpan": 4.38,
+          "meanHeight": 18.88,
+          "meanLegRowsWithGap": 3.5,
+          "meanWidth": 11.38,
+          "totals": {
+            "arm": {
+              "gapPixels": 57,
+              "longestSustainedRows": 5,
+              "maxWidth": 5,
+              "meanWidth": 11.87,
+              "rowsWithBothSides": 6,
+              "rowsWithGap": 26,
+              "rowsWithLeftGap": 13,
+              "rowsWithRightGap": 19
+            },
+            "leg": {
+              "gapPixels": 77,
+              "longestSustainedRows": 7,
+              "maxWidth": 4,
+              "meanWidth": 13.74,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 28,
+              "rowsWithLeftGap": 8,
+              "rowsWithRightGap": 20
+            }
+          }
+        },
+        "shipped": {
+          "aspect": 0.641,
+          "facings": 8,
+          "facingsWithBothArmGaps": 0,
+          "facingsWithLegGap": 4,
+          "maxArmGapWidth": 1,
+          "maxLegGapWidth": 2,
+          "meanArmRowsWithGap": 0.5,
+          "meanContactRatio": 0.31,
+          "meanContactSpan": 6.38,
+          "meanHeight": 20.88,
+          "meanLegRowsWithGap": 1.75,
+          "meanWidth": 13.38,
+          "totals": {
+            "arm": {
+              "gapPixels": 4,
+              "longestSustainedRows": 1,
+              "maxWidth": 1,
+              "meanWidth": 4,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 4,
+              "rowsWithLeftGap": 2,
+              "rowsWithRightGap": 2
+            },
+            "leg": {
+              "gapPixels": 23,
+              "longestSustainedRows": 6,
+              "maxWidth": 2,
+              "meanWidth": 5.63,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 14,
+              "rowsWithLeftGap": 5,
+              "rowsWithRightGap": 9
+            }
+          }
+        },
+        "shippedWithOutwardMark": {
+          "aspect": 0.672,
+          "facings": 8,
+          "facingsWithBothArmGaps": 0,
+          "facingsWithLegGap": 0,
+          "maxArmGapWidth": 0,
+          "maxLegGapWidth": 0,
+          "meanArmRowsWithGap": 0,
+          "meanContactRatio": 0.37,
+          "meanContactSpan": 8.38,
+          "meanHeight": 22.88,
+          "meanLegRowsWithGap": 0,
+          "meanWidth": 15.38,
+          "totals": {
+            "arm": {
+              "gapPixels": 0,
+              "longestSustainedRows": 0,
+              "maxWidth": 0,
+              "meanWidth": 0,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 0,
+              "rowsWithLeftGap": 0,
+              "rowsWithRightGap": 0
+            },
+            "leg": {
+              "gapPixels": 0,
+              "longestSustainedRows": 0,
+              "maxWidth": 0,
+              "meanWidth": 0,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 0,
+              "rowsWithLeftGap": 0,
+              "rowsWithRightGap": 0
+            }
+          }
+        }
+      }
+    },
+    "xl": {
+      "brute": {
+        "tier": "fodder",
+        "targetBodyArtPx": 18,
+        "scale": 0.4896,
+        "render": {
+          "aspect": 0.745,
+          "facings": 8,
+          "facingsWithBothArmGaps": 3,
+          "facingsWithLegGap": 7,
+          "maxArmGapWidth": 7,
+          "maxLegGapWidth": 5,
+          "meanArmRowsWithGap": 3.5,
+          "meanContactRatio": 0.26,
+          "meanContactSpan": 4.5,
+          "meanHeight": 17.63,
+          "meanLegRowsWithGap": 4.38,
+          "meanWidth": 13.13,
+          "totals": {
+            "arm": {
+              "gapPixels": 100,
+              "longestSustainedRows": 7,
+              "maxWidth": 7,
+              "meanWidth": 17.53,
+              "rowsWithBothSides": 13,
+              "rowsWithGap": 28,
+              "rowsWithLeftGap": 19,
+              "rowsWithRightGap": 22
+            },
+            "leg": {
+              "gapPixels": 94,
+              "longestSustainedRows": 6,
+              "maxWidth": 5,
+              "meanWidth": 15.200000000000001,
+              "rowsWithBothSides": 4,
+              "rowsWithGap": 35,
+              "rowsWithLeftGap": 13,
+              "rowsWithRightGap": 26
+            }
+          }
+        },
+        "quantized": {
+          "aspect": 0.745,
+          "facings": 8,
+          "facingsWithBothArmGaps": 3,
+          "facingsWithLegGap": 7,
+          "maxArmGapWidth": 7,
+          "maxLegGapWidth": 5,
+          "meanArmRowsWithGap": 3.5,
+          "meanContactRatio": 0.26,
+          "meanContactSpan": 4.5,
+          "meanHeight": 17.63,
+          "meanLegRowsWithGap": 4.38,
+          "meanWidth": 13.13,
+          "totals": {
+            "arm": {
+              "gapPixels": 100,
+              "longestSustainedRows": 7,
+              "maxWidth": 7,
+              "meanWidth": 17.53,
+              "rowsWithBothSides": 13,
+              "rowsWithGap": 28,
+              "rowsWithLeftGap": 19,
+              "rowsWithRightGap": 22
+            },
+            "leg": {
+              "gapPixels": 94,
+              "longestSustainedRows": 6,
+              "maxWidth": 5,
+              "meanWidth": 15.200000000000001,
+              "rowsWithBothSides": 4,
+              "rowsWithGap": 35,
+              "rowsWithLeftGap": 13,
+              "rowsWithRightGap": 26
+            }
+          }
+        },
+        "shipped": {
+          "aspect": 0.771,
+          "facings": 8,
+          "facingsWithBothArmGaps": 0,
+          "facingsWithLegGap": 3,
+          "maxArmGapWidth": 4,
+          "maxLegGapWidth": 3,
+          "meanArmRowsWithGap": 1.13,
+          "meanContactRatio": 0.34,
+          "meanContactSpan": 6.5,
+          "meanHeight": 19.63,
+          "meanLegRowsWithGap": 1.63,
+          "meanWidth": 15.13,
+          "totals": {
+            "arm": {
+              "gapPixels": 15,
+              "longestSustainedRows": 3,
+              "maxWidth": 4,
+              "meanWidth": 6.17,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 9,
+              "rowsWithLeftGap": 3,
+              "rowsWithRightGap": 6
+            },
+            "leg": {
+              "gapPixels": 27,
+              "longestSustainedRows": 7,
+              "maxWidth": 3,
+              "meanWidth": 6.13,
+              "rowsWithBothSides": 1,
+              "rowsWithGap": 13,
+              "rowsWithLeftGap": 4,
+              "rowsWithRightGap": 10
+            }
+          }
+        }
+      },
+      "marksman": {
+        "tier": "fodder",
+        "targetBodyArtPx": 20,
+        "scale": 0.4649,
+        "render": {
+          "aspect": 0.611,
+          "facings": 8,
+          "facingsWithBothArmGaps": 1,
+          "facingsWithLegGap": 5,
+          "maxArmGapWidth": 6,
+          "maxLegGapWidth": 4,
+          "meanArmRowsWithGap": 3.25,
+          "meanContactRatio": 0.28,
+          "meanContactSpan": 4.63,
+          "meanHeight": 16.38,
+          "meanLegRowsWithGap": 2.88,
+          "meanWidth": 10,
+          "totals": {
+            "arm": {
+              "gapPixels": 46,
+              "longestSustainedRows": 5,
+              "maxWidth": 6,
+              "meanWidth": 11.71,
+              "rowsWithBothSides": 2,
+              "rowsWithGap": 26,
+              "rowsWithLeftGap": 13,
+              "rowsWithRightGap": 15
+            },
+            "leg": {
+              "gapPixels": 55,
+              "longestSustainedRows": 7,
+              "maxWidth": 4,
+              "meanWidth": 10.71,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 23,
+              "rowsWithLeftGap": 8,
+              "rowsWithRightGap": 15
+            }
+          }
+        },
+        "quantized": {
+          "aspect": 0.611,
+          "facings": 8,
+          "facingsWithBothArmGaps": 1,
+          "facingsWithLegGap": 5,
+          "maxArmGapWidth": 6,
+          "maxLegGapWidth": 4,
+          "meanArmRowsWithGap": 3.25,
+          "meanContactRatio": 0.28,
+          "meanContactSpan": 4.63,
+          "meanHeight": 16.38,
+          "meanLegRowsWithGap": 2.88,
+          "meanWidth": 10,
+          "totals": {
+            "arm": {
+              "gapPixels": 46,
+              "longestSustainedRows": 5,
+              "maxWidth": 6,
+              "meanWidth": 11.71,
+              "rowsWithBothSides": 2,
+              "rowsWithGap": 26,
+              "rowsWithLeftGap": 13,
+              "rowsWithRightGap": 15
+            },
+            "leg": {
+              "gapPixels": 55,
+              "longestSustainedRows": 7,
+              "maxWidth": 4,
+              "meanWidth": 10.71,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 23,
+              "rowsWithLeftGap": 8,
+              "rowsWithRightGap": 15
+            }
+          }
+        },
+        "shipped": {
+          "aspect": 0.653,
+          "facings": 8,
+          "facingsWithBothArmGaps": 0,
+          "facingsWithLegGap": 3,
+          "maxArmGapWidth": 4,
+          "maxLegGapWidth": 1,
+          "meanArmRowsWithGap": 0.38,
+          "meanContactRatio": 0.36,
+          "meanContactSpan": 6.63,
+          "meanHeight": 18.38,
+          "meanLegRowsWithGap": 1,
+          "meanWidth": 12,
+          "totals": {
+            "arm": {
+              "gapPixels": 7,
+              "longestSustainedRows": 1,
+              "maxWidth": 4,
+              "meanWidth": 7,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 3,
+              "rowsWithLeftGap": 1,
+              "rowsWithRightGap": 2
+            },
+            "leg": {
+              "gapPixels": 8,
+              "longestSustainedRows": 4,
+              "maxWidth": 1,
+              "meanWidth": 3,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 8,
+              "rowsWithLeftGap": 3,
+              "rowsWithRightGap": 5
+            }
+          }
+        }
+      },
+      "medic": {
+        "tier": "hero",
+        "targetBodyArtPx": 26,
+        "scale": 0.8506,
+        "render": {
+          "aspect": 0.59,
+          "facings": 8,
+          "facingsWithBothArmGaps": 0,
+          "facingsWithLegGap": 3,
+          "maxArmGapWidth": 3,
+          "maxLegGapWidth": 2,
+          "meanArmRowsWithGap": 1,
+          "meanContactRatio": 0.27,
+          "meanContactSpan": 6.75,
+          "meanHeight": 25,
+          "meanLegRowsWithGap": 1.75,
+          "meanWidth": 14.75,
+          "totals": {
+            "arm": {
+              "gapPixels": 16,
+              "longestSustainedRows": 2,
+              "maxWidth": 3,
+              "meanWidth": 8.67,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 8,
+              "rowsWithLeftGap": 3,
+              "rowsWithRightGap": 5
+            },
+            "leg": {
+              "gapPixels": 18,
+              "longestSustainedRows": 6,
+              "maxWidth": 2,
+              "meanWidth": 3.63,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 14,
+              "rowsWithLeftGap": 4,
+              "rowsWithRightGap": 10
+            }
+          }
+        },
+        "quantized": {
+          "aspect": 0.59,
+          "facings": 8,
+          "facingsWithBothArmGaps": 0,
+          "facingsWithLegGap": 3,
+          "maxArmGapWidth": 3,
+          "maxLegGapWidth": 2,
+          "meanArmRowsWithGap": 1,
+          "meanContactRatio": 0.27,
+          "meanContactSpan": 6.75,
+          "meanHeight": 25,
+          "meanLegRowsWithGap": 1.75,
+          "meanWidth": 14.75,
+          "totals": {
+            "arm": {
+              "gapPixels": 16,
+              "longestSustainedRows": 2,
+              "maxWidth": 3,
+              "meanWidth": 8.67,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 8,
+              "rowsWithLeftGap": 3,
+              "rowsWithRightGap": 5
+            },
+            "leg": {
+              "gapPixels": 18,
+              "longestSustainedRows": 6,
+              "maxWidth": 2,
+              "meanWidth": 3.63,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 14,
+              "rowsWithLeftGap": 4,
+              "rowsWithRightGap": 10
+            }
+          }
+        },
+        "shipped": {
+          "aspect": 0.62,
+          "facings": 8,
+          "facingsWithBothArmGaps": 0,
+          "facingsWithLegGap": 0,
+          "maxArmGapWidth": 1,
+          "maxLegGapWidth": 0,
+          "meanArmRowsWithGap": 0.13,
+          "meanContactRatio": 0.33,
+          "meanContactSpan": 8.75,
+          "meanHeight": 27,
+          "meanLegRowsWithGap": 0,
+          "meanWidth": 16.75,
+          "totals": {
+            "arm": {
+              "gapPixels": 1,
+              "longestSustainedRows": 1,
+              "maxWidth": 1,
+              "meanWidth": 1,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 1,
+              "rowsWithLeftGap": 1,
+              "rowsWithRightGap": 0
+            },
+            "leg": {
+              "gapPixels": 0,
+              "longestSustainedRows": 0,
+              "maxWidth": 0,
+              "meanWidth": 0,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 0,
+              "rowsWithLeftGap": 0,
+              "rowsWithRightGap": 0
+            }
+          }
+        },
+        "shippedWithOutwardMark": {
+          "aspect": 0.647,
+          "facings": 8,
+          "facingsWithBothArmGaps": 0,
+          "facingsWithLegGap": 0,
+          "maxArmGapWidth": 0,
+          "maxLegGapWidth": 0,
+          "meanArmRowsWithGap": 0,
+          "meanContactRatio": 0.37,
+          "meanContactSpan": 10.75,
+          "meanHeight": 29,
+          "meanLegRowsWithGap": 0,
+          "meanWidth": 18.75,
+          "totals": {
+            "arm": {
+              "gapPixels": 0,
+              "longestSustainedRows": 0,
+              "maxWidth": 0,
+              "meanWidth": 0,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 0,
+              "rowsWithLeftGap": 0,
+              "rowsWithRightGap": 0
+            },
+            "leg": {
+              "gapPixels": 0,
+              "longestSustainedRows": 0,
+              "maxWidth": 0,
+              "meanWidth": 0,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 0,
+              "rowsWithLeftGap": 0,
+              "rowsWithRightGap": 0
+            }
+          }
+        }
+      },
+      "ranger": {
+        "tier": "hero",
+        "targetBodyArtPx": 26,
+        "scale": 0.6311,
+        "render": {
+          "aspect": 0.583,
+          "facings": 8,
+          "facingsWithBothArmGaps": 4,
+          "facingsWithLegGap": 7,
+          "maxArmGapWidth": 6,
+          "maxLegGapWidth": 6,
+          "meanArmRowsWithGap": 5.13,
+          "meanContactRatio": 0.28,
+          "meanContactSpan": 6.88,
+          "meanHeight": 24.88,
+          "meanLegRowsWithGap": 4.75,
+          "meanWidth": 14.5,
+          "totals": {
+            "arm": {
+              "gapPixels": 123,
+              "longestSustainedRows": 8,
+              "maxWidth": 6,
+              "meanWidth": 17.22,
+              "rowsWithBothSides": 10,
+              "rowsWithGap": 41,
+              "rowsWithLeftGap": 26,
+              "rowsWithRightGap": 25
+            },
+            "leg": {
+              "gapPixels": 143,
+              "longestSustainedRows": 10,
+              "maxWidth": 6,
+              "meanWidth": 20.17,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 38,
+              "rowsWithLeftGap": 7,
+              "rowsWithRightGap": 31
+            }
+          }
+        },
+        "quantized": {
+          "aspect": 0.583,
+          "facings": 8,
+          "facingsWithBothArmGaps": 4,
+          "facingsWithLegGap": 7,
+          "maxArmGapWidth": 6,
+          "maxLegGapWidth": 6,
+          "meanArmRowsWithGap": 5.13,
+          "meanContactRatio": 0.28,
+          "meanContactSpan": 6.88,
+          "meanHeight": 24.88,
+          "meanLegRowsWithGap": 4.75,
+          "meanWidth": 14.5,
+          "totals": {
+            "arm": {
+              "gapPixels": 123,
+              "longestSustainedRows": 8,
+              "maxWidth": 6,
+              "meanWidth": 17.22,
+              "rowsWithBothSides": 10,
+              "rowsWithGap": 41,
+              "rowsWithLeftGap": 26,
+              "rowsWithRightGap": 25
+            },
+            "leg": {
+              "gapPixels": 143,
+              "longestSustainedRows": 10,
+              "maxWidth": 6,
+              "meanWidth": 20.17,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 38,
+              "rowsWithLeftGap": 7,
+              "rowsWithRightGap": 31
+            }
+          }
+        },
+        "shipped": {
+          "aspect": 0.614,
+          "facings": 8,
+          "facingsWithBothArmGaps": 2,
+          "facingsWithLegGap": 4,
+          "maxArmGapWidth": 4,
+          "maxLegGapWidth": 4,
+          "meanArmRowsWithGap": 2,
+          "meanContactRatio": 0.33,
+          "meanContactSpan": 8.88,
+          "meanHeight": 26.88,
+          "meanLegRowsWithGap": 3.25,
+          "meanWidth": 16.5,
+          "totals": {
+            "arm": {
+              "gapPixels": 29,
+              "longestSustainedRows": 5,
+              "maxWidth": 4,
+              "meanWidth": 9.120000000000001,
+              "rowsWithBothSides": 4,
+              "rowsWithGap": 16,
+              "rowsWithLeftGap": 11,
+              "rowsWithRightGap": 9
+            },
+            "leg": {
+              "gapPixels": 59,
+              "longestSustainedRows": 10,
+              "maxWidth": 4,
+              "meanWidth": 8.43,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 26,
+              "rowsWithLeftGap": 8,
+              "rowsWithRightGap": 18
+            }
+          }
+        },
+        "shippedWithOutwardMark": {
+          "aspect": 0.641,
+          "facings": 8,
+          "facingsWithBothArmGaps": 0,
+          "facingsWithLegGap": 3,
+          "maxArmGapWidth": 0,
+          "maxLegGapWidth": 2,
+          "meanArmRowsWithGap": 0,
+          "meanContactRatio": 0.38,
+          "meanContactSpan": 10.88,
+          "meanHeight": 28.88,
+          "meanLegRowsWithGap": 1.5,
+          "meanWidth": 18.5,
+          "totals": {
+            "arm": {
+              "gapPixels": 0,
+              "longestSustainedRows": 0,
+              "maxWidth": 0,
+              "meanWidth": 0,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 0,
+              "rowsWithLeftGap": 0,
+              "rowsWithRightGap": 0
+            },
+            "leg": {
+              "gapPixels": 13,
+              "longestSustainedRows": 6,
+              "maxWidth": 2,
+              "meanWidth": 4,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 12,
+              "rowsWithLeftGap": 3,
+              "rowsWithRightGap": 9
+            }
+          }
+        }
+      }
+    },
+    "xxl": {
+      "brute": {
+        "tier": "fodder",
+        "targetBodyArtPx": 23,
+        "scale": 0.6256,
+        "render": {
+          "aspect": 0.766,
+          "facings": 8,
+          "facingsWithBothArmGaps": 4,
+          "facingsWithLegGap": 7,
+          "maxArmGapWidth": 10,
+          "maxLegGapWidth": 8,
+          "meanArmRowsWithGap": 5.13,
+          "meanContactRatio": 0.26,
+          "meanContactSpan": 5.75,
+          "meanHeight": 21.88,
+          "meanLegRowsWithGap": 5.88,
+          "meanWidth": 16.75,
+          "totals": {
+            "arm": {
+              "gapPixels": 172,
+              "longestSustainedRows": 9,
+              "maxWidth": 10,
+              "meanWidth": 18.36,
+              "rowsWithBothSides": 18,
+              "rowsWithGap": 41,
+              "rowsWithLeftGap": 23,
+              "rowsWithRightGap": 36
+            },
+            "leg": {
+              "gapPixels": 170,
+              "longestSustainedRows": 8,
+              "maxWidth": 8,
+              "meanWidth": 19.78,
+              "rowsWithBothSides": 8,
+              "rowsWithGap": 47,
+              "rowsWithLeftGap": 17,
+              "rowsWithRightGap": 38
+            }
+          }
+        },
+        "quantized": {
+          "aspect": 0.766,
+          "facings": 8,
+          "facingsWithBothArmGaps": 4,
+          "facingsWithLegGap": 7,
+          "maxArmGapWidth": 10,
+          "maxLegGapWidth": 8,
+          "meanArmRowsWithGap": 5.13,
+          "meanContactRatio": 0.26,
+          "meanContactSpan": 5.75,
+          "meanHeight": 21.88,
+          "meanLegRowsWithGap": 5.88,
+          "meanWidth": 16.75,
+          "totals": {
+            "arm": {
+              "gapPixels": 172,
+              "longestSustainedRows": 9,
+              "maxWidth": 10,
+              "meanWidth": 18.36,
+              "rowsWithBothSides": 18,
+              "rowsWithGap": 41,
+              "rowsWithLeftGap": 23,
+              "rowsWithRightGap": 36
+            },
+            "leg": {
+              "gapPixels": 170,
+              "longestSustainedRows": 8,
+              "maxWidth": 8,
+              "meanWidth": 19.78,
+              "rowsWithBothSides": 8,
+              "rowsWithGap": 47,
+              "rowsWithLeftGap": 17,
+              "rowsWithRightGap": 38
+            }
+          }
+        },
+        "shipped": {
+          "aspect": 0.785,
+          "facings": 8,
+          "facingsWithBothArmGaps": 0,
+          "facingsWithLegGap": 5,
+          "maxArmGapWidth": 8,
+          "maxLegGapWidth": 5,
+          "meanArmRowsWithGap": 2.25,
+          "meanContactRatio": 0.33,
+          "meanContactSpan": 7.75,
+          "meanHeight": 23.88,
+          "meanLegRowsWithGap": 3.13,
+          "meanWidth": 18.75,
+          "totals": {
+            "arm": {
+              "gapPixels": 51,
+              "longestSustainedRows": 6,
+              "maxWidth": 8,
+              "meanWidth": 12.530000000000001,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 18,
+              "rowsWithLeftGap": 5,
+              "rowsWithRightGap": 13
+            },
+            "leg": {
+              "gapPixels": 62,
+              "longestSustainedRows": 9,
+              "maxWidth": 5,
+              "meanWidth": 9.54,
+              "rowsWithBothSides": 3,
+              "rowsWithGap": 25,
+              "rowsWithLeftGap": 8,
+              "rowsWithRightGap": 20
+            }
+          }
+        }
+      },
+      "marksman": {
+        "tier": "fodder",
+        "targetBodyArtPx": 26,
+        "scale": 0.6043,
+        "render": {
+          "aspect": 0.62,
+          "facings": 8,
+          "facingsWithBothArmGaps": 2,
+          "facingsWithLegGap": 6,
+          "maxArmGapWidth": 9,
+          "maxLegGapWidth": 4,
+          "meanArmRowsWithGap": 5,
+          "meanContactRatio": 0.25,
+          "meanContactSpan": 5.5,
+          "meanHeight": 22,
+          "meanLegRowsWithGap": 4.63,
+          "meanWidth": 13.63,
+          "totals": {
+            "arm": {
+              "gapPixels": 91,
+              "longestSustainedRows": 6,
+              "maxWidth": 9,
+              "meanWidth": 19.05,
+              "rowsWithBothSides": 4,
+              "rowsWithGap": 40,
+              "rowsWithLeftGap": 21,
+              "rowsWithRightGap": 23
+            },
+            "leg": {
+              "gapPixels": 107,
+              "longestSustainedRows": 8,
+              "maxWidth": 4,
+              "meanWidth": 15.989999999999998,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 37,
+              "rowsWithLeftGap": 9,
+              "rowsWithRightGap": 28
+            }
+          }
+        },
+        "quantized": {
+          "aspect": 0.62,
+          "facings": 8,
+          "facingsWithBothArmGaps": 2,
+          "facingsWithLegGap": 6,
+          "maxArmGapWidth": 9,
+          "maxLegGapWidth": 4,
+          "meanArmRowsWithGap": 5,
+          "meanContactRatio": 0.25,
+          "meanContactSpan": 5.5,
+          "meanHeight": 22,
+          "meanLegRowsWithGap": 4.63,
+          "meanWidth": 13.63,
+          "totals": {
+            "arm": {
+              "gapPixels": 91,
+              "longestSustainedRows": 6,
+              "maxWidth": 9,
+              "meanWidth": 19.05,
+              "rowsWithBothSides": 4,
+              "rowsWithGap": 40,
+              "rowsWithLeftGap": 21,
+              "rowsWithRightGap": 23
+            },
+            "leg": {
+              "gapPixels": 107,
+              "longestSustainedRows": 8,
+              "maxWidth": 4,
+              "meanWidth": 15.989999999999998,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 37,
+              "rowsWithLeftGap": 9,
+              "rowsWithRightGap": 28
+            }
+          }
+        },
+        "shipped": {
+          "aspect": 0.651,
+          "facings": 8,
+          "facingsWithBothArmGaps": 0,
+          "facingsWithLegGap": 4,
+          "maxArmGapWidth": 7,
+          "maxLegGapWidth": 2,
+          "meanArmRowsWithGap": 1,
+          "meanContactRatio": 0.32,
+          "meanContactSpan": 7.5,
+          "meanHeight": 24,
+          "meanLegRowsWithGap": 2.38,
+          "meanWidth": 15.63,
+          "totals": {
+            "arm": {
+              "gapPixels": 19,
+              "longestSustainedRows": 2,
+              "maxWidth": 7,
+              "meanWidth": 12.5,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 8,
+              "rowsWithLeftGap": 4,
+              "rowsWithRightGap": 4
+            },
+            "leg": {
+              "gapPixels": 34,
+              "longestSustainedRows": 8,
+              "maxWidth": 2,
+              "meanWidth": 6.86,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 19,
+              "rowsWithLeftGap": 4,
+              "rowsWithRightGap": 15
+            }
+          }
+        }
+      },
+      "medic": {
+        "tier": "hero",
+        "targetBodyArtPx": 33,
+        "scale": 1.0796,
+        "render": {
+          "aspect": 0.59,
+          "facings": 8,
+          "facingsWithBothArmGaps": 0,
+          "facingsWithLegGap": 5,
+          "maxArmGapWidth": 8,
+          "maxLegGapWidth": 2,
+          "meanArmRowsWithGap": 1.88,
+          "meanContactRatio": 0.26,
+          "meanContactSpan": 8.25,
+          "meanHeight": 31.38,
+          "meanLegRowsWithGap": 2.75,
+          "meanWidth": 18.5,
+          "totals": {
+            "arm": {
+              "gapPixels": 40,
+              "longestSustainedRows": 4,
+              "maxWidth": 8,
+              "meanWidth": 13.43,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 15,
+              "rowsWithLeftGap": 7,
+              "rowsWithRightGap": 8
+            },
+            "leg": {
+              "gapPixels": 36,
+              "longestSustainedRows": 8,
+              "maxWidth": 2,
+              "meanWidth": 7.26,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 22,
+              "rowsWithLeftGap": 6,
+              "rowsWithRightGap": 16
+            }
+          }
+        },
+        "quantized": {
+          "aspect": 0.59,
+          "facings": 8,
+          "facingsWithBothArmGaps": 0,
+          "facingsWithLegGap": 5,
+          "maxArmGapWidth": 8,
+          "maxLegGapWidth": 2,
+          "meanArmRowsWithGap": 1.88,
+          "meanContactRatio": 0.26,
+          "meanContactSpan": 8.25,
+          "meanHeight": 31.38,
+          "meanLegRowsWithGap": 2.75,
+          "meanWidth": 18.5,
+          "totals": {
+            "arm": {
+              "gapPixels": 40,
+              "longestSustainedRows": 4,
+              "maxWidth": 8,
+              "meanWidth": 13.43,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 15,
+              "rowsWithLeftGap": 7,
+              "rowsWithRightGap": 8
+            },
+            "leg": {
+              "gapPixels": 36,
+              "longestSustainedRows": 8,
+              "maxWidth": 2,
+              "meanWidth": 7.26,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 22,
+              "rowsWithLeftGap": 6,
+              "rowsWithRightGap": 16
+            }
+          }
+        },
+        "shipped": {
+          "aspect": 0.614,
+          "facings": 8,
+          "facingsWithBothArmGaps": 0,
+          "facingsWithLegGap": 0,
+          "maxArmGapWidth": 5,
+          "maxLegGapWidth": 0,
+          "meanArmRowsWithGap": 0.75,
+          "meanContactRatio": 0.31,
+          "meanContactSpan": 10.25,
+          "meanHeight": 33.38,
+          "meanLegRowsWithGap": 0,
+          "meanWidth": 20.5,
+          "totals": {
+            "arm": {
+              "gapPixels": 15,
+              "longestSustainedRows": 2,
+              "maxWidth": 5,
+              "meanWidth": 7.5,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 6,
+              "rowsWithLeftGap": 4,
+              "rowsWithRightGap": 2
+            },
+            "leg": {
+              "gapPixels": 0,
+              "longestSustainedRows": 0,
+              "maxWidth": 0,
+              "meanWidth": 0,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 0,
+              "rowsWithLeftGap": 0,
+              "rowsWithRightGap": 0
+            }
+          }
+        },
+        "shippedWithOutwardMark": {
+          "aspect": 0.636,
+          "facings": 8,
+          "facingsWithBothArmGaps": 0,
+          "facingsWithLegGap": 0,
+          "maxArmGapWidth": 2,
+          "maxLegGapWidth": 0,
+          "meanArmRowsWithGap": 0.38,
+          "meanContactRatio": 0.35,
+          "meanContactSpan": 12.25,
+          "meanHeight": 35.38,
+          "meanLegRowsWithGap": 0,
+          "meanWidth": 22.5,
+          "totals": {
+            "arm": {
+              "gapPixels": 5,
+              "longestSustainedRows": 1,
+              "maxWidth": 2,
+              "meanWidth": 5,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 3,
+              "rowsWithLeftGap": 2,
+              "rowsWithRightGap": 1
+            },
+            "leg": {
+              "gapPixels": 0,
+              "longestSustainedRows": 0,
+              "maxWidth": 0,
+              "meanWidth": 0,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 0,
+              "rowsWithLeftGap": 0,
+              "rowsWithRightGap": 0
+            }
+          }
+        }
+      },
+      "ranger": {
+        "tier": "hero",
+        "targetBodyArtPx": 33,
+        "scale": 0.801,
+        "render": {
+          "aspect": 0.567,
+          "facings": 8,
+          "facingsWithBothArmGaps": 3,
+          "facingsWithLegGap": 7,
+          "maxArmGapWidth": 9,
+          "maxLegGapWidth": 7,
+          "meanArmRowsWithGap": 7.25,
+          "meanContactRatio": 0.21,
+          "meanContactSpan": 6.75,
+          "meanHeight": 32,
+          "meanLegRowsWithGap": 6.38,
+          "meanWidth": 18.13,
+          "totals": {
+            "arm": {
+              "gapPixels": 213,
+              "longestSustainedRows": 12,
+              "maxWidth": 9,
+              "meanWidth": 22.75,
+              "rowsWithBothSides": 12,
+              "rowsWithGap": 58,
+              "rowsWithLeftGap": 32,
+              "rowsWithRightGap": 38
+            },
+            "leg": {
+              "gapPixels": 225,
+              "longestSustainedRows": 11,
+              "maxWidth": 7,
+              "meanWidth": 25.57,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 51,
+              "rowsWithLeftGap": 18,
+              "rowsWithRightGap": 33
+            }
+          }
+        },
+        "quantized": {
+          "aspect": 0.567,
+          "facings": 8,
+          "facingsWithBothArmGaps": 3,
+          "facingsWithLegGap": 7,
+          "maxArmGapWidth": 9,
+          "maxLegGapWidth": 7,
+          "meanArmRowsWithGap": 7.25,
+          "meanContactRatio": 0.21,
+          "meanContactSpan": 6.75,
+          "meanHeight": 32,
+          "meanLegRowsWithGap": 6.38,
+          "meanWidth": 18.13,
+          "totals": {
+            "arm": {
+              "gapPixels": 213,
+              "longestSustainedRows": 12,
+              "maxWidth": 9,
+              "meanWidth": 22.75,
+              "rowsWithBothSides": 12,
+              "rowsWithGap": 58,
+              "rowsWithLeftGap": 32,
+              "rowsWithRightGap": 38
+            },
+            "leg": {
+              "gapPixels": 225,
+              "longestSustainedRows": 11,
+              "maxWidth": 7,
+              "meanWidth": 25.57,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 51,
+              "rowsWithLeftGap": 18,
+              "rowsWithRightGap": 33
+            }
+          }
+        },
+        "shipped": {
+          "aspect": 0.592,
+          "facings": 8,
+          "facingsWithBothArmGaps": 2,
+          "facingsWithLegGap": 4,
+          "maxArmGapWidth": 4,
+          "maxLegGapWidth": 5,
+          "meanArmRowsWithGap": 3,
+          "meanContactRatio": 0.26,
+          "meanContactSpan": 8.75,
+          "meanHeight": 34,
+          "meanLegRowsWithGap": 5,
+          "meanWidth": 20.13,
+          "totals": {
+            "arm": {
+              "gapPixels": 66,
+              "longestSustainedRows": 6,
+              "maxWidth": 4,
+              "meanWidth": 16.509999999999998,
+              "rowsWithBothSides": 6,
+              "rowsWithGap": 24,
+              "rowsWithLeftGap": 15,
+              "rowsWithRightGap": 15
+            },
+            "leg": {
+              "gapPixels": 120,
+              "longestSustainedRows": 12,
+              "maxWidth": 5,
+              "meanWidth": 11.629999999999999,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 40,
+              "rowsWithLeftGap": 11,
+              "rowsWithRightGap": 29
+            }
+          }
+        },
+        "shippedWithOutwardMark": {
+          "aspect": 0.615,
+          "facings": 8,
+          "facingsWithBothArmGaps": 0,
+          "facingsWithLegGap": 5,
+          "maxArmGapWidth": 1,
+          "maxLegGapWidth": 3,
+          "meanArmRowsWithGap": 1,
+          "meanContactRatio": 0.3,
+          "meanContactSpan": 10.75,
+          "meanHeight": 36,
+          "meanLegRowsWithGap": 2.75,
+          "meanWidth": 22.13,
+          "totals": {
+            "arm": {
+              "gapPixels": 8,
+              "longestSustainedRows": 2,
+              "maxWidth": 1,
+              "meanWidth": 5,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 8,
+              "rowsWithLeftGap": 6,
+              "rowsWithRightGap": 2
+            },
+            "leg": {
+              "gapPixels": 43,
+              "longestSustainedRows": 10,
+              "maxWidth": 3,
+              "meanWidth": 9.1,
+              "rowsWithBothSides": 0,
+              "rowsWithGap": 22,
+              "rowsWithLeftGap": 9,
+              "rowsWithRightGap": 13
+            }
+          }
+        }
+      }
+    }
+  }
+}

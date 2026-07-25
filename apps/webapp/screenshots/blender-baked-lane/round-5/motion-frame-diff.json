@@ -1,0 +1,38 @@
+[
+  {
+    "config": "small",
+    "treatment": "phase",
+    "frames": 36,
+    "distinctFrames": 24,
+    "meanChangedPx": 1805.9,
+    "cv": 0.154,
+    "quietTicks": 0
+  },
+  {
+    "config": "small",
+    "treatment": "variants",
+    "frames": 36,
+    "distinctFrames": 24,
+    "meanChangedPx": 1911.5,
+    "cv": 0.127,
+    "quietTicks": 0
+  },
+  {
+    "config": "mid",
+    "treatment": "phase",
+    "frames": 36,
+    "distinctFrames": 24,
+    "meanChangedPx": 2938.3,
+    "cv": 0.151,
+    "quietTicks": 0
+  },
+  {
+    "config": "mid",
+    "treatment": "variants",
+    "frames": 36,
+    "distinctFrames": 24,
+    "meanChangedPx": 2966.7,
+    "cv": 0.144,
+    "quietTicks": 0
+  }
+]

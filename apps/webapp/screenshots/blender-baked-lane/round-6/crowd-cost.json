@@ -1,0 +1,2076 @@
+{
+  "generatedBy": "pnpm --filter @hazard-pay/webapp bake",
+  "heroPortraitAtlas": {
+    "cells": 208,
+    "indexedPngBytes": 29306,
+    "bakeWallClockSeconds": 66.02
+  },
+  "crowdWallClockSeconds": 1166.7,
+  "configs": {
+    "small": {
+      "label": "Small — Hero's Hour register",
+      "note": "fodder 22px on screen",
+      "units": [
+        {
+          "id": "brute",
+          "tier": "fodder",
+          "scale": 0.2176,
+          "screenPx": 20,
+          "bodyArtPx": 8,
+          "cell": {
+            "height": 22,
+            "width": 30
+          },
+          "anchor": {
+            "x": 14,
+            "y": 18
+          },
+          "clips": [
+            {
+              "fps": 6,
+              "frames": 4,
+              "name": "idle"
+            },
+            {
+              "fps": 6,
+              "frames": 4,
+              "name": "idle_b"
+            },
+            {
+              "fps": 10,
+              "frames": 6,
+              "name": "attack"
+            }
+          ],
+          "facings": 8,
+          "partCount": 25,
+          "droppedDetails": 1,
+          "measuredStandingArtPx": 10,
+          "measuredMaxArtPx": 12
+        },
+        {
+          "id": "marksman",
+          "tier": "fodder",
+          "scale": 0.2092,
+          "screenPx": 22,
+          "bodyArtPx": 9,
+          "cell": {
+            "height": 24,
+            "width": 32
+          },
+          "anchor": {
+            "x": 16,
+            "y": 20
+          },
+          "clips": [
+            {
+              "fps": 6,
+              "frames": 4,
+              "name": "idle"
+            },
+            {
+              "fps": 6,
+              "frames": 4,
+              "name": "idle_b"
+            },
+            {
+              "fps": 10,
+              "frames": 6,
+              "name": "attack"
+            }
+          ],
+          "facings": 8,
+          "partCount": 24,
+          "droppedDetails": 2,
+          "measuredStandingArtPx": 10,
+          "measuredMaxArtPx": 12
+        },
+        {
+          "id": "medic",
+          "tier": "hero",
+          "scale": 0.3926,
+          "screenPx": 28,
+          "bodyArtPx": 12,
+          "cell": {
+            "height": 32,
+            "width": 44
+          },
+          "anchor": {
+            "x": 21,
+            "y": 26
+          },
+          "clips": [
+            {
+              "fps": 8,
+              "frames": 8,
+              "name": "idle"
+            },
+            {
+              "fps": 12,
+              "frames": 12,
+              "name": "attack"
+            }
+          ],
+          "facings": 8,
+          "partCount": 53,
+          "droppedDetails": 3,
+          "measuredStandingArtPx": 14,
+          "measuredMaxArtPx": 16
+        },
+        {
+          "id": "ranger",
+          "tier": "hero",
+          "scale": 0.2913,
+          "screenPx": 28,
+          "bodyArtPx": 12,
+          "cell": {
+            "height": 32,
+            "width": 44
+          },
+          "anchor": {
+            "x": 21,
+            "y": 26
+          },
+          "clips": [
+            {
+              "fps": 8,
+              "frames": 8,
+              "name": "idle"
+            },
+            {
+              "fps": 12,
+              "frames": 12,
+              "name": "attack"
+            }
+          ],
+          "facings": 8,
+          "partCount": 41,
+          "droppedDetails": 5,
+          "measuredStandingArtPx": 14,
+          "measuredMaxArtPx": 15
+        }
+      ],
+      "cost": {
+        "animations": 36,
+        "cellHeight": 32,
+        "cellWidth": 44,
+        "cells": 2368,
+        "clusterDensity": {
+          "quantized": 0.6458,
+          "shipped": 0.1917,
+          "singletonShareQuantized": 0.6575,
+          "singletonShareShipped": 0.3507
+        },
+        "facings": 8,
+        "framesPerFacing": 296,
+        "indexedPngBytes": 56760,
+        "paletteEntriesUsed": 32,
+        "rgbaPngBytes": 453422,
+        "trimmed": {
+          "height": 688,
+          "occupancy": 0.8160210474130161,
+          "pixels": 355008,
+          "width": 516
+        },
+        "uniformCellGrid": {
+          "height": 1568,
+          "pixels": 3380608,
+          "width": 2156
+        },
+        "uniformTrimGrid": {
+          "height": 882,
+          "pixels": 605052,
+          "width": 686
+        },
+        "units": {
+          "brute_a": {
+            "cellPixels": 73920,
+            "cells": 112,
+            "trimmedPixels": 8276
+          },
+          "brute_b": {
+            "cellPixels": 73920,
+            "cells": 112,
+            "trimmedPixels": 8276
+          },
+          "marksman_a": {
+            "cellPixels": 86016,
+            "cells": 112,
+            "trimmedPixels": 5780
+          },
+          "marksman_b": {
+            "cellPixels": 86016,
+            "cells": 112,
+            "trimmedPixels": 5780
+          },
+          "medic_a": {
+            "cellPixels": 225280,
+            "cells": 160,
+            "trimmedPixels": 19734
+          },
+          "medic_b": {
+            "cellPixels": 225280,
+            "cells": 160,
+            "trimmedPixels": 19734
+          },
+          "medic_a_marked": {
+            "cellPixels": 225280,
+            "cells": 160,
+            "trimmedPixels": 27628
+          },
+          "medic_b_marked": {
+            "cellPixels": 225280,
+            "cells": 160,
+            "trimmedPixels": 27628
+          },
+          "medic_a_marked_inset": {
+            "cellPixels": 225280,
+            "cells": 160,
+            "trimmedPixels": 19734
+          },
+          "medic_b_marked_inset": {
+            "cellPixels": 225280,
+            "cells": 160,
+            "trimmedPixels": 19734
+          },
+          "ranger_a": {
+            "cellPixels": 225280,
+            "cells": 160,
+            "trimmedPixels": 18661
+          },
+          "ranger_b": {
+            "cellPixels": 225280,
+            "cells": 160,
+            "trimmedPixels": 18661
+          },
+          "ranger_a_marked": {
+            "cellPixels": 225280,
+            "cells": 160,
+            "trimmedPixels": 26373
+          },
+          "ranger_b_marked": {
+            "cellPixels": 225280,
+            "cells": 160,
+            "trimmedPixels": 26373
+          },
+          "ranger_a_marked_inset": {
+            "cellPixels": 225280,
+            "cells": 160,
+            "trimmedPixels": 18661
+          },
+          "ranger_b_marked_inset": {
+            "cellPixels": 225280,
+            "cells": 160,
+            "trimmedPixels": 18661
+          }
+        }
+      },
+      "blenderRenders": 1088,
+      "blenderRenderSeconds": 89.03,
+      "bakeWallClockSeconds": 167.54,
+      "atlasRoundTripMismatchedPixels": 0,
+      "clusterDensityAudit": {
+        "measuredOn": "public/blender-baked/crowd-small.png",
+        "islands": 43861,
+        "pixels": 228804,
+        "ratio": 0.1917,
+        "singletonShare": 0.3507
+      },
+      "secondIdle": {
+        "cells": 128,
+        "shareOfTrimmedAtlas": 0.0287,
+        "estimatedIndexedBytes": 1630,
+        "growthOverOneIdle": 0.0296
+      },
+      "contour": {
+        "rimHex": "#59404f",
+        "shippedIndexedPngBytes": 56760,
+        "controlNoRimIndexedPngBytes": 47755,
+        "extraBlenderRenders": 0,
+        "note": "the rim is drawn in pixel space over cells that already exist"
+      },
+      "rosterProjection": {
+        "basis": {
+          "bytesPerTrimmedPixel": 0.1959,
+          "meanFodderTrimmedPixels": 7028,
+          "meanHeroTrimmedPixels": 19198,
+          "meanFodderBakeSeconds": 12.55,
+          "meanHeroBakeSeconds": 43.28,
+          "note": "faction B is a palette remap of faction A — it costs bytes, never renders"
+        },
+        "allFodder": {
+          "archetypes": 20,
+          "fodderArchetypes": 20,
+          "heroArchetypes": 0,
+          "factions": 2,
+          "cells": 4480,
+          "indexedBytes": 55080,
+          "blenderSeconds": 251.1
+        },
+        "sixteenFodderFourHeroes": {
+          "archetypes": 20,
+          "fodderArchetypes": 16,
+          "heroArchetypes": 4,
+          "factions": 2,
+          "cells": 4864,
+          "indexedBytes": 74155,
+          "blenderSeconds": 374
+        }
+      },
+      "crowd": {
+        "units": 36,
+        "fodderPerSide": 16,
+        "heroesPerSide": 2,
+        "facingNote": "8 facings kept; 4 would halve fodder cells",
+        "motion": {
+          "sync": {
+            "changeBurstiness": 2.711,
+            "distinctCells": 80,
+            "meanDuplicateMultiplicity": 3.44,
+            "peakFrameSynchrony": 1
+          },
+          "phase": {
+            "changeBurstiness": 0.353,
+            "distinctCells": 80,
+            "meanDuplicateMultiplicity": 1.6,
+            "peakFrameSynchrony": 0.417
+          },
+          "variants": {
+            "changeBurstiness": 0.353,
+            "distinctCells": 108,
+            "meanDuplicateMultiplicity": 1.22,
+            "peakFrameSynchrony": 0.417
+          },
+          "full": {
+            "changeBurstiness": 0.355,
+            "distinctCells": 228,
+            "meanDuplicateMultiplicity": 1.14,
+            "peakFrameSynchrony": 0.472
+          }
+        },
+        "motionLockedFacing": {
+          "sync": {
+            "changeBurstiness": 2.711,
+            "distinctCells": 48,
+            "meanDuplicateMultiplicity": 7.67,
+            "peakFrameSynchrony": 1
+          },
+          "phase": {
+            "changeBurstiness": 0.353,
+            "distinctCells": 48,
+            "meanDuplicateMultiplicity": 2.6,
+            "peakFrameSynchrony": 0.417
+          },
+          "variants": {
+            "changeBurstiness": 0.353,
+            "distinctCells": 64,
+            "meanDuplicateMultiplicity": 1.78,
+            "peakFrameSynchrony": 0.417
+          },
+          "full": {
+            "changeBurstiness": 0.355,
+            "distinctCells": 136,
+            "meanDuplicateMultiplicity": 1.51,
+            "peakFrameSynchrony": 0.472
+          }
+        },
+        "pixelIdentity": {
+          "sync": {
+            "distinctImages": 72,
+            "meanIdenticalMultiplicity": 3.44,
+            "peakIdenticalUnits": 7
+          },
+          "phase": {
+            "distinctImages": 72,
+            "meanIdenticalMultiplicity": 1.6,
+            "peakIdenticalUnits": 4
+          },
+          "variants": {
+            "distinctImages": 98,
+            "meanIdenticalMultiplicity": 1.23,
+            "peakIdenticalUnits": 2
+          },
+          "full": {
+            "distinctImages": 175,
+            "meanIdenticalMultiplicity": 1.21,
+            "peakIdenticalUnits": 3
+          }
+        },
+        "pixelIdentityLockedFacing": {
+          "sync": {
+            "distinctImages": 40,
+            "meanIdenticalMultiplicity": 7.67,
+            "peakIdenticalUnits": 10
+          },
+          "phase": {
+            "distinctImages": 40,
+            "meanIdenticalMultiplicity": 2.6,
+            "peakIdenticalUnits": 6
+          },
+          "variants": {
+            "distinctImages": 56,
+            "meanIdenticalMultiplicity": 1.78,
+            "peakIdenticalUnits": 4
+          },
+          "full": {
+            "distinctImages": 100,
+            "meanIdenticalMultiplicity": 1.64,
+            "peakIdenticalUnits": 5
+          }
+        }
+      }
+    },
+    "mid": {
+      "label": "Mid — the round-5 register",
+      "note": "fodder 28px on screen",
+      "units": [
+        {
+          "id": "brute",
+          "tier": "fodder",
+          "scale": 0.2992,
+          "screenPx": 26,
+          "bodyArtPx": 11,
+          "cell": {
+            "height": 30,
+            "width": 40
+          },
+          "anchor": {
+            "x": 19,
+            "y": 24
+          },
+          "clips": [
+            {
+              "fps": 6,
+              "frames": 4,
+              "name": "idle"
+            },
+            {
+              "fps": 6,
+              "frames": 4,
+              "name": "idle_b"
+            },
+            {
+              "fps": 10,
+              "frames": 6,
+              "name": "attack"
+            }
+          ],
+          "facings": 8,
+          "partCount": 25,
+          "droppedDetails": 1,
+          "measuredStandingArtPx": 13,
+          "measuredMaxArtPx": 16
+        },
+        {
+          "id": "marksman",
+          "tier": "fodder",
+          "scale": 0.2789,
+          "screenPx": 28,
+          "bodyArtPx": 12,
+          "cell": {
+            "height": 32,
+            "width": 44
+          },
+          "anchor": {
+            "x": 21,
+            "y": 26
+          },
+          "clips": [
+            {
+              "fps": 6,
+              "frames": 4,
+              "name": "idle"
+            },
+            {
+              "fps": 6,
+              "frames": 4,
+              "name": "idle_b"
+            },
+            {
+              "fps": 10,
+              "frames": 6,
+              "name": "attack"
+            }
+          ],
+          "facings": 8,
+          "partCount": 26,
+          "droppedDetails": 0,
+          "measuredStandingArtPx": 13,
+          "measuredMaxArtPx": 15
+        },
+        {
+          "id": "medic",
+          "tier": "hero",
+          "scale": 0.4907,
+          "screenPx": 34,
+          "bodyArtPx": 15,
+          "cell": {
+            "height": 40,
+            "width": 54
+          },
+          "anchor": {
+            "x": 26,
+            "y": 33
+          },
+          "clips": [
+            {
+              "fps": 8,
+              "frames": 8,
+              "name": "idle"
+            },
+            {
+              "fps": 12,
+              "frames": 12,
+              "name": "attack"
+            }
+          ],
+          "facings": 8,
+          "partCount": 56,
+          "droppedDetails": 0,
+          "measuredStandingArtPx": 17,
+          "measuredMaxArtPx": 20
+        },
+        {
+          "id": "ranger",
+          "tier": "hero",
+          "scale": 0.3641,
+          "screenPx": 34,
+          "bodyArtPx": 15,
+          "cell": {
+            "height": 40,
+            "width": 54
+          },
+          "anchor": {
+            "x": 26,
+            "y": 33
+          },
+          "clips": [
+            {
+              "fps": 8,
+              "frames": 8,
+              "name": "idle"
+            },
+            {
+              "fps": 12,
+              "frames": 12,
+              "name": "attack"
+            }
+          ],
+          "facings": 8,
+          "partCount": 42,
+          "droppedDetails": 4,
+          "measuredStandingArtPx": 17,
+          "measuredMaxArtPx": 18
+        }
+      ],
+      "cost": {
+        "animations": 36,
+        "cellHeight": 40,
+        "cellWidth": 54,
+        "cells": 2368,
+        "clusterDensity": {
+          "quantized": 0.5565,
+          "shipped": 0.2079,
+          "singletonShareQuantized": 0.5965,
+          "singletonShareShipped": 0.343
+        },
+        "facings": 8,
+        "framesPerFacing": 296,
+        "indexedPngBytes": 81633,
+        "paletteEntriesUsed": 33,
+        "rgbaPngBytes": 656324,
+        "trimmed": {
+          "height": 492,
+          "occupancy": 0.8423017304103002,
+          "pixels": 505776,
+          "width": 1028
+        },
+        "uniformCellGrid": {
+          "height": 1960,
+          "pixels": 5186160,
+          "width": 2646
+        },
+        "uniformTrimGrid": {
+          "height": 1078,
+          "pixels": 897974,
+          "width": 833
+        },
+        "units": {
+          "brute_a": {
+            "cellPixels": 134400,
+            "cells": 112,
+            "trimmedPixels": 14153
+          },
+          "brute_b": {
+            "cellPixels": 134400,
+            "cells": 112,
+            "trimmedPixels": 14153
+          },
+          "marksman_a": {
+            "cellPixels": 157696,
+            "cells": 112,
+            "trimmedPixels": 10466
+          },
+          "marksman_b": {
+            "cellPixels": 157696,
+            "cells": 112,
+            "trimmedPixels": 10466
+          },
+          "medic_a": {
+            "cellPixels": 345600,
+            "cells": 160,
+            "trimmedPixels": 29232
+          },
+          "medic_b": {
+            "cellPixels": 345600,
+            "cells": 160,
+            "trimmedPixels": 29232
+          },
+          "medic_a_marked": {
+            "cellPixels": 345600,
+            "cells": 160,
+            "trimmedPixels": 38682
+          },
+          "medic_b_marked": {
+            "cellPixels": 345600,
+            "cells": 160,
+            "trimmedPixels": 38682
+          },
+          "medic_a_marked_inset": {
+            "cellPixels": 345600,
+            "cells": 160,
+            "trimmedPixels": 29232
+          },
+          "medic_b_marked_inset": {
+            "cellPixels": 345600,
+            "cells": 160,
+            "trimmedPixels": 29232
+          },
+          "ranger_a": {
+            "cellPixels": 345600,
+            "cells": 160,
+            "trimmedPixels": 27339
+          },
+          "ranger_b": {
+            "cellPixels": 345600,
+            "cells": 160,
+            "trimmedPixels": 27339
+          },
+          "ranger_a_marked": {
+            "cellPixels": 345600,
+            "cells": 160,
+            "trimmedPixels": 36565
+          },
+          "ranger_b_marked": {
+            "cellPixels": 345600,
+            "cells": 160,
+            "trimmedPixels": 36565
+          },
+          "ranger_a_marked_inset": {
+            "cellPixels": 345600,
+            "cells": 160,
+            "trimmedPixels": 27339
+          },
+          "ranger_b_marked_inset": {
+            "cellPixels": 345600,
+            "cells": 160,
+            "trimmedPixels": 27339
+          }
+        }
+      },
+      "blenderRenders": 1088,
+      "blenderRenderSeconds": 102.26,
+      "bakeWallClockSeconds": 189.99,
+      "atlasRoundTripMismatchedPixels": 0,
+      "clusterDensityAudit": {
+        "measuredOn": "public/blender-baked/crowd-mid.png",
+        "islands": 65943,
+        "pixels": 317184,
+        "ratio": 0.2079,
+        "singletonShare": 0.343
+      },
+      "secondIdle": {
+        "cells": 128,
+        "shareOfTrimmedAtlas": 0.0319,
+        "estimatedIndexedBytes": 2604,
+        "growthOverOneIdle": 0.0329
+      },
+      "contour": {
+        "rimHex": "#59404f",
+        "shippedIndexedPngBytes": 81633,
+        "controlNoRimIndexedPngBytes": 69932,
+        "extraBlenderRenders": 0,
+        "note": "the rim is drawn in pixel space over cells that already exist"
+      },
+      "rosterProjection": {
+        "basis": {
+          "bytesPerTrimmedPixel": 0.1916,
+          "meanFodderTrimmedPixels": 12310,
+          "meanHeroTrimmedPixels": 28286,
+          "meanFodderBakeSeconds": 20.68,
+          "meanHeroBakeSeconds": 40.33,
+          "note": "faction B is a palette remap of faction A — it costs bytes, never renders"
+        },
+        "allFodder": {
+          "archetypes": 20,
+          "fodderArchetypes": 20,
+          "heroArchetypes": 0,
+          "factions": 2,
+          "cells": 4480,
+          "indexedBytes": 94350,
+          "blenderSeconds": 413.5
+        },
+        "sixteenFodderFourHeroes": {
+          "archetypes": 20,
+          "fodderArchetypes": 16,
+          "heroArchetypes": 4,
+          "factions": 2,
+          "cells": 4864,
+          "indexedBytes": 118840,
+          "blenderSeconds": 492.1
+        }
+      },
+      "crowd": {
+        "units": 36,
+        "fodderPerSide": 16,
+        "heroesPerSide": 2,
+        "facingNote": "8 facings kept; 4 would halve fodder cells",
+        "motion": {
+          "sync": {
+            "changeBurstiness": 2.711,
+            "distinctCells": 80,
+            "meanDuplicateMultiplicity": 3.44,
+            "peakFrameSynchrony": 1
+          },
+          "phase": {
+            "changeBurstiness": 0.353,
+            "distinctCells": 80,
+            "meanDuplicateMultiplicity": 1.6,
+            "peakFrameSynchrony": 0.417
+          },
+          "variants": {
+            "changeBurstiness": 0.353,
+            "distinctCells": 108,
+            "meanDuplicateMultiplicity": 1.22,
+            "peakFrameSynchrony": 0.417
+          },
+          "full": {
+            "changeBurstiness": 0.355,
+            "distinctCells": 228,
+            "meanDuplicateMultiplicity": 1.14,
+            "peakFrameSynchrony": 0.472
+          }
+        },
+        "motionLockedFacing": {
+          "sync": {
+            "changeBurstiness": 2.711,
+            "distinctCells": 48,
+            "meanDuplicateMultiplicity": 7.67,
+            "peakFrameSynchrony": 1
+          },
+          "phase": {
+            "changeBurstiness": 0.353,
+            "distinctCells": 48,
+            "meanDuplicateMultiplicity": 2.6,
+            "peakFrameSynchrony": 0.417
+          },
+          "variants": {
+            "changeBurstiness": 0.353,
+            "distinctCells": 64,
+            "meanDuplicateMultiplicity": 1.78,
+            "peakFrameSynchrony": 0.417
+          },
+          "full": {
+            "changeBurstiness": 0.355,
+            "distinctCells": 136,
+            "meanDuplicateMultiplicity": 1.51,
+            "peakFrameSynchrony": 0.472
+          }
+        },
+        "pixelIdentity": {
+          "sync": {
+            "distinctImages": 71,
+            "meanIdenticalMultiplicity": 3.44,
+            "peakIdenticalUnits": 7
+          },
+          "phase": {
+            "distinctImages": 71,
+            "meanIdenticalMultiplicity": 1.6,
+            "peakIdenticalUnits": 4
+          },
+          "variants": {
+            "distinctImages": 97,
+            "meanIdenticalMultiplicity": 1.25,
+            "peakIdenticalUnits": 3
+          },
+          "full": {
+            "distinctImages": 175,
+            "meanIdenticalMultiplicity": 1.23,
+            "peakIdenticalUnits": 4
+          }
+        },
+        "pixelIdentityLockedFacing": {
+          "sync": {
+            "distinctImages": 40,
+            "meanIdenticalMultiplicity": 7.67,
+            "peakIdenticalUnits": 10
+          },
+          "phase": {
+            "distinctImages": 40,
+            "meanIdenticalMultiplicity": 2.6,
+            "peakIdenticalUnits": 6
+          },
+          "variants": {
+            "distinctImages": 55,
+            "meanIdenticalMultiplicity": 1.85,
+            "peakIdenticalUnits": 5
+          },
+          "full": {
+            "distinctImages": 99,
+            "meanIdenticalMultiplicity": 1.74,
+            "peakIdenticalUnits": 6
+          }
+        }
+      }
+    },
+    "large": {
+      "label": "Large — round 5's top",
+      "note": "fodder 36px on screen",
+      "units": [
+        {
+          "id": "brute",
+          "tier": "fodder",
+          "scale": 0.3808,
+          "screenPx": 32,
+          "bodyArtPx": 14,
+          "cell": {
+            "height": 38,
+            "width": 50
+          },
+          "anchor": {
+            "x": 25,
+            "y": 31
+          },
+          "clips": [
+            {
+              "fps": 6,
+              "frames": 4,
+              "name": "idle"
+            },
+            {
+              "fps": 6,
+              "frames": 4,
+              "name": "idle_b"
+            },
+            {
+              "fps": 10,
+              "frames": 6,
+              "name": "attack"
+            }
+          ],
+          "facings": 8,
+          "partCount": 26,
+          "droppedDetails": 0,
+          "measuredStandingArtPx": 15,
+          "measuredMaxArtPx": 19
+        },
+        {
+          "id": "marksman",
+          "tier": "fodder",
+          "scale": 0.3719,
+          "screenPx": 36,
+          "bodyArtPx": 16,
+          "cell": {
+            "height": 44,
+            "width": 58
+          },
+          "anchor": {
+            "x": 28,
+            "y": 35
+          },
+          "clips": [
+            {
+              "fps": 6,
+              "frames": 4,
+              "name": "idle"
+            },
+            {
+              "fps": 6,
+              "frames": 4,
+              "name": "idle_b"
+            },
+            {
+              "fps": 10,
+              "frames": 6,
+              "name": "attack"
+            }
+          ],
+          "facings": 8,
+          "partCount": 26,
+          "droppedDetails": 0,
+          "measuredStandingArtPx": 16,
+          "measuredMaxArtPx": 19
+        },
+        {
+          "id": "medic",
+          "tier": "hero",
+          "scale": 0.6543,
+          "screenPx": 44,
+          "bodyArtPx": 20,
+          "cell": {
+            "height": 54,
+            "width": 72
+          },
+          "anchor": {
+            "x": 35,
+            "y": 44
+          },
+          "clips": [
+            {
+              "fps": 8,
+              "frames": 8,
+              "name": "idle"
+            },
+            {
+              "fps": 12,
+              "frames": 12,
+              "name": "attack"
+            }
+          ],
+          "facings": 8,
+          "partCount": 56,
+          "droppedDetails": 0,
+          "measuredStandingArtPx": 22,
+          "measuredMaxArtPx": 25
+        },
+        {
+          "id": "ranger",
+          "tier": "hero",
+          "scale": 0.4855,
+          "screenPx": 44,
+          "bodyArtPx": 20,
+          "cell": {
+            "height": 54,
+            "width": 72
+          },
+          "anchor": {
+            "x": 35,
+            "y": 44
+          },
+          "clips": [
+            {
+              "fps": 8,
+              "frames": 8,
+              "name": "idle"
+            },
+            {
+              "fps": 12,
+              "frames": 12,
+              "name": "attack"
+            }
+          ],
+          "facings": 8,
+          "partCount": 46,
+          "droppedDetails": 0,
+          "measuredStandingArtPx": 21,
+          "measuredMaxArtPx": 23
+        }
+      ],
+      "cost": {
+        "animations": 36,
+        "cellHeight": 54,
+        "cellWidth": 72,
+        "cells": 2368,
+        "clusterDensity": {
+          "quantized": 0.4258,
+          "shipped": 0.2058,
+          "singletonShareQuantized": 0.5035,
+          "singletonShareShipped": 0.3208
+        },
+        "facings": 8,
+        "framesPerFacing": 296,
+        "indexedPngBytes": 130320,
+        "paletteEntriesUsed": 33,
+        "rgbaPngBytes": 990770,
+        "trimmed": {
+          "height": 1012,
+          "occupancy": 0.8646961846443711,
+          "pixels": 781264,
+          "width": 772
+        },
+        "uniformCellGrid": {
+          "height": 2646,
+          "pixels": 9335088,
+          "width": 3528
+        },
+        "uniformTrimGrid": {
+          "height": 1323,
+          "pixels": 1361367,
+          "width": 1029
+        },
+        "units": {
+          "brute_a": {
+            "cellPixels": 212800,
+            "cells": 112,
+            "trimmedPixels": 20648
+          },
+          "brute_b": {
+            "cellPixels": 212800,
+            "cells": 112,
+            "trimmedPixels": 20648
+          },
+          "marksman_a": {
+            "cellPixels": 285824,
+            "cells": 112,
+            "trimmedPixels": 17569
+          },
+          "marksman_b": {
+            "cellPixels": 285824,
+            "cells": 112,
+            "trimmedPixels": 17569
+          },
+          "medic_a": {
+            "cellPixels": 622080,
+            "cells": 160,
+            "trimmedPixels": 47057
+          },
+          "medic_b": {
+            "cellPixels": 622080,
+            "cells": 160,
+            "trimmedPixels": 47057
+          },
+          "medic_a_marked": {
+            "cellPixels": 622080,
+            "cells": 160,
+            "trimmedPixels": 58931
+          },
+          "medic_b_marked": {
+            "cellPixels": 622080,
+            "cells": 160,
+            "trimmedPixels": 58931
+          },
+          "medic_a_marked_inset": {
+            "cellPixels": 622080,
+            "cells": 160,
+            "trimmedPixels": 47057
+          },
+          "medic_b_marked_inset": {
+            "cellPixels": 622080,
+            "cells": 160,
+            "trimmedPixels": 47057
+          },
+          "ranger_a": {
+            "cellPixels": 622080,
+            "cells": 160,
+            "trimmedPixels": 44954
+          },
+          "ranger_b": {
+            "cellPixels": 622080,
+            "cells": 160,
+            "trimmedPixels": 44954
+          },
+          "ranger_a_marked": {
+            "cellPixels": 622080,
+            "cells": 160,
+            "trimmedPixels": 56608
+          },
+          "ranger_b_marked": {
+            "cellPixels": 622080,
+            "cells": 160,
+            "trimmedPixels": 56608
+          },
+          "ranger_a_marked_inset": {
+            "cellPixels": 622080,
+            "cells": 160,
+            "trimmedPixels": 44954
+          },
+          "ranger_b_marked_inset": {
+            "cellPixels": 622080,
+            "cells": 160,
+            "trimmedPixels": 44954
+          }
+        }
+      },
+      "blenderRenders": 1088,
+      "blenderRenderSeconds": 81.4,
+      "bakeWallClockSeconds": 214.02,
+      "atlasRoundTripMismatchedPixels": 0,
+      "clusterDensityAudit": {
+        "measuredOn": "public/blender-baked/crowd-large.png",
+        "islands": 98118,
+        "pixels": 476820,
+        "ratio": 0.2058,
+        "singletonShare": 0.3208
+      },
+      "secondIdle": {
+        "cells": 128,
+        "shareOfTrimmedAtlas": 0.0319,
+        "estimatedIndexedBytes": 4159,
+        "growthOverOneIdle": 0.033
+      },
+      "contour": {
+        "rimHex": "#59404f",
+        "shippedIndexedPngBytes": 130320,
+        "controlNoRimIndexedPngBytes": 115862,
+        "extraBlenderRenders": 0,
+        "note": "the rim is drawn in pixel space over cells that already exist"
+      },
+      "rosterProjection": {
+        "basis": {
+          "bytesPerTrimmedPixel": 0.1929,
+          "meanFodderTrimmedPixels": 19109,
+          "meanHeroTrimmedPixels": 46006,
+          "meanFodderBakeSeconds": 28.15,
+          "meanHeroBakeSeconds": 26.24,
+          "note": "faction B is a palette remap of faction A — it costs bytes, never renders"
+        },
+        "allFodder": {
+          "archetypes": 20,
+          "fodderArchetypes": 20,
+          "heroArchetypes": 0,
+          "factions": 2,
+          "cells": 4480,
+          "indexedBytes": 147447,
+          "blenderSeconds": 563
+        },
+        "sixteenFodderFourHeroes": {
+          "archetypes": 20,
+          "fodderArchetypes": 16,
+          "heroArchetypes": 4,
+          "factions": 2,
+          "cells": 4864,
+          "indexedBytes": 188956,
+          "blenderSeconds": 555.4
+        }
+      },
+      "crowd": {
+        "units": 36,
+        "fodderPerSide": 16,
+        "heroesPerSide": 2,
+        "facingNote": "8 facings kept; 4 would halve fodder cells",
+        "motion": {
+          "sync": {
+            "changeBurstiness": 2.711,
+            "distinctCells": 80,
+            "meanDuplicateMultiplicity": 3.44,
+            "peakFrameSynchrony": 1
+          },
+          "phase": {
+            "changeBurstiness": 0.353,
+            "distinctCells": 80,
+            "meanDuplicateMultiplicity": 1.6,
+            "peakFrameSynchrony": 0.417
+          },
+          "variants": {
+            "changeBurstiness": 0.353,
+            "distinctCells": 108,
+            "meanDuplicateMultiplicity": 1.22,
+            "peakFrameSynchrony": 0.417
+          },
+          "full": {
+            "changeBurstiness": 0.355,
+            "distinctCells": 228,
+            "meanDuplicateMultiplicity": 1.14,
+            "peakFrameSynchrony": 0.472
+          }
+        },
+        "motionLockedFacing": {
+          "sync": {
+            "changeBurstiness": 2.711,
+            "distinctCells": 48,
+            "meanDuplicateMultiplicity": 7.67,
+            "peakFrameSynchrony": 1
+          },
+          "phase": {
+            "changeBurstiness": 0.353,
+            "distinctCells": 48,
+            "meanDuplicateMultiplicity": 2.6,
+            "peakFrameSynchrony": 0.417
+          },
+          "variants": {
+            "changeBurstiness": 0.353,
+            "distinctCells": 64,
+            "meanDuplicateMultiplicity": 1.78,
+            "peakFrameSynchrony": 0.417
+          },
+          "full": {
+            "changeBurstiness": 0.355,
+            "distinctCells": 136,
+            "meanDuplicateMultiplicity": 1.51,
+            "peakFrameSynchrony": 0.472
+          }
+        },
+        "pixelIdentity": {
+          "sync": {
+            "distinctImages": 72,
+            "meanIdenticalMultiplicity": 3.44,
+            "peakIdenticalUnits": 7
+          },
+          "phase": {
+            "distinctImages": 72,
+            "meanIdenticalMultiplicity": 1.6,
+            "peakIdenticalUnits": 4
+          },
+          "variants": {
+            "distinctImages": 99,
+            "meanIdenticalMultiplicity": 1.24,
+            "peakIdenticalUnits": 3
+          },
+          "full": {
+            "distinctImages": 177,
+            "meanIdenticalMultiplicity": 1.21,
+            "peakIdenticalUnits": 3
+          }
+        },
+        "pixelIdentityLockedFacing": {
+          "sync": {
+            "distinctImages": 40,
+            "meanIdenticalMultiplicity": 7.67,
+            "peakIdenticalUnits": 10
+          },
+          "phase": {
+            "distinctImages": 40,
+            "meanIdenticalMultiplicity": 2.6,
+            "peakIdenticalUnits": 6
+          },
+          "variants": {
+            "distinctImages": 55,
+            "meanIdenticalMultiplicity": 1.8,
+            "peakIdenticalUnits": 4
+          },
+          "full": {
+            "distinctImages": 99,
+            "meanIdenticalMultiplicity": 1.67,
+            "peakIdenticalUnits": 5
+          }
+        }
+      }
+    },
+    "xl": {
+      "label": "XL — round 6",
+      "note": "fodder 44px on screen",
+      "units": [
+        {
+          "id": "brute",
+          "tier": "fodder",
+          "scale": 0.4896,
+          "screenPx": 40,
+          "bodyArtPx": 18,
+          "cell": {
+            "height": 48,
+            "width": 64
+          },
+          "anchor": {
+            "x": 32,
+            "y": 40
+          },
+          "clips": [
+            {
+              "fps": 6,
+              "frames": 4,
+              "name": "idle"
+            },
+            {
+              "fps": 6,
+              "frames": 4,
+              "name": "idle_b"
+            },
+            {
+              "fps": 10,
+              "frames": 6,
+              "name": "attack"
+            }
+          ],
+          "facings": 8,
+          "partCount": 26,
+          "droppedDetails": 0,
+          "measuredStandingArtPx": 20,
+          "measuredMaxArtPx": 25
+        },
+        {
+          "id": "marksman",
+          "tier": "fodder",
+          "scale": 0.4649,
+          "screenPx": 44,
+          "bodyArtPx": 20,
+          "cell": {
+            "height": 54,
+            "width": 72
+          },
+          "anchor": {
+            "x": 35,
+            "y": 44
+          },
+          "clips": [
+            {
+              "fps": 6,
+              "frames": 4,
+              "name": "idle"
+            },
+            {
+              "fps": 6,
+              "frames": 4,
+              "name": "idle_b"
+            },
+            {
+              "fps": 10,
+              "frames": 6,
+              "name": "attack"
+            }
+          ],
+          "facings": 8,
+          "partCount": 26,
+          "droppedDetails": 0,
+          "measuredStandingArtPx": 19,
+          "measuredMaxArtPx": 23
+        },
+        {
+          "id": "medic",
+          "tier": "hero",
+          "scale": 0.8506,
+          "screenPx": 56,
+          "bodyArtPx": 26,
+          "cell": {
+            "height": 70,
+            "width": 92
+          },
+          "anchor": {
+            "x": 46,
+            "y": 57
+          },
+          "clips": [
+            {
+              "fps": 8,
+              "frames": 8,
+              "name": "idle"
+            },
+            {
+              "fps": 12,
+              "frames": 12,
+              "name": "attack"
+            }
+          ],
+          "facings": 8,
+          "partCount": 56,
+          "droppedDetails": 0,
+          "measuredStandingArtPx": 28,
+          "measuredMaxArtPx": 32
+        },
+        {
+          "id": "ranger",
+          "tier": "hero",
+          "scale": 0.6311,
+          "screenPx": 56,
+          "bodyArtPx": 26,
+          "cell": {
+            "height": 70,
+            "width": 92
+          },
+          "anchor": {
+            "x": 46,
+            "y": 57
+          },
+          "clips": [
+            {
+              "fps": 8,
+              "frames": 8,
+              "name": "idle"
+            },
+            {
+              "fps": 12,
+              "frames": 12,
+              "name": "attack"
+            }
+          ],
+          "facings": 8,
+          "partCount": 46,
+          "droppedDetails": 0,
+          "measuredStandingArtPx": 28,
+          "measuredMaxArtPx": 30
+        }
+      ],
+      "cost": {
+        "animations": 36,
+        "cellHeight": 70,
+        "cellWidth": 92,
+        "cells": 2368,
+        "clusterDensity": {
+          "quantized": 0.3243,
+          "shipped": 0.1921,
+          "singletonShareQuantized": 0.4501,
+          "singletonShareShipped": 0.2717
+        },
+        "facings": 8,
+        "framesPerFacing": 296,
+        "indexedPngBytes": 190991,
+        "paletteEntriesUsed": 33,
+        "rgbaPngBytes": 1423440,
+        "trimmed": {
+          "height": 1156,
+          "occupancy": 0.8869457945686858,
+          "pixels": 1188368,
+          "width": 1028
+        },
+        "uniformCellGrid": {
+          "height": 3430,
+          "pixels": 15462440,
+          "width": 4508
+        },
+        "uniformTrimGrid": {
+          "height": 1666,
+          "pixels": 2122484,
+          "width": 1274
+        },
+        "units": {
+          "brute_a": {
+            "cellPixels": 344064,
+            "cells": 112,
+            "trimmedPixels": 32712
+          },
+          "brute_b": {
+            "cellPixels": 344064,
+            "cells": 112,
+            "trimmedPixels": 32712
+          },
+          "marksman_a": {
+            "cellPixels": 435456,
+            "cells": 112,
+            "trimmedPixels": 25751
+          },
+          "marksman_b": {
+            "cellPixels": 435456,
+            "cells": 112,
+            "trimmedPixels": 25751
+          },
+          "medic_a": {
+            "cellPixels": 1030400,
+            "cells": 160,
+            "trimmedPixels": 75023
+          },
+          "medic_b": {
+            "cellPixels": 1030400,
+            "cells": 160,
+            "trimmedPixels": 75023
+          },
+          "medic_a_marked": {
+            "cellPixels": 1030400,
+            "cells": 160,
+            "trimmedPixels": 89873
+          },
+          "medic_b_marked": {
+            "cellPixels": 1030400,
+            "cells": 160,
+            "trimmedPixels": 89873
+          },
+          "medic_a_marked_inset": {
+            "cellPixels": 1030400,
+            "cells": 160,
+            "trimmedPixels": 75023
+          },
+          "medic_b_marked_inset": {
+            "cellPixels": 1030400,
+            "cells": 160,
+            "trimmedPixels": 75023
+          },
+          "ranger_a": {
+            "cellPixels": 1030400,
+            "cells": 160,
+            "trimmedPixels": 71355
+          },
+          "ranger_b": {
+            "cellPixels": 1030400,
+            "cells": 160,
+            "trimmedPixels": 71355
+          },
+          "ranger_a_marked": {
+            "cellPixels": 1030400,
+            "cells": 160,
+            "trimmedPixels": 85917
+          },
+          "ranger_b_marked": {
+            "cellPixels": 1030400,
+            "cells": 160,
+            "trimmedPixels": 85917
+          },
+          "ranger_a_marked_inset": {
+            "cellPixels": 1030400,
+            "cells": 160,
+            "trimmedPixels": 71355
+          },
+          "ranger_b_marked_inset": {
+            "cellPixels": 1030400,
+            "cells": 160,
+            "trimmedPixels": 71355
+          }
+        }
+      },
+      "blenderRenders": 1088,
+      "blenderRenderSeconds": 75.1,
+      "bakeWallClockSeconds": 277.77,
+      "atlasRoundTripMismatchedPixels": 0,
+      "clusterDensityAudit": {
+        "measuredOn": "public/blender-baked/crowd-xl.png",
+        "islands": 135761,
+        "pixels": 706674,
+        "ratio": 0.1921,
+        "singletonShare": 0.2717
+      },
+      "secondIdle": {
+        "cells": 128,
+        "shareOfTrimmedAtlas": 0.0317,
+        "estimatedIndexedBytes": 6059,
+        "growthOverOneIdle": 0.0328
+      },
+      "contour": {
+        "rimHex": "#59404f",
+        "shippedIndexedPngBytes": 190991,
+        "controlNoRimIndexedPngBytes": 175782,
+        "extraBlenderRenders": 0,
+        "note": "the rim is drawn in pixel space over cells that already exist"
+      },
+      "rosterProjection": {
+        "basis": {
+          "bytesPerTrimmedPixel": 0.1812,
+          "meanFodderTrimmedPixels": 29232,
+          "meanHeroTrimmedPixels": 73189,
+          "meanFodderBakeSeconds": 10.21,
+          "meanHeroBakeSeconds": 37.3,
+          "note": "faction B is a palette remap of faction A — it costs bytes, never renders"
+        },
+        "allFodder": {
+          "archetypes": 20,
+          "fodderArchetypes": 20,
+          "heroArchetypes": 0,
+          "factions": 2,
+          "cells": 4480,
+          "indexedBytes": 211873,
+          "blenderSeconds": 204.3
+        },
+        "sixteenFodderFourHeroes": {
+          "archetypes": 20,
+          "fodderArchetypes": 16,
+          "heroArchetypes": 4,
+          "factions": 2,
+          "cells": 4864,
+          "indexedBytes": 275595,
+          "blenderSeconds": 312.7
+        }
+      },
+      "crowd": {
+        "units": 36,
+        "fodderPerSide": 16,
+        "heroesPerSide": 2,
+        "facingNote": "8 facings kept; 4 would halve fodder cells",
+        "motion": {
+          "sync": {
+            "changeBurstiness": 2.711,
+            "distinctCells": 80,
+            "meanDuplicateMultiplicity": 3.44,
+            "peakFrameSynchrony": 1
+          },
+          "phase": {
+            "changeBurstiness": 0.353,
+            "distinctCells": 80,
+            "meanDuplicateMultiplicity": 1.6,
+            "peakFrameSynchrony": 0.417
+          },
+          "variants": {
+            "changeBurstiness": 0.353,
+            "distinctCells": 108,
+            "meanDuplicateMultiplicity": 1.22,
+            "peakFrameSynchrony": 0.417
+          },
+          "full": {
+            "changeBurstiness": 0.355,
+            "distinctCells": 228,
+            "meanDuplicateMultiplicity": 1.14,
+            "peakFrameSynchrony": 0.472
+          }
+        },
+        "motionLockedFacing": {
+          "sync": {
+            "changeBurstiness": 2.711,
+            "distinctCells": 48,
+            "meanDuplicateMultiplicity": 7.67,
+            "peakFrameSynchrony": 1
+          },
+          "phase": {
+            "changeBurstiness": 0.353,
+            "distinctCells": 48,
+            "meanDuplicateMultiplicity": 2.6,
+            "peakFrameSynchrony": 0.417
+          },
+          "variants": {
+            "changeBurstiness": 0.353,
+            "distinctCells": 64,
+            "meanDuplicateMultiplicity": 1.78,
+            "peakFrameSynchrony": 0.417
+          },
+          "full": {
+            "changeBurstiness": 0.355,
+            "distinctCells": 136,
+            "meanDuplicateMultiplicity": 1.51,
+            "peakFrameSynchrony": 0.472
+          }
+        },
+        "pixelIdentity": {
+          "sync": {
+            "distinctImages": 72,
+            "meanIdenticalMultiplicity": 3.44,
+            "peakIdenticalUnits": 7
+          },
+          "phase": {
+            "distinctImages": 72,
+            "meanIdenticalMultiplicity": 1.6,
+            "peakIdenticalUnits": 4
+          },
+          "variants": {
+            "distinctImages": 100,
+            "meanIdenticalMultiplicity": 1.22,
+            "peakIdenticalUnits": 2
+          },
+          "full": {
+            "distinctImages": 178,
+            "meanIdenticalMultiplicity": 1.19,
+            "peakIdenticalUnits": 3
+          }
+        },
+        "pixelIdentityLockedFacing": {
+          "sync": {
+            "distinctImages": 40,
+            "meanIdenticalMultiplicity": 7.67,
+            "peakIdenticalUnits": 10
+          },
+          "phase": {
+            "distinctImages": 40,
+            "meanIdenticalMultiplicity": 2.6,
+            "peakIdenticalUnits": 6
+          },
+          "variants": {
+            "distinctImages": 56,
+            "meanIdenticalMultiplicity": 1.78,
+            "peakIdenticalUnits": 4
+          },
+          "full": {
+            "distinctImages": 100,
+            "meanIdenticalMultiplicity": 1.64,
+            "peakIdenticalUnits": 5
+          }
+        }
+      }
+    },
+    "xxl": {
+      "label": "XXL — round 6",
+      "note": "fodder 56px on screen",
+      "units": [
+        {
+          "id": "brute",
+          "tier": "fodder",
+          "scale": 0.6256,
+          "screenPx": 50,
+          "bodyArtPx": 23,
+          "cell": {
+            "height": 62,
+            "width": 82
+          },
+          "anchor": {
+            "x": 41,
+            "y": 51
+          },
+          "clips": [
+            {
+              "fps": 6,
+              "frames": 4,
+              "name": "idle"
+            },
+            {
+              "fps": 6,
+              "frames": 4,
+              "name": "idle_b"
+            },
+            {
+              "fps": 10,
+              "frames": 6,
+              "name": "attack"
+            }
+          ],
+          "facings": 8,
+          "partCount": 26,
+          "droppedDetails": 0,
+          "measuredStandingArtPx": 24,
+          "measuredMaxArtPx": 31
+        },
+        {
+          "id": "marksman",
+          "tier": "fodder",
+          "scale": 0.6043,
+          "screenPx": 56,
+          "bodyArtPx": 26,
+          "cell": {
+            "height": 70,
+            "width": 92
+          },
+          "anchor": {
+            "x": 46,
+            "y": 57
+          },
+          "clips": [
+            {
+              "fps": 6,
+              "frames": 4,
+              "name": "idle"
+            },
+            {
+              "fps": 6,
+              "frames": 4,
+              "name": "idle_b"
+            },
+            {
+              "fps": 10,
+              "frames": 6,
+              "name": "attack"
+            }
+          ],
+          "facings": 8,
+          "partCount": 26,
+          "droppedDetails": 0,
+          "measuredStandingArtPx": 25,
+          "measuredMaxArtPx": 30
+        },
+        {
+          "id": "medic",
+          "tier": "hero",
+          "scale": 1.0796,
+          "screenPx": 70,
+          "bodyArtPx": 33,
+          "cell": {
+            "height": 88,
+            "width": 118
+          },
+          "anchor": {
+            "x": 58,
+            "y": 73
+          },
+          "clips": [
+            {
+              "fps": 8,
+              "frames": 8,
+              "name": "idle"
+            },
+            {
+              "fps": 12,
+              "frames": 12,
+              "name": "attack"
+            }
+          ],
+          "facings": 8,
+          "partCount": 56,
+          "droppedDetails": 0,
+          "measuredStandingArtPx": 35,
+          "measuredMaxArtPx": 40
+        },
+        {
+          "id": "ranger",
+          "tier": "hero",
+          "scale": 0.801,
+          "screenPx": 70,
+          "bodyArtPx": 33,
+          "cell": {
+            "height": 88,
+            "width": 118
+          },
+          "anchor": {
+            "x": 58,
+            "y": 73
+          },
+          "clips": [
+            {
+              "fps": 8,
+              "frames": 8,
+              "name": "idle"
+            },
+            {
+              "fps": 12,
+              "frames": 12,
+              "name": "attack"
+            }
+          ],
+          "facings": 8,
+          "partCount": 46,
+          "droppedDetails": 0,
+          "measuredStandingArtPx": 35,
+          "measuredMaxArtPx": 37
+        }
+      ],
+      "cost": {
+        "animations": 36,
+        "cellHeight": 88,
+        "cellWidth": 118,
+        "cells": 2368,
+        "clusterDensity": {
+          "quantized": 0.2353,
+          "shipped": 0.1784,
+          "singletonShareQuantized": 0.3985,
+          "singletonShareShipped": 0.2327
+        },
+        "facings": 8,
+        "framesPerFacing": 296,
+        "indexedPngBytes": 289050,
+        "paletteEntriesUsed": 33,
+        "rgbaPngBytes": 2034981,
+        "trimmed": {
+          "height": 1736,
+          "occupancy": 0.909257317468318,
+          "pixels": 1777664,
+          "width": 1024
+        },
+        "uniformCellGrid": {
+          "height": 4312,
+          "pixels": 24931984,
+          "width": 5782
+        },
+        "uniformTrimGrid": {
+          "height": 2058,
+          "pixels": 3226944,
+          "width": 1568
+        },
+        "units": {
+          "brute_a": {
+            "cellPixels": 569408,
+            "cells": 112,
+            "trimmedPixels": 50873
+          },
+          "brute_b": {
+            "cellPixels": 569408,
+            "cells": 112,
+            "trimmedPixels": 50873
+          },
+          "marksman_a": {
+            "cellPixels": 721280,
+            "cells": 112,
+            "trimmedPixels": 43063
+          },
+          "marksman_b": {
+            "cellPixels": 721280,
+            "cells": 112,
+            "trimmedPixels": 43063
+          },
+          "medic_a": {
+            "cellPixels": 1661440,
+            "cells": 160,
+            "trimmedPixels": 115607
+          },
+          "medic_b": {
+            "cellPixels": 1661440,
+            "cells": 160,
+            "trimmedPixels": 115607
+          },
+          "medic_a_marked": {
+            "cellPixels": 1661440,
+            "cells": 160,
+            "trimmedPixels": 133915
+          },
+          "medic_b_marked": {
+            "cellPixels": 1661440,
+            "cells": 160,
+            "trimmedPixels": 133915
+          },
+          "medic_a_marked_inset": {
+            "cellPixels": 1661440,
+            "cells": 160,
+            "trimmedPixels": 115607
+          },
+          "medic_b_marked_inset": {
+            "cellPixels": 1661440,
+            "cells": 160,
+            "trimmedPixels": 115607
+          },
+          "ranger_a": {
+            "cellPixels": 1661440,
+            "cells": 160,
+            "trimmedPixels": 110374
+          },
+          "ranger_b": {
+            "cellPixels": 1661440,
+            "cells": 160,
+            "trimmedPixels": 110374
+          },
+          "ranger_a_marked": {
+            "cellPixels": 1661440,
+            "cells": 160,
+            "trimmedPixels": 128364
+          },
+          "ranger_b_marked": {
+            "cellPixels": 1661440,
+            "cells": 160,
+            "trimmedPixels": 128364
+          },
+          "ranger_a_marked_inset": {
+            "cellPixels": 1661440,
+            "cells": 160,
+            "trimmedPixels": 110374
+          },
+          "ranger_b_marked_inset": {
+            "cellPixels": 1661440,
+            "cells": 160,
+            "trimmedPixels": 110374
+          }
+        }
+      },
+      "blenderRenders": 1088,
+      "blenderRenderSeconds": 92.38,
+      "bakeWallClockSeconds": 317.38,
+      "atlasRoundTripMismatchedPixels": 0,
+      "clusterDensityAudit": {
+        "measuredOn": "public/blender-baked/crowd-xxl.png",
+        "islands": 184760,
+        "pixels": 1035450,
+        "ratio": 0.1784,
+        "singletonShare": 0.2327
+      },
+      "secondIdle": {
+        "cells": 128,
+        "shareOfTrimmedAtlas": 0.0326,
+        "estimatedIndexedBytes": 9421,
+        "growthOverOneIdle": 0.0337
+      },
+      "contour": {
+        "rimHex": "#59404f",
+        "shippedIndexedPngBytes": 289050,
+        "controlNoRimIndexedPngBytes": 272813,
+        "extraBlenderRenders": 0,
+        "note": "the rim is drawn in pixel space over cells that already exist"
+      },
+      "rosterProjection": {
+        "basis": {
+          "bytesPerTrimmedPixel": 0.1788,
+          "meanFodderTrimmedPixels": 46968,
+          "meanHeroTrimmedPixels": 112991,
+          "meanFodderBakeSeconds": 24.2,
+          "meanHeroBakeSeconds": 39.23,
+          "note": "faction B is a palette remap of faction A — it costs bytes, never renders"
+        },
+        "allFodder": {
+          "archetypes": 20,
+          "fodderArchetypes": 20,
+          "heroArchetypes": 0,
+          "factions": 2,
+          "cells": 4480,
+          "indexedBytes": 335968,
+          "blenderSeconds": 484.1
+        },
+        "sixteenFodderFourHeroes": {
+          "archetypes": 20,
+          "fodderArchetypes": 16,
+          "heroArchetypes": 4,
+          "factions": 2,
+          "cells": 4864,
+          "indexedBytes": 430422,
+          "blenderSeconds": 544.2
+        }
+      },
+      "crowd": {
+        "units": 36,
+        "fodderPerSide": 16,
+        "heroesPerSide": 2,
+        "facingNote": "8 facings kept; 4 would halve fodder cells",
+        "motion": {
+          "sync": {
+            "changeBurstiness": 2.711,
+            "distinctCells": 80,
+            "meanDuplicateMultiplicity": 3.44,
+            "peakFrameSynchrony": 1
+          },
+          "phase": {
+            "changeBurstiness": 0.353,
+            "distinctCells": 80,
+            "meanDuplicateMultiplicity": 1.6,
+            "peakFrameSynchrony": 0.417
+          },
+          "variants": {
+            "changeBurstiness": 0.353,
+            "distinctCells": 108,
+            "meanDuplicateMultiplicity": 1.22,
+            "peakFrameSynchrony": 0.417
+          },
+          "full": {
+            "changeBurstiness": 0.355,
+            "distinctCells": 228,
+            "meanDuplicateMultiplicity": 1.14,
+            "peakFrameSynchrony": 0.472
+          }
+        },
+        "motionLockedFacing": {
+          "sync": {
+            "changeBurstiness": 2.711,
+            "distinctCells": 48,
+            "meanDuplicateMultiplicity": 7.67,
+            "peakFrameSynchrony": 1
+          },
+          "phase": {
+            "changeBurstiness": 0.353,
+            "distinctCells": 48,
+            "meanDuplicateMultiplicity": 2.6,
+            "peakFrameSynchrony": 0.417
+          },
+          "variants": {
+            "changeBurstiness": 0.353,
+            "distinctCells": 64,
+            "meanDuplicateMultiplicity": 1.78,
+            "peakFrameSynchrony": 0.417
+          },
+          "full": {
+            "changeBurstiness": 0.355,
+            "distinctCells": 136,
+            "meanDuplicateMultiplicity": 1.51,
+            "peakFrameSynchrony": 0.472
+          }
+        },
+        "pixelIdentity": {
+          "sync": {
+            "distinctImages": 72,
+            "meanIdenticalMultiplicity": 3.44,
+            "peakIdenticalUnits": 7
+          },
+          "phase": {
+            "distinctImages": 72,
+            "meanIdenticalMultiplicity": 1.6,
+            "peakIdenticalUnits": 4
+          },
+          "variants": {
+            "distinctImages": 100,
+            "meanIdenticalMultiplicity": 1.22,
+            "peakIdenticalUnits": 2
+          },
+          "full": {
+            "distinctImages": 178,
+            "meanIdenticalMultiplicity": 1.19,
+            "peakIdenticalUnits": 3
+          }
+        },
+        "pixelIdentityLockedFacing": {
+          "sync": {
+            "distinctImages": 40,
+            "meanIdenticalMultiplicity": 7.67,
+            "peakIdenticalUnits": 10
+          },
+          "phase": {
+            "distinctImages": 40,
+            "meanIdenticalMultiplicity": 2.6,
+            "peakIdenticalUnits": 6
+          },
+          "variants": {
+            "distinctImages": 56,
+            "meanIdenticalMultiplicity": 1.78,
+            "peakIdenticalUnits": 4
+          },
+          "full": {
+            "distinctImages": 100,
+            "meanIdenticalMultiplicity": 1.64,
+            "peakIdenticalUnits": 5
+          }
+        }
+      }
+    }
+  }
+}

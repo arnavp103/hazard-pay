@@ -1,0 +1,588 @@
+{
+  "generatedBy": "/tmp/bl5/measure.py over the shipped atlases and the 480x270 captures",
+  "what": "round 4 (before) against round 5 (after), same board, same formation seed",
+  "method": {
+    "contour": "capture the crowd twice \u2014 with the roster and with layers=board \u2014 subtract for an exact unit mask, then for every silhouette-edge pixel take the best |dL| against any adjacent non-unit pixel in the composite",
+    "archetype": "8 idle facings, brute and marksman alpha masks aligned on the ground point, intersection over union",
+    "interior": "8 idle facings, atlas cells, pixels that are neither ink (#120b10) nor rim (#59404f); warm share counts the rust/brick/copper end of the palette"
+  },
+  "before": {
+    "small": {
+      "interior": {
+        "brute_a": {
+          "facingsSampled": 8,
+          "meanWarmShare": 0.011,
+          "meanChroma": 12.763,
+          "meanInteriorPx": 25.25,
+          "meanDistinctColours": 5.5,
+          "meanDominantShare": 0.37,
+          "meanColoursOver5pct": 5.5,
+          "meanInteriorLumStd": 36.782,
+          "meanInteriorLumRange": 102.38,
+          "meanContourInkShare": 0.613
+        },
+        "brute_b": {
+          "facingsSampled": 8,
+          "meanWarmShare": 0.0,
+          "meanChroma": 14.301,
+          "meanInteriorPx": 25.25,
+          "meanDistinctColours": 4.75,
+          "meanDominantShare": 0.395,
+          "meanColoursOver5pct": 4.75,
+          "meanInteriorLumStd": 34.391,
+          "meanInteriorLumRange": 94.533,
+          "meanContourInkShare": 0.613
+        },
+        "marksman_a": {
+          "facingsSampled": 8,
+          "meanWarmShare": 0.0,
+          "meanChroma": 11.046,
+          "meanInteriorPx": 18.25,
+          "meanDistinctColours": 4.375,
+          "meanDominantShare": 0.488,
+          "meanColoursOver5pct": 4.375,
+          "meanInteriorLumStd": 26.61,
+          "meanInteriorLumRange": 83.568,
+          "meanContourInkShare": 0.679
+        },
+        "marksman_b": {
+          "facingsSampled": 8,
+          "meanWarmShare": 0.0,
+          "meanChroma": 11.496,
+          "meanInteriorPx": 18.25,
+          "meanDistinctColours": 4.125,
+          "meanDominantShare": 0.498,
+          "meanColoursOver5pct": 4.125,
+          "meanInteriorLumStd": 25.917,
+          "meanInteriorLumRange": 82.414,
+          "meanContourInkShare": 0.679
+        }
+      },
+      "archetype": {
+        "meanIoU": 0.763,
+        "maxIoU": 0.8382,
+        "meanAspectA": 0.702,
+        "meanAspectB": 0.624,
+        "aspectRatioBetween": 1.126,
+        "meanWidthA": 7.62,
+        "meanWidthB": 6.75,
+        "meanHeightA": 10.88,
+        "meanHeightB": 10.88,
+        "meanAreaA": 65.4,
+        "meanAreaB": 56.9,
+        "perFacing": [
+          {
+            "facing": 0,
+            "iou": 0.7571
+          },
+          {
+            "facing": 1,
+            "iou": 0.6933
+          },
+          {
+            "facing": 2,
+            "iou": 0.8382
+          },
+          {
+            "facing": 3,
+            "iou": 0.7333
+          },
+          {
+            "facing": 4,
+            "iou": 0.8154
+          },
+          {
+            "facing": 5,
+            "iou": 0.7368
+          },
+          {
+            "facing": 6,
+            "iou": 0.8194
+          },
+          {
+            "facing": 7,
+            "iou": 0.7101
+          }
+        ]
+      },
+      "contour": {
+        "edgePixels": 1635,
+        "floorBandL10_L90": [
+          20.1,
+          42.4
+        ],
+        "edgePixelsInsideFloorBand": 0.0043,
+        "meanBestDeltaL": 11.58,
+        "medianBestDeltaL": 7.28,
+        "shareBestDeltaLBelow8": 0.6165,
+        "shareBestDeltaLBelow16": 0.8398,
+        "shareBestDeltaLBelow24": 0.8398,
+        "contactPairs": 1844,
+        "shareContactsBelow8": 0.6215,
+        "unitPixels": 8184
+      }
+    },
+    "large": {
+      "interior": {
+        "brute_a": {
+          "facingsSampled": 8,
+          "meanWarmShare": 0.022,
+          "meanChroma": 14.45,
+          "meanInteriorPx": 88.875,
+          "meanDistinctColours": 11.25,
+          "meanDominantShare": 0.244,
+          "meanColoursOver5pct": 6.375,
+          "meanInteriorLumStd": 34.168,
+          "meanInteriorLumRange": 125.982,
+          "meanContourInkShare": 0.438
+        },
+        "brute_b": {
+          "facingsSampled": 8,
+          "meanWarmShare": 0.015,
+          "meanChroma": 15.862,
+          "meanInteriorPx": 88.875,
+          "meanDistinctColours": 9.875,
+          "meanDominantShare": 0.299,
+          "meanColoursOver5pct": 5.5,
+          "meanInteriorLumStd": 33.383,
+          "meanInteriorLumRange": 134.707,
+          "meanContourInkShare": 0.438
+        },
+        "marksman_a": {
+          "facingsSampled": 8,
+          "meanWarmShare": 0.004,
+          "meanChroma": 12.633,
+          "meanInteriorPx": 57.75,
+          "meanDistinctColours": 9.75,
+          "meanDominantShare": 0.295,
+          "meanColoursOver5pct": 6.5,
+          "meanInteriorLumStd": 29.362,
+          "meanInteriorLumRange": 118.912,
+          "meanContourInkShare": 0.548
+        },
+        "marksman_b": {
+          "facingsSampled": 8,
+          "meanWarmShare": 0.004,
+          "meanChroma": 13.899,
+          "meanInteriorPx": 57.75,
+          "meanDistinctColours": 8.5,
+          "meanDominantShare": 0.37,
+          "meanColoursOver5pct": 5.625,
+          "meanInteriorLumStd": 27.989,
+          "meanInteriorLumRange": 114.526,
+          "meanContourInkShare": 0.548
+        }
+      },
+      "archetype": {
+        "meanIoU": 0.7119,
+        "maxIoU": 0.7895,
+        "meanAspectA": 0.695,
+        "meanAspectB": 0.574,
+        "aspectRatioBetween": 1.211,
+        "meanWidthA": 12.5,
+        "meanWidthB": 10.25,
+        "meanHeightA": 18.0,
+        "meanHeightB": 17.88,
+        "meanAreaA": 157.8,
+        "meanAreaB": 127.2,
+        "perFacing": [
+          {
+            "facing": 0,
+            "iou": 0.7135
+          },
+          {
+            "facing": 1,
+            "iou": 0.6584
+          },
+          {
+            "facing": 2,
+            "iou": 0.7895
+          },
+          {
+            "facing": 3,
+            "iou": 0.7338
+          },
+          {
+            "facing": 4,
+            "iou": 0.7562
+          },
+          {
+            "facing": 5,
+            "iou": 0.6687
+          },
+          {
+            "facing": 6,
+            "iou": 0.6865
+          },
+          {
+            "facing": 7,
+            "iou": 0.689
+          }
+        ]
+      },
+      "contour": {
+        "edgePixels": 3145,
+        "floorBandL10_L90": [
+          20.1,
+          57.0
+        ],
+        "edgePixelsInsideFloorBand": 0.0359,
+        "meanBestDeltaL": 18.64,
+        "medianBestDeltaL": 7.58,
+        "shareBestDeltaLBelow8": 0.5002,
+        "shareBestDeltaLBelow16": 0.7246,
+        "shareBestDeltaLBelow24": 0.7628,
+        "contactPairs": 3592,
+        "shareContactsBelow8": 0.5111,
+        "unitPixels": 19732
+      }
+    }
+  },
+  "after": {
+    "small": {
+      "interior": {
+        "brute_a": {
+          "facingsSampled": 8,
+          "meanWarmShare": 0.265,
+          "meanChroma": 31.607,
+          "meanInteriorPx": 36.25,
+          "meanDistinctColours": 8.625,
+          "meanDominantShare": 0.28,
+          "meanColoursOver5pct": 6.5,
+          "meanInteriorLumStd": 34.3,
+          "meanInteriorLumRange": 122.824,
+          "meanContourInkShare": 0.542
+        },
+        "brute_b": {
+          "facingsSampled": 8,
+          "meanWarmShare": 0.0,
+          "meanChroma": 13.434,
+          "meanInteriorPx": 36.25,
+          "meanDistinctColours": 7.0,
+          "meanDominantShare": 0.302,
+          "meanColoursOver5pct": 5.625,
+          "meanInteriorLumStd": 42.43,
+          "meanInteriorLumRange": 154.737,
+          "meanContourInkShare": 0.542
+        },
+        "marksman_a": {
+          "facingsSampled": 8,
+          "meanWarmShare": 0.23,
+          "meanChroma": 28.1,
+          "meanInteriorPx": 20.0,
+          "meanDistinctColours": 6.25,
+          "meanDominantShare": 0.432,
+          "meanColoursOver5pct": 5.5,
+          "meanInteriorLumStd": 29.744,
+          "meanInteriorLumRange": 91.814,
+          "meanContourInkShare": 0.679
+        },
+        "marksman_b": {
+          "facingsSampled": 8,
+          "meanWarmShare": 0.0,
+          "meanChroma": 12.18,
+          "meanInteriorPx": 20.0,
+          "meanDistinctColours": 5.125,
+          "meanDominantShare": 0.432,
+          "meanColoursOver5pct": 4.875,
+          "meanInteriorLumStd": 38.815,
+          "meanInteriorLumRange": 136.479,
+          "meanContourInkShare": 0.679
+        }
+      },
+      "archetype": {
+        "meanIoU": 0.6047,
+        "maxIoU": 0.7059,
+        "meanAspectA": 0.887,
+        "meanAspectB": 0.679,
+        "aspectRatioBetween": 1.308,
+        "meanWidthA": 9.62,
+        "meanWidthB": 8.0,
+        "meanHeightA": 10.88,
+        "meanHeightB": 11.88,
+        "meanAreaA": 78.6,
+        "meanAreaB": 62.8,
+        "perFacing": [
+          {
+            "facing": 0,
+            "iou": 0.6786
+          },
+          {
+            "facing": 1,
+            "iou": 0.679
+          },
+          {
+            "facing": 2,
+            "iou": 0.7059
+          },
+          {
+            "facing": 3,
+            "iou": 0.4421
+          },
+          {
+            "facing": 4,
+            "iou": 0.593
+          },
+          {
+            "facing": 5,
+            "iou": 0.6235
+          },
+          {
+            "facing": 6,
+            "iou": 0.6304
+          },
+          {
+            "facing": 7,
+            "iou": 0.4848
+          }
+        ]
+      },
+      "contour": {
+        "edgePixels": 1635,
+        "floorBandL10_L90": [
+          20.1,
+          42.4
+        ],
+        "edgePixelsInsideFloorBand": 0.0012,
+        "meanBestDeltaL": 30.06,
+        "medianBestDeltaL": 29.57,
+        "shareBestDeltaLBelow8": 0.3052,
+        "shareBestDeltaLBelow16": 0.4024,
+        "shareBestDeltaLBelow24": 0.4024,
+        "contactPairs": 1848,
+        "shareContactsBelow8": 0.3074,
+        "unitPixels": 9264
+      }
+    },
+    "mid": {
+      "interior": {
+        "brute_a": {
+          "facingsSampled": 8,
+          "meanWarmShare": 0.249,
+          "meanChroma": 29.011,
+          "meanInteriorPx": 64.0,
+          "meanDistinctColours": 11.25,
+          "meanDominantShare": 0.237,
+          "meanColoursOver5pct": 6.125,
+          "meanInteriorLumStd": 34.382,
+          "meanInteriorLumRange": 130.977,
+          "meanContourInkShare": 0.464
+        },
+        "brute_b": {
+          "facingsSampled": 8,
+          "meanWarmShare": 0.0,
+          "meanChroma": 13.087,
+          "meanInteriorPx": 64.0,
+          "meanDistinctColours": 8.875,
+          "meanDominantShare": 0.257,
+          "meanColoursOver5pct": 5.875,
+          "meanInteriorLumStd": 40.774,
+          "meanInteriorLumRange": 154.737,
+          "meanContourInkShare": 0.464
+        },
+        "marksman_a": {
+          "facingsSampled": 8,
+          "meanWarmShare": 0.329,
+          "meanChroma": 30.725,
+          "meanInteriorPx": 34.875,
+          "meanDistinctColours": 6.625,
+          "meanDominantShare": 0.39,
+          "meanColoursOver5pct": 5.625,
+          "meanInteriorLumStd": 24.691,
+          "meanInteriorLumRange": 85.331,
+          "meanContourInkShare": 0.616
+        },
+        "marksman_b": {
+          "facingsSampled": 8,
+          "meanWarmShare": 0.0,
+          "meanChroma": 13.303,
+          "meanInteriorPx": 34.875,
+          "meanDistinctColours": 5.875,
+          "meanDominantShare": 0.394,
+          "meanColoursOver5pct": 5.125,
+          "meanInteriorLumStd": 33.333,
+          "meanInteriorLumRange": 130.035,
+          "meanContourInkShare": 0.616
+        }
+      },
+      "archetype": {
+        "meanIoU": 0.5536,
+        "maxIoU": 0.637,
+        "meanAspectA": 0.902,
+        "meanAspectB": 0.658,
+        "aspectRatioBetween": 1.371,
+        "meanWidthA": 12.0,
+        "meanWidthB": 9.62,
+        "meanHeightA": 13.38,
+        "meanHeightB": 14.75,
+        "meanAreaA": 118.5,
+        "meanAreaB": 90.8,
+        "perFacing": [
+          {
+            "facing": 0,
+            "iou": 0.5969
+          },
+          {
+            "facing": 1,
+            "iou": 0.56
+          },
+          {
+            "facing": 2,
+            "iou": 0.637
+          },
+          {
+            "facing": 3,
+            "iou": 0.4275
+          },
+          {
+            "facing": 4,
+            "iou": 0.5294
+          },
+          {
+            "facing": 5,
+            "iou": 0.629
+          },
+          {
+            "facing": 6,
+            "iou": 0.5724
+          },
+          {
+            "facing": 7,
+            "iou": 0.4762
+          }
+        ]
+      },
+      "contour": {
+        "edgePixels": 2266,
+        "floorBandL10_L90": [
+          20.1,
+          46.4
+        ],
+        "edgePixelsInsideFloorBand": 0.0088,
+        "meanBestDeltaL": 30.87,
+        "medianBestDeltaL": 29.57,
+        "shareBestDeltaLBelow8": 0.2913,
+        "shareBestDeltaLBelow16": 0.3972,
+        "shareBestDeltaLBelow24": 0.4091,
+        "contactPairs": 2568,
+        "shareContactsBelow8": 0.2956,
+        "unitPixels": 14032
+      }
+    },
+    "large": {
+      "interior": {
+        "brute_a": {
+          "facingsSampled": 8,
+          "meanWarmShare": 0.242,
+          "meanChroma": 30.857,
+          "meanInteriorPx": 115.25,
+          "meanDistinctColours": 13.5,
+          "meanDominantShare": 0.241,
+          "meanColoursOver5pct": 6.5,
+          "meanInteriorLumStd": 31.894,
+          "meanInteriorLumRange": 133.854,
+          "meanContourInkShare": 0.398
+        },
+        "brute_b": {
+          "facingsSampled": 8,
+          "meanWarmShare": 0.0,
+          "meanChroma": 14.252,
+          "meanInteriorPx": 115.25,
+          "meanDistinctColours": 9.375,
+          "meanDominantShare": 0.266,
+          "meanColoursOver5pct": 6.5,
+          "meanInteriorLumStd": 39.444,
+          "meanInteriorLumRange": 164.896,
+          "meanContourInkShare": 0.398
+        },
+        "marksman_a": {
+          "facingsSampled": 8,
+          "meanWarmShare": 0.221,
+          "meanChroma": 26.938,
+          "meanInteriorPx": 66.5,
+          "meanDistinctColours": 9.875,
+          "meanDominantShare": 0.288,
+          "meanColoursOver5pct": 6.625,
+          "meanInteriorLumStd": 30.367,
+          "meanInteriorLumRange": 113.958,
+          "meanContourInkShare": 0.527
+        },
+        "marksman_b": {
+          "facingsSampled": 8,
+          "meanWarmShare": 0.0,
+          "meanChroma": 12.564,
+          "meanInteriorPx": 66.5,
+          "meanDistinctColours": 7.625,
+          "meanDominantShare": 0.288,
+          "meanColoursOver5pct": 6.25,
+          "meanInteriorLumStd": 38.398,
+          "meanInteriorLumRange": 146.188,
+          "meanContourInkShare": 0.527
+        }
+      },
+      "archetype": {
+        "meanIoU": 0.5282,
+        "maxIoU": 0.5923,
+        "meanAspectA": 0.889,
+        "meanAspectB": 0.618,
+        "aspectRatioBetween": 1.438,
+        "meanWidthA": 15.25,
+        "meanWidthB": 12.25,
+        "meanHeightA": 17.25,
+        "meanHeightB": 19.88,
+        "meanAreaA": 190.0,
+        "meanAreaB": 140.9,
+        "perFacing": [
+          {
+            "facing": 0,
+            "iou": 0.5045
+          },
+          {
+            "facing": 1,
+            "iou": 0.5714
+          },
+          {
+            "facing": 2,
+            "iou": 0.5748
+          },
+          {
+            "facing": 3,
+            "iou": 0.491
+          },
+          {
+            "facing": 4,
+            "iou": 0.4884
+          },
+          {
+            "facing": 5,
+            "iou": 0.5622
+          },
+          {
+            "facing": 6,
+            "iou": 0.5923
+          },
+          {
+            "facing": 7,
+            "iou": 0.4412
+          }
+        ]
+      },
+      "contour": {
+        "edgePixels": 3249,
+        "floorBandL10_L90": [
+          20.1,
+          57.0
+        ],
+        "edgePixelsInsideFloorBand": 0.0259,
+        "meanBestDeltaL": 33.2,
+        "medianBestDeltaL": 29.57,
+        "shareBestDeltaLBelow8": 0.2275,
+        "shareBestDeltaLBelow16": 0.3958,
+        "shareBestDeltaLBelow24": 0.4229,
+        "contactPairs": 3676,
+        "shareContactsBelow8": 0.2339,
+        "unitPixels": 22212
+      }
+    }
+  }
+}

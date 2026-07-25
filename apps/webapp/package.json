@@ -10,7 +10,9 @@
     "lint": "eslint --cache --max-warnings=0 .",
     "lint:fix": "eslint --cache --fix .",
     "test": "vitest run",
-    "clean": "rm -rf .eslintcache dist .tanstack node_modules/.vite"
+    "clean": "rm -rf .eslintcache dist .tanstack node_modules/.vite",
+    "bake": "tsx src/match-proto/blender-baked/bake/run.ts",
+    "gallery": "tsx src/match-proto/blender-baked/bake/gallery.ts"
   },
   "dependencies": {
     "@hazard-pay/api": "workspace:*",
@@ -23,6 +25,7 @@
     "@tanstack/react-router": "^1.170.18",
     "@tanstack/react-start": "^1.168.32",
     "better-auth": "^1.6.23",
+    "image-q": "^4.0.0",
     "pixi.js": "^8.19.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
@@ -31,12 +34,18 @@
   "devDependencies": {
     "@hazard-pay/config": "workspace:*",
     "@tailwindcss/vite": "^4.3.3",
+    "@types/node": "^22.10.0",
+    "@types/pngjs": "^6.0.5",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.3",
     "eslint": "^9.39.4",
+    "execa": "^9.6.0",
     "jsdom": "^29.1.1",
+    "pixelmatch": "^7.1.0",
+    "pngjs": "^7.0.0",
     "tailwindcss": "^4.1.17",
+    "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "vite": "^8.1.5",
     "vitest": "^4.1.10"

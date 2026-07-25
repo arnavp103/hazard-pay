@@ -1,0 +1,381 @@
+{
+  "generatedBy": "pnpm --filter @hazard-pay/webapp bake",
+  "what": "how many units fit before the board is full, per register and per aperture",
+  "method": {
+    "full": "the army's painted bounding box no longer fits inside the aperture; sprite extents are measured off the compiled frames, not off the authored cells",
+    "block": "the published 5-file block, grown, so the archetype mix stays the same",
+    "caveat": "a board counted as usable to the frame edge — no projectiles, no HUD, no camera slack. Every number here is an upper bound."
+  },
+  "registers": {
+    "small": {
+      "spriteExtentsArtPx": {
+        "brute": {
+          "down": 3,
+          "left": 7,
+          "right": 7,
+          "up": 11
+        },
+        "marksman": {
+          "down": 2,
+          "left": 5,
+          "right": 5,
+          "up": 10
+        },
+        "medic": {
+          "down": 3,
+          "left": 9,
+          "right": 9,
+          "up": 15
+        },
+        "ranger": {
+          "down": 3,
+          "left": 7,
+          "right": 7,
+          "up": 12
+        }
+      },
+      "stages": {
+        "standard": {
+          "label": "480x270 — the bake-off aperture",
+          "stagePx": "480x270",
+          "artPx": "240x135",
+          "publishedRoster": {
+            "units": 36,
+            "footprint": {
+              "coverage": 0.1728,
+              "height": 47.6,
+              "width": 117.6,
+              "x": 59,
+              "y": 70.2
+            },
+            "minimumHeroSeparationArtPx": 27.93
+          },
+          "capacity": {
+            "coverage": 0.5467,
+            "files": 10,
+            "ranks": 8,
+            "units": 160
+          }
+        },
+        "wide": {
+          "label": "960x540 — the large-battle aperture",
+          "stagePx": "960x540",
+          "artPx": "480x270",
+          "publishedRoster": {
+            "units": 36,
+            "footprint": {
+              "coverage": 0.0432,
+              "height": 47.6,
+              "width": 117.6,
+              "x": 179,
+              "y": 170.2
+            },
+            "minimumHeroSeparationArtPx": 27.93
+          },
+          "capacity": {
+            "coverage": 0.522,
+            "files": 19,
+            "ranks": 18,
+            "units": 684
+          }
+        }
+      }
+    },
+    "mid": {
+      "spriteExtentsArtPx": {
+        "brute": {
+          "down": 4,
+          "left": 10,
+          "right": 9,
+          "up": 15
+        },
+        "marksman": {
+          "down": 2,
+          "left": 6,
+          "right": 6,
+          "up": 13
+        },
+        "medic": {
+          "down": 3,
+          "left": 11,
+          "right": 11,
+          "up": 18
+        },
+        "ranger": {
+          "down": 4,
+          "left": 9,
+          "right": 9,
+          "up": 15
+        }
+      },
+      "stages": {
+        "standard": {
+          "label": "480x270 — the bake-off aperture",
+          "stagePx": "480x270",
+          "artPx": "240x135",
+          "publishedRoster": {
+            "units": 36,
+            "footprint": {
+              "coverage": 0.2743,
+              "height": 59.7,
+              "width": 149,
+              "x": 42.8,
+              "y": 63.2
+            },
+            "minimumHeroSeparationArtPx": 35.55
+          },
+          "capacity": {
+            "coverage": 0.5116,
+            "files": 7,
+            "ranks": 6,
+            "units": 84
+          }
+        },
+        "wide": {
+          "label": "960x540 — the large-battle aperture",
+          "stagePx": "960x540",
+          "artPx": "480x270",
+          "publishedRoster": {
+            "units": 36,
+            "footprint": {
+              "coverage": 0.0686,
+              "height": 59.7,
+              "width": 149,
+              "x": 162.8,
+              "y": 163.1
+            },
+            "minimumHeroSeparationArtPx": 35.55
+          },
+          "capacity": {
+            "coverage": 0.5057,
+            "files": 15,
+            "ranks": 13,
+            "units": 390
+          }
+        }
+      }
+    },
+    "large": {
+      "spriteExtentsArtPx": {
+        "brute": {
+          "down": 4,
+          "left": 12,
+          "right": 12,
+          "up": 18
+        },
+        "marksman": {
+          "down": 2,
+          "left": 8,
+          "right": 8,
+          "up": 17
+        },
+        "medic": {
+          "down": 4,
+          "left": 15,
+          "right": 15,
+          "up": 24
+        },
+        "ranger": {
+          "down": 5,
+          "left": 12,
+          "right": 12,
+          "up": 20
+        }
+      },
+      "stages": {
+        "standard": {
+          "label": "480x270 — the bake-off aperture",
+          "stagePx": "480x270",
+          "artPx": "240x135",
+          "publishedRoster": {
+            "units": 36,
+            "footprint": {
+              "coverage": 0.4547,
+              "height": 76.7,
+              "width": 192.1,
+              "x": 20.4,
+              "y": 51.8
+            },
+            "minimumHeroSeparationArtPx": 45.71
+          },
+          "capacity": {
+            "coverage": 0.5233,
+            "files": 6,
+            "ranks": 4,
+            "units": 48
+          }
+        },
+        "wide": {
+          "label": "960x540 — the large-battle aperture",
+          "stagePx": "960x540",
+          "artPx": "480x270",
+          "publishedRoster": {
+            "units": 36,
+            "footprint": {
+              "coverage": 0.1137,
+              "height": 76.7,
+              "width": 192.1,
+              "x": 140.4,
+              "y": 151.8
+            },
+            "minimumHeroSeparationArtPx": 45.71
+          },
+          "capacity": {
+            "coverage": 0.5197,
+            "files": 12,
+            "ranks": 10,
+            "units": 240
+          }
+        }
+      }
+    },
+    "xl": {
+      "spriteExtentsArtPx": {
+        "brute": {
+          "down": 5,
+          "left": 15,
+          "right": 15,
+          "up": 24
+        },
+        "marksman": {
+          "down": 3,
+          "left": 10,
+          "right": 10,
+          "up": 21
+        },
+        "medic": {
+          "down": 5,
+          "left": 19,
+          "right": 19,
+          "up": 31
+        },
+        "ranger": {
+          "down": 6,
+          "left": 15,
+          "right": 15,
+          "up": 26
+        }
+      },
+      "stages": {
+        "standard": {
+          "label": "480x270 — the bake-off aperture",
+          "stagePx": "480x270",
+          "artPx": "240x135",
+          "publishedRoster": {
+            "units": 36,
+            "footprint": {
+              "coverage": 0.6918,
+              "height": 95.3,
+              "width": 235.3,
+              "x": -2,
+              "y": 39.4
+            },
+            "minimumHeroSeparationArtPx": 55.87
+          },
+          "capacity": {
+            "coverage": 0.6007,
+            "files": 5,
+            "ranks": 3,
+            "units": 30
+          }
+        },
+        "wide": {
+          "label": "960x540 — the large-battle aperture",
+          "stagePx": "960x540",
+          "artPx": "480x270",
+          "publishedRoster": {
+            "units": 36,
+            "footprint": {
+              "coverage": 0.173,
+              "height": 95.3,
+              "width": 235.3,
+              "x": 118,
+              "y": 139.4
+            },
+            "minimumHeroSeparationArtPx": 55.87
+          },
+          "capacity": {
+            "coverage": 0.5514,
+            "files": 10,
+            "ranks": 8,
+            "units": 160
+          }
+        }
+      }
+    },
+    "xxl": {
+      "spriteExtentsArtPx": {
+        "brute": {
+          "down": 7,
+          "left": 19,
+          "right": 19,
+          "up": 30
+        },
+        "marksman": {
+          "down": 3,
+          "left": 13,
+          "right": 13,
+          "up": 28
+        },
+        "medic": {
+          "down": 6,
+          "left": 24,
+          "right": 24,
+          "up": 39
+        },
+        "ranger": {
+          "down": 7,
+          "left": 19,
+          "right": 19,
+          "up": 32
+        }
+      },
+      "stages": {
+        "standard": {
+          "label": "480x270 — the bake-off aperture",
+          "stagePx": "480x270",
+          "artPx": "240x135",
+          "publishedRoster": {
+            "units": 36,
+            "footprint": {
+              "coverage": 1.1232,
+              "height": 121.3,
+              "width": 300,
+              "x": -35.5,
+              "y": 23.3
+            },
+            "minimumHeroSeparationArtPx": 71.1
+          },
+          "capacity": {
+            "coverage": 0.5758,
+            "files": 4,
+            "ranks": 2,
+            "units": 16
+          }
+        },
+        "wide": {
+          "label": "960x540 — the large-battle aperture",
+          "stagePx": "960x540",
+          "artPx": "480x270",
+          "publishedRoster": {
+            "units": 36,
+            "footprint": {
+              "coverage": 0.2808,
+              "height": 121.3,
+              "width": 300,
+              "x": 84.5,
+              "y": 123.3
+            },
+            "minimumHeroSeparationArtPx": 71.1
+          },
+          "capacity": {
+            "coverage": 0.5751,
+            "files": 8,
+            "ranks": 6,
+            "units": 96
+          }
+        }
+      }
+    }
+  }
+}

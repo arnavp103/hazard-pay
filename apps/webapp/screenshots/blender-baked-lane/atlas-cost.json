@@ -1,0 +1,53 @@
+{
+  "animations": 3,
+  "cellHeight": 48,
+  "cellWidth": 64,
+  "cells": 208,
+  "clusterDensity": {
+    "quantized": 0.1974,
+    "shipped": 0.131,
+    "singletonShareQuantized": 0.3364,
+    "singletonShareShipped": 0.012
+  },
+  "facings": 8,
+  "framesPerFacing": 26,
+  "indexedPngBytes": 29306,
+  "paletteEntriesUsed": 27,
+  "rgbaPngBytes": 150897,
+  "trimmed": {
+    "height": 236,
+    "occupancy": 0.8617018441530754,
+    "pixels": 150096,
+    "width": 636
+  },
+  "uniformCellGrid": {
+    "height": 672,
+    "pixels": 645120,
+    "width": 960
+  },
+  "uniformTrimGrid": {
+    "height": 518,
+    "pixels": 217560,
+    "width": 420
+  },
+  "units": {
+    "medic": {
+      "cellPixels": 638976,
+      "cells": 208,
+      "trimmedPixels": 129338
+    }
+  },
+  "paletteSize": 35,
+  "blenderRenderSeconds": 29.875,
+  "blenderTotalSeconds": 32.962,
+  "bakeWallClockSeconds": 38.13,
+  "atlasRoundTripMismatchedPixels": 0,
+  "clusterDensityAudit": {
+    "measuredOn": "public/blender-baked/medic.png",
+    "method": "island labelling over the decoded indexed atlas",
+    "islands": 11163,
+    "pixels": 85185,
+    "ratio": 0.131,
+    "singletonShare": 0.012
+  }
+}

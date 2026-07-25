@@ -1,0 +1,823 @@
+/**
+ * THROWAWAY PROTOTYPE (#82): the bake driver. `pnpm --filter
+ * @hazard-pay/webapp bake`.
+ *
+ * Shells out to Blender, validates what comes back, compiles the atlases, and
+ * writes both the runtime assets and the evidence the gallery needs.
+ *
+ * Why execa and not zx: this needs exactly one subprocess call with an argv
+ * ARRAY (paths go straight through, no shell quoting, no injection surface)
+ * and a rejection that carries stderr — Blender's failure modes here are a
+ * Python traceback and a segfault, and both only show up on stderr. zx would
+ * bring a whole shell DSL plus implicit globals into an ESLint config that
+ * bans them, to buy nothing. `node:child_process` would also do, at the cost
+ * of hand-rolling the promise and the stderr-bearing error; execa is the
+ * smaller amount of code to be responsible for.
+ *
+ * Blender's stdout is NOT parsed. It is chatty and its format is not a
+ * contract; the only thing this reads back is the manifest file.
+ *
+ * Round 4 added the crowd bakes. Where a hand-authored lane owes a second set
+ * of drawings for every on-screen size, this drives the same rigs through the
+ * same seam at a different world scale, twice, and reports what that cost.
+ */
+
+import { createHash } from "node:crypto";
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+
+import { execa } from "execa";
+import { PNG } from "pngjs";
+
+import { islandStats } from "../consolidate.ts";
+import {
+  buildRoster,
+  crowdMotionStats,
+  crowdPixelIdentity,
+  type CrowdUnit,
+  FACING_NOTE,
+  formationCapacity,
+  formationFootprint,
+  lockFacings,
+  minimumHeroSeparation,
+  TREATMENTS,
+} from "../crowd.ts";
+import {
+  ANCHOR,
+  ATLAS_BASENAME,
+  ATLAS_PUBLIC_DIR,
+  CELL,
+  CROWD_CONFIGS,
+  type CrowdConfig,
+  HERO_MARK_HEX,
+  STAGE_PRESETS,
+} from "../framing.ts";
+import { measureGaps, type SpriteGaps, summariseFacings } from "../negative-space.ts";
+import { consolidate } from "../consolidate.ts";
+import { DIRECTION_B_PALETTE, FACTION_B_LIVERY, quantizeToPalette } from "../palette.ts";
+import { compile, compileAtlas, type CompileInput } from "./compile.ts";
+import { CROWD_INK, DEFAULT_INK, inkSprite, RIM_HEX } from "./ink.ts";
+import {
+  assertManifestMatchesSpec,
+  assertRigHeight,
+  type BakeManifest,
+  bakeManifestSchema,
+  type BakeSpec,
+  buildSpec,
+  buildUnitSpec,
+} from "./seam.ts";
+
+const here = dirname(fileURLToPath(import.meta.url));
+const laneDir = dirname(here);
+const webappDir = join(laneDir, "..", "..", "..");
+const workDir = join(webappDir, ".bake");
+const publicDir = join(webappDir, "public", ATLAS_PUBLIC_DIR);
+const shotsDir = join(webappDir, "screenshots", "blender-baked-lane", "round-6");
+
+/**
+ * Bake a subset of the register ladder. Round 6 runs five registers with four
+ * rigs each; that is a twenty-minute round trip on a loaded machine, and tuning
+ * geometry against it one register at a time is the difference between four
+ * iterations in an afternoon and one. `HP_BAKE_ONLY=xl pnpm bake` is not a
+ * shipping feature — it is why the rigs below could be tuned against measured
+ * gap widths rather than against a guess.
+ */
+const only = (process.env.HP_BAKE_ONLY ?? "").split(",").map((k) => k.trim()).filter(Boolean);
+const configs = only.length === 0
+  ? CROWD_CONFIGS
+  : CROWD_CONFIGS.filter((config) => only.includes(config.key));
+const skipPortrait = process.env.HP_BAKE_SKIP_PORTRAIT === "1";
+const scriptPath = join(here, "unit_bake.py");
+
+/** The comparison crop, relative to the cell anchor. */
+const CROP = { x: ANCHOR.x - 18, y: ANCHOR.y - 36, width: 36, height: 42 };
+const COMPARE_FACINGS = [0, 2, 6];
+
+async function runBlender(spec: BakeSpec, specPath: string): Promise<BakeManifest> {
+  writeFileSync(specPath, JSON.stringify(spec, null, 2));
+  const started = Date.now();
+  await execa("blender", ["-b", "-P", scriptPath, "--", specPath], {
+    // Blender is loud and its stdout is not a contract; keep it out of the way
+    // but hold on to stderr so a Python traceback survives into the rejection.
+    stderr: "pipe",
+    stdout: "ignore",
+    timeout: 15 * 60 * 1000,
+  });
+  const wallClockMs = Date.now() - started;
+
+  const manifest = bakeManifestSchema.parse(JSON.parse(readFileSync(spec.manifestPath, "utf8")));
+  assertManifestMatchesSpec(manifest, spec);
+  // Every tier size on the ladder is derived from the rig's authored height.
+  // Round 5 shipped a 1.08x "1.28x boost" because that constant was wrong for
+  // two rigs out of three, so it is now checked against the geometry Blender
+  // built on every single bake rather than reviewed once.
+  assertRigHeight(manifest);
+  process.stdout.write(
+    `  ${manifest.unit} @${manifest.unitScale.toFixed(3)}x · ${String(manifest.partCount)} parts `
+    + `(${String(manifest.droppedDetails)} details below the readable floor) · `
+    + `${String(manifest.timing.renderCount)} renders in ${manifest.timing.renderSeconds.toFixed(2)}s `
+    + `(${(wallClockMs / 1000).toFixed(2)}s wall clock incl. startup)\n`,
+  );
+  return manifest;
+}
+
+/** Box-downsample an RGBA buffer by an integer factor, alpha-weighted. */
+function boxDownsample(src: Uint8Array, width: number, height: number, factor: number): Uint8Array {
+  const outW = width / factor;
+  const outH = height / factor;
+  const out = new Uint8Array(outW * outH * 4);
+  for (let y = 0; y < outH; y += 1) {
+    for (let x = 0; x < outW; x += 1) {
+      let r = 0;
+      let g = 0;
+      let b = 0;
+      let a = 0;
+      for (let sy = 0; sy < factor; sy += 1) {
+        for (let sx = 0; sx < factor; sx += 1) {
+          const i = ((y * factor + sy) * width + x * factor + sx) * 4;
+          const alpha = (src[i + 3] ?? 0) / 255;
+          r += (src[i] ?? 0) * alpha;
+          g += (src[i + 1] ?? 0) * alpha;
+          b += (src[i + 2] ?? 0) * alpha;
+          a += alpha;
+        }
+      }
+      const o = (y * outW + x) * 4;
+      if (a > 0) {
+        out[o] = Math.round(r / a);
+        out[o + 1] = Math.round(g / a);
+        out[o + 2] = Math.round(b / a);
+      }
+      out[o + 3] = Math.round((a / (factor * factor)) * 255);
+    }
+  }
+  return out;
+}
+
+/** Lay cropped cells out in one horizontal strip with a transparent gutter. */
+function strip(cells: Uint8Array[]): PNG {
+  const gap = 2;
+  const png = new PNG({
+    height: CROP.height,
+    width: cells.length * CROP.width + (cells.length - 1) * gap,
+  });
+  png.data.fill(0);
+  cells.forEach((cell, index) => {
+    const ox = index * (CROP.width + gap);
+    for (let y = 0; y < CROP.height; y += 1) {
+      for (let x = 0; x < CROP.width; x += 1) {
+        const from = ((CROP.y + y) * CELL.width + CROP.x + x) * 4;
+        const to = (y * png.width + ox + x) * 4;
+        png.data[to] = cell[from] ?? 0;
+        png.data[to + 1] = cell[from + 1] ?? 0;
+        png.data[to + 2] = cell[from + 2] ?? 0;
+        png.data[to + 3] = cell[from + 3] ?? 0;
+      }
+    }
+  });
+  return png;
+}
+
+/**
+ * The lane's own risk, answered with pixels: is a quantized bake deliberate
+ * pixel art, or a shrunken 3D render?
+ *
+ *  - `shrunk`    — the naive thing: render at 8x, box-downsample to cell size.
+ *  - `native`    — the same pose rendered at 1x with a ~0 reconstruction
+ *                  filter, straight out of Blender, full colour.
+ *  - `quantized` — native forced onto the 35-entry Direction B palette.
+ *  - `inked`     — quantized plus the 1-px contour and internal seams.
+ *
+ * Same rig, same camera, same frame. The route renders the four with labels.
+ */
+async function buildQuantizationComparison(): Promise<void> {
+  const hiDir = join(workDir, "compare-8x");
+  const loDir = join(workDir, "compare-1x");
+  const variants: Record<string, Uint8Array[]> = {
+    consolidated: [], inked: [], native: [], quantized: [], shrunk: [],
+  };
+
+  const bakeOne = async (dir: string, supersample: number): Promise<BakeManifest> => {
+    rmSync(dir, { force: true, recursive: true });
+    mkdirSync(dir, { recursive: true });
+    const spec = buildSpec(dir, join(dir, "manifest.json"), supersample);
+    spec.clips = [{ name: "idle", frames: 1, fps: 8 }];
+    return runBlender(spec, join(dir, "spec.json"));
+  };
+
+  const hi = await bakeOne(hiDir, 8);
+  const lo = await bakeOne(loDir, 1);
+  const read = (dir: string, file: string): Uint8Array =>
+    Uint8Array.from(PNG.sync.read(readFileSync(join(dir, file))).data);
+
+  for (const facing of COMPARE_FACINGS) {
+    const hiFrame = hi.frames.find((f) => f.facing === facing);
+    const loFrame = lo.frames.find((f) => f.facing === facing);
+    if (hiFrame === undefined || loFrame === undefined) {
+      throw new Error("comparison bake is missing a facing");
+    }
+    variants.shrunk?.push(
+      boxDownsample(read(hiDir, hiFrame.color), CELL.width * 8, CELL.height * 8, 8),
+    );
+    const native = read(loDir, loFrame.color);
+    variants.native?.push(native);
+    const quantized = new Uint8Array(native);
+    quantizeToPalette(quantized, CELL.width, CELL.height);
+    variants.quantized?.push(Uint8Array.from(quantized));
+    consolidate(quantized, CELL.width, CELL.height, 2);
+    variants.consolidated?.push(Uint8Array.from(quantized));
+    // This row is captioned "what ships in the atlas", so it has to BE that:
+    // same ink pass, same post-ink consolidation. i3 caught the audit sheet
+    // understating the artifact by 2x because this step was missing here.
+    const inked = inkSprite(quantized, read(loDir, loFrame.id), CELL.width, CELL.height, DEFAULT_INK);
+    consolidate(inked, CELL.width, CELL.height, 2);
+    variants.inked?.push(inked);
+  }
+
+  for (const [name, cells] of Object.entries(variants)) {
+    writeFileSync(join(publicDir, `compare-${name}.png`), PNG.sync.write(strip(cells)));
+  }
+  process.stdout.write(`  wrote ${String(Object.keys(variants).length)} comparison strips to public/${ATLAS_PUBLIC_DIR}\n`);
+}
+
+/**
+ * Measure cluster density on the PNG FILE that ships, decoded from disk.
+ *
+ * The pipeline already reports a `shipped` figure computed on its in-memory
+ * finished cells. That is the same data, but it is the pipeline marking its
+ * own homework, and this lane has published a mid-stage number as if it were
+ * the artifact once already. So: read back the encoded atlas, label islands
+ * over the whole decoded image (packed frames are separated by a transparent
+ * gutter, so no island can span two frames), and report what the file says.
+ */
+function measureShippedAtlas(pngPath: string): {
+  islands: number;
+  pixels: number;
+  ratio: number;
+  singletonShare: number;
+} {
+  const png = PNG.sync.read(readFileSync(pngPath));
+  const stats = islandStats(Uint8Array.from(png.data), png.width, png.height);
+  return {
+    islands: stats.islands,
+    pixels: stats.pixels,
+    ratio: Number(stats.ratio.toFixed(4)),
+    singletonShare: Number(stats.singletonShare.toFixed(4)),
+  };
+}
+
+/**
+ * The second baked idle, priced on the atlas that shipped.
+ *
+ * Bytes are attributed by trimmed area rather than by cell count: the atlas is
+ * indexed and shelf-packed, so packed area tracks content almost exactly, and a
+ * 4-frame idle does not cost the same as a 4-frame attack whose lunge is wider.
+ */
+function secondIdleCost(result: ReturnType<typeof compileAtlas>): unknown {
+  let idleB = 0;
+  let total = 0;
+  let cells = 0;
+  for (const frame of result.frames) {
+    const area = frame.trim.width * frame.trim.height;
+    total += area;
+    if (frame.clip !== "idle_b") { continue; }
+    idleB += area;
+    cells += 1;
+  }
+  const share = total === 0 ? 0 : idleB / total;
+  return {
+    cells,
+    shareOfTrimmedAtlas: Number(share.toFixed(4)),
+    estimatedIndexedBytes: Math.round(result.cost.indexedPngBytes * share),
+    // What the rest of the atlas would cost on its own — i.e. the growth a
+    // decision is actually being asked to approve.
+    growthOverOneIdle: Number((share / Math.max(1e-9, 1 - share)).toFixed(4)),
+  };
+}
+
+interface SheetJson {
+  frames: Record<string, {
+    frame: { x: number; y: number; w: number; h: number };
+    spriteSourceSize: { x: number; y: number; w: number; h: number };
+    sourceSize: { w: number; h: number };
+  }>;
+  animations: Record<string, string[]>;
+}
+
+/** Rebuild one full cell out of the packed atlas on disk — trim undone. */
+function cellFromAtlas(atlas: PNG, sheet: SheetJson, frameName: string): {
+  data: Uint8Array;
+  width: number;
+  height: number;
+} {
+  const entry = sheet.frames[frameName];
+  if (entry === undefined) { throw new Error(`no frame ${frameName}`); }
+  const width = entry.sourceSize.w;
+  const height = entry.sourceSize.h;
+  const data = new Uint8Array(width * height * 4);
+  for (let y = 0; y < entry.frame.h; y += 1) {
+    for (let x = 0; x < entry.frame.w; x += 1) {
+      const from = ((entry.frame.y + y) * atlas.width + entry.frame.x + x) * 4;
+      const to = ((entry.spriteSourceSize.y + y) * width + entry.spriteSourceSize.x + x) * 4;
+      data[to] = atlas.data[from] ?? 0;
+      data[to + 1] = atlas.data[from + 1] ?? 0;
+      data[to + 2] = atlas.data[from + 2] ?? 0;
+      data[to + 3] = atlas.data[from + 3] ?? 0;
+    }
+  }
+  return { data, height, width };
+}
+
+/**
+ * The round-6 headline, measured at three stages of the same pipeline.
+ *
+ * `render` is Blender's alpha before anything is drawn on it. `quantized` is
+ * after the palette lock and the cluster consolidation. `shipped` is decoded
+ * back out of the atlas PNG that the browser loads — not the in-memory cell that
+ * produced it, because this lane has published a mid-pipeline number as the
+ * artifact once already and the whole point of the exercise is whether the gaps
+ * are still there at the end.
+ *
+ * The three-stage shape is not decoration. The contour pass dilates the
+ * silhouette one pixel outward on eight neighbours, which closes an interior gap
+ * from BOTH sides: the arithmetic is `shipped = render - 2`, and the difference
+ * between `render` and `shipped` is precisely the budget the direction has to
+ * clear before a gap is real.
+ */
+function measureNegativeSpace(
+  baked: BakedConfig,
+  config: CrowdConfig,
+  atlasPath: string,
+  sheetPath: string,
+): unknown {
+  const atlas = PNG.sync.read(readFileSync(atlasPath));
+  const sheet = JSON.parse(readFileSync(sheetPath, "utf8")) as SheetJson;
+  const out: Record<string, unknown> = {};
+
+  for (const unit of config.units) {
+    const idleFrames = baked.result.frames.filter(
+      (frame) => frame.unit === `${unit.id}_a` && frame.clip === "idle" && frame.frame === 0,
+    ).sort((a, b) => a.facing - b.facing);
+    const render: SpriteGaps[] = [];
+    const quantized: SpriteGaps[] = [];
+    const shipped: SpriteGaps[] = [];
+    const marked: SpriteGaps[] = [];
+    for (const frame of idleFrames) {
+      render.push(measureGaps(frame.raw, frame.cell.width, frame.cell.height));
+      quantized.push(measureGaps(frame.quantized, frame.cell.width, frame.cell.height));
+      const cell = cellFromAtlas(atlas, sheet, frame.name);
+      shipped.push(measureGaps(cell.data, cell.width, cell.height));
+      if (unit.tier !== "hero") { continue; }
+      const markedName = `${unit.id}_a_marked_idle_00_${String(frame.facing)}`;
+      const markedFrame = sheet.frames[markedName] === undefined ? null : markedName;
+      if (markedFrame === null) { continue; }
+      const ringed = cellFromAtlas(atlas, sheet, markedFrame);
+      marked.push(measureGaps(ringed.data, ringed.width, ringed.height));
+    }
+    out[unit.id] = {
+      tier: unit.tier,
+      targetBodyArtPx: unit.bodyArtPx,
+      scale: Number(unit.scale.toFixed(4)),
+      render: summariseFacings(render),
+      quantized: summariseFacings(quantized),
+      shipped: summariseFacings(shipped),
+      ...(marked.length > 0 ? { shippedWithOutwardMark: summariseFacings(marked) } : {}),
+    };
+  }
+  return out;
+}
+
+/**
+ * Units per board, and what the army covers, at this register on each aperture.
+ *
+ * The extents come from the frames that were just compiled — the widest and
+ * tallest a unit gets across its whole idle ring, relative to its own anchor —
+ * so this counts the sprites that exist rather than the cells they were
+ * authored into.
+ */
+function measureBoardCapacity(baked: BakedConfig, config: CrowdConfig): unknown {
+  const extents = new Map<string, { left: number; right: number; up: number; down: number }>();
+  for (const unit of config.units) {
+    const anchor = unit.anchor;
+    let left = 0;
+    let right = 0;
+    let up = 0;
+    let down = 0;
+    for (const frame of baked.result.frames) {
+      if (frame.unit !== `${unit.id}_a`) { continue; }
+      left = Math.max(left, anchor.x - frame.trim.x);
+      right = Math.max(right, frame.trim.x + frame.trim.width - anchor.x);
+      up = Math.max(up, anchor.y - frame.trim.y);
+      down = Math.max(down, frame.trim.y + frame.trim.height - anchor.y);
+    }
+    extents.set(unit.id, { down, left, right, up });
+  }
+  const extentFor = (unit: CrowdUnit): { left: number; right: number; up: number; down: number } =>
+    extents.get(unit.rig) ?? { down: 0, left: 0, right: 0, up: 0 };
+
+  const perStage: Record<string, unknown> = {};
+  for (const preset of STAGE_PRESETS) {
+    const aperture = { artHeight: preset.artHeight, artWidth: preset.artWidth };
+    const roster = buildRoster(config, 0x5a17, aperture);
+    perStage[preset.key] = {
+      label: preset.label,
+      stagePx: `${String(preset.width)}x${String(preset.height)}`,
+      artPx: `${String(preset.artWidth)}x${String(preset.artHeight)}`,
+      publishedRoster: {
+        units: roster.length,
+        footprint: formationFootprint(roster, extentFor, aperture),
+        minimumHeroSeparationArtPx: minimumHeroSeparation(roster),
+      },
+      capacity: formationCapacity(config, extentFor, aperture),
+    };
+  }
+  return {
+    spriteExtentsArtPx: Object.fromEntries(extents),
+    stages: perStage,
+  };
+}
+
+async function bakeCrowdConfig(config: CrowdConfig): Promise<BakedConfig & {
+  wallClockSeconds: number;
+  renderSeconds: number;
+  renders: number;
+}> {
+  process.stdout.write(`baking the ${config.key} crowd (${config.note})…\n`);
+  const started = Date.now();
+  const inputs: CompileInput[] = [];
+  const manifests: BakeManifest[] = [];
+  const perUnitWallClock: Record<string, number> = {};
+  let renderSeconds = 0;
+  let renders = 0;
+
+  for (const unit of config.units) {
+    const dir = join(workDir, `${config.key}-${unit.id}`);
+    rmSync(dir, { force: true, recursive: true });
+    mkdirSync(dir, { recursive: true });
+    const spec = buildUnitSpec(dir, join(dir, "manifest.json"), unit);
+    const unitStarted = Date.now();
+    const manifest = await runBlender(spec, join(dir, "spec.json"));
+    perUnitWallClock[unit.id] = Number(((Date.now() - unitStarted) / 1000).toFixed(2));
+    manifests.push(manifest);
+    renderSeconds += manifest.timing.renderSeconds;
+    renders += manifest.timing.renderCount;
+    // Faction A is the render. Faction B is the SAME render with eight palette
+    // entries swapped — no Blender pass, no extra Python, and the atlas stays
+    // exactly indexable because a remap can only produce palette colours.
+    inputs.push({ id: `${unit.id}_a`, manifest, tier: unit.tier, workDir: dir });
+    inputs.push({ id: `${unit.id}_b`, manifest, remap: FACTION_B_LIVERY, tier: unit.tier, workDir: dir });
+    if (unit.tier === "hero") {
+      // Marked heroes ship as their own cells so a capture can show the crowd
+      // with and without the ring, differing by exactly one image pass. The
+      // marked pair is what makes the ring's contribution measurable instead
+      // of asserted — and its atlas cost is the price of the ruling.
+      const modes = [
+        { mode: "outward" as const, suffix: "marked" },
+        { mode: "inset" as const, suffix: "marked_inset" },
+      ];
+      for (const { mode, suffix } of modes) {
+        const mark = { hex: HERO_MARK_HEX, mode, thickness: config.markThickness };
+        inputs.push({
+          id: `${unit.id}_a_${suffix}`, manifest, mark, tier: unit.tier, workDir: dir,
+        });
+        inputs.push({
+          id: `${unit.id}_b_${suffix}`,
+          manifest,
+          mark,
+          remap: FACTION_B_LIVERY,
+          tier: unit.tier,
+          workDir: dir,
+        });
+      }
+    }
+  }
+
+  const image = `${config.atlas}.png`;
+  const result = compileAtlas(inputs, image, CROWD_INK);
+  writeFileSync(join(publicDir, image), result.png);
+  writeFileSync(join(publicDir, `${config.atlas}.json`), `${JSON.stringify(result.sheet, null, 2)}\n`);
+  if (result.mismatchedPixels !== 0) {
+    throw new Error(`${config.key} atlas round-trip failed: ${String(result.mismatchedPixels)} pixels differ`);
+  }
+
+  // The round-4 contour, from the SAME renders, as a control. This is the one
+  // thing this lane can do that a hand-authored one cannot: the ink pass is
+  // post-render TypeScript, so an A/B of two outline treatments across a whole
+  // army costs a second compile and ZERO Blender frames. It is a control, not a
+  // shipped artifact — the crowd captures load it only to show the difference.
+  const control = compileAtlas(inputs, `${config.atlas}-norim.png`, DEFAULT_INK);
+  writeFileSync(join(publicDir, `${config.atlas}-norim.png`), control.png);
+  writeFileSync(
+    join(publicDir, `${config.atlas}-norim.json`),
+    `${JSON.stringify(control.sheet, null, 2)}\n`,
+  );
+
+  const wallClockSeconds = (Date.now() - started) / 1000;
+  const { cost } = result;
+  process.stdout.write(
+    `  rim ${RIM_HEX} · control (no rim) ${(control.cost.indexedPngBytes / 1024).toFixed(1)} KiB, `
+    + `0 extra renders\n`
+    + `  ${String(cost.cells)} cells · packed ${String(cost.trimmed.width)}x${String(cost.trimmed.height)} `
+    + `(${(cost.trimmed.occupancy * 100).toFixed(1)}% occupied) · `
+    + `${(cost.indexedPngBytes / 1024).toFixed(1)} KiB indexed `
+    + `(${(cost.rgbaPngBytes / 1024).toFixed(1)} KiB truecolour) · round-trip exact\n`
+    + `  bake wall clock ${wallClockSeconds.toFixed(2)}s\n`,
+  );
+  return { control, manifests, perUnitWallClock, renderSeconds, renders, result, wallClockSeconds };
+}
+
+interface BakedConfig {
+  result: ReturnType<typeof compileAtlas>;
+  control: ReturnType<typeof compileAtlas>;
+  manifests: BakeManifest[];
+  perUnitWallClock: Record<string, number>;
+}
+
+/**
+ * Project a roster from measured numbers. Nothing here is estimated from
+ * documentation or from a previous round's figures: bytes per trimmed pixel
+ * and seconds per rig both come out of the bake that just ran.
+ */
+function projectRoster(baked: BakedConfig, config: CrowdConfig): unknown {
+  const { cost } = baked.result;
+  const totalTrimmed = Object.values(cost.units)
+    .reduce((sum, unit) => sum + unit.trimmedPixels, 0);
+  const bytesPerTrimmedPixel = cost.indexedPngBytes / Math.max(1, totalTrimmed);
+  const fodderIds = config.units.filter((unit) => unit.tier === "fodder").map((unit) => unit.id);
+  const heroIds = config.units.filter((unit) => unit.tier === "hero").map((unit) => unit.id);
+  const meanTrimmed = (ids: readonly string[]): number => {
+    const values = ids.map((id) => cost.units[`${id}_a`]?.trimmedPixels ?? 0);
+    return values.reduce((sum, value) => sum + value, 0) / Math.max(1, values.length);
+  };
+  const meanSeconds = (ids: readonly string[]): number => {
+    const values = ids.map((id) => baked.perUnitWallClock[id] ?? 0);
+    return values.reduce((sum, value) => sum + value, 0) / Math.max(1, values.length);
+  };
+  const fodderPx = meanTrimmed(fodderIds);
+  const heroPx = meanTrimmed(heroIds);
+  const fodderSeconds = meanSeconds(fodderIds);
+  const heroSeconds = meanSeconds(heroIds);
+
+  const shape = (fodder: number, hero: number): unknown => ({
+    archetypes: fodder + hero,
+    fodderArchetypes: fodder,
+    heroArchetypes: hero,
+    factions: 2,
+    cells: (fodder * 112 + hero * 160) * 2,
+    indexedBytes: Math.round((fodder * fodderPx + hero * heroPx) * 2 * bytesPerTrimmedPixel),
+    blenderSeconds: Number((fodder * fodderSeconds + hero * heroSeconds).toFixed(1)),
+  });
+
+  return {
+    basis: {
+      bytesPerTrimmedPixel: Number(bytesPerTrimmedPixel.toFixed(4)),
+      meanFodderTrimmedPixels: Math.round(fodderPx),
+      meanHeroTrimmedPixels: Math.round(heroPx),
+      meanFodderBakeSeconds: Number(fodderSeconds.toFixed(2)),
+      meanHeroBakeSeconds: Number(heroSeconds.toFixed(2)),
+      note: "faction B is a palette remap of faction A — it costs bytes, never renders",
+    },
+    allFodder: shape(20, 0),
+    sixteenFodderFourHeroes: shape(16, 4),
+  };
+}
+
+async function main(): Promise<void> {
+  mkdirSync(workDir, { recursive: true });
+  writeFileSync(join(workDir, ".gitignore"), "*\n");
+  mkdirSync(publicDir, { recursive: true });
+  mkdirSync(shotsDir, { recursive: true });
+
+  const sheetWork = join(workDir, "frames");
+  rmSync(sheetWork, { force: true, recursive: true });
+  mkdirSync(sheetWork, { recursive: true });
+
+  process.stdout.write("baking the field medic (hero portrait)…\n");
+  const spec = buildSpec(sheetWork, join(sheetWork, "manifest.json"));
+  const wallStart = Date.now();
+  const manifest = await runBlender(spec, join(sheetWork, "spec.json"));
+
+  const image = `${ATLAS_BASENAME}.png`;
+  const result = compile(manifest, sheetWork, image);
+  writeFileSync(join(publicDir, image), result.png);
+  writeFileSync(join(publicDir, `${ATLAS_BASENAME}.json`), `${JSON.stringify(result.sheet, null, 2)}\n`);
+  const wallClockSeconds = (Date.now() - wallStart) / 1000;
+
+  if (result.mismatchedPixels !== 0) {
+    throw new Error(`atlas round-trip failed: ${String(result.mismatchedPixels)} pixels differ`);
+  }
+
+  const { cost } = result;
+  const shippedAudit = measureShippedAtlas(join(publicDir, image));
+  writeFileSync(
+    join(shotsDir, "atlas-cost.json"),
+    `${JSON.stringify({
+      ...cost,
+      paletteSize: DIRECTION_B_PALETTE.length,
+      blenderRenderSeconds: manifest.timing.renderSeconds,
+      blenderTotalSeconds: manifest.timing.totalSeconds,
+      bakeWallClockSeconds: Number(wallClockSeconds.toFixed(2)),
+      atlasRoundTripMismatchedPixels: result.mismatchedPixels,
+      // Independent re-measurement of the number an earlier round published
+      // from a mid-pipeline stage: this one is read back off the encoded PNG.
+      clusterDensityAudit: {
+        measuredOn: `public/${ATLAS_PUBLIC_DIR}/${image}`,
+        method: "island labelling over the decoded indexed atlas",
+        ...shippedAudit,
+      },
+    }, null, 2)}\n`,
+  );
+
+  process.stdout.write(
+    `  ${String(cost.facings)} facings x ${String(cost.animations)} animations `
+    + `x ${String(cost.framesPerFacing)} frames = ${String(cost.cells)} cells of `
+    + `${String(cost.cellWidth)}x${String(cost.cellHeight)}\n`
+    + `  untrimmed grid ${String(cost.uniformCellGrid.width)}x${String(cost.uniformCellGrid.height)}; `
+    + `trimmed grid ${String(cost.uniformTrimGrid.width)}x${String(cost.uniformTrimGrid.height)}; `
+    + `packed atlas ${String(cost.trimmed.width)}x${String(cost.trimmed.height)} `
+    + `(${(cost.trimmed.occupancy * 100).toFixed(1)}% occupied)\n`
+    + `  atlas PNG ${(cost.indexedPngBytes / 1024).toFixed(1)} KiB indexed `
+    + `(${(cost.rgbaPngBytes / 1024).toFixed(1)} KiB as truecolour)\n`
+    + `  palette ${String(cost.paletteEntriesUsed)}/${String(DIRECTION_B_PALETTE.length)} entries used · `
+    + `atlas round-trip exact\n`
+    + `  cluster density ${cost.clusterDensity.quantized.toFixed(3)} quantized -> `
+    + `${cost.clusterDensity.shipped.toFixed(3)} SHIPPED islands/px `
+    + `(singletons ${(cost.clusterDensity.singletonShareQuantized * 100).toFixed(0)}% -> `
+    + `${(cost.clusterDensity.singletonShareShipped * 100).toFixed(0)}%)\n`
+    + `  AUDIT, measured on the written PNG: ${shippedAudit.ratio.toFixed(3)} islands/px, `
+    + `${(shippedAudit.singletonShare * 100).toFixed(1)}% singletons `
+    + `over ${String(shippedAudit.pixels)} opaque px\n`
+    + `  bake wall clock ${wallClockSeconds.toFixed(2)}s\n`,
+  );
+
+  const configReports: Record<string, unknown> = {};
+  const negativeSpace: Record<string, unknown> = {};
+  const boardCapacity: Record<string, unknown> = {};
+  let crowdWallClock = 0;
+  for (const config of configs) {
+    const baked = await bakeCrowdConfig(config);
+    crowdWallClock += baked.wallClockSeconds;
+    const audit = measureShippedAtlas(join(publicDir, `${config.atlas}.png`));
+    negativeSpace[config.key] = measureNegativeSpace(
+      baked, config,
+      join(publicDir, `${config.atlas}.png`),
+      join(publicDir, `${config.atlas}.json`),
+    );
+    boardCapacity[config.key] = measureBoardCapacity(baked, config);
+    const roster = buildRoster(config);
+    // Cell name -> a hash of the pixels that cell actually contains, so the
+    // repertoire question can be asked of images rather than of identifiers.
+    const pixelHashes = new Map<string, string>();
+    for (const frame of baked.result.frames) {
+      pixelHashes.set(frame.name, createHash("sha1").update(frame.finished).digest("hex"));
+    }
+    const hashOf = (track: string, frame: number): string => {
+      const name = baked.result.sheet.animations[track]?.[frame];
+      return name === undefined ? `missing:${track}` : pixelHashes.get(name) ?? `unhashed:${name}`;
+    };
+    const clipsFor = (unit: { rig: string }): typeof config.units[number]["clips"] => {
+      const found = config.units.find((entry) => entry.id === unit.rig);
+      if (found === undefined) { throw new Error(`no bake spec for ${unit.rig}`); }
+      return found.clips;
+    };
+    configReports[config.key] = {
+      label: config.label,
+      note: config.note,
+      units: config.units.map((unit) => ({
+        id: unit.id,
+        tier: unit.tier,
+        scale: Number(unit.scale.toFixed(4)),
+        screenPx: unit.screenPx,
+        bodyArtPx: Number(unit.bodyArtPx.toFixed(2)),
+        cell: unit.cell,
+        anchor: unit.anchor,
+        clips: unit.clips,
+        facings: unit.facings,
+        partCount: baked.manifests.find((m) => m.unit === unit.id)?.partCount ?? 0,
+        droppedDetails: baked.manifests.find((m) => m.unit === unit.id)?.droppedDetails ?? 0,
+        measuredStandingArtPx: baked.result.sheet.meta.units[`${unit.id}_a`]?.standingArtPx ?? 0,
+        measuredMaxArtPx: baked.result.sheet.meta.units[`${unit.id}_a`]?.maxArtPx ?? 0,
+      })),
+      cost: baked.result.cost,
+      blenderRenders: baked.renders,
+      blenderRenderSeconds: Number(baked.renderSeconds.toFixed(2)),
+      bakeWallClockSeconds: Number(baked.wallClockSeconds.toFixed(2)),
+      atlasRoundTripMismatchedPixels: baked.result.mismatchedPixels,
+      clusterDensityAudit: {
+        measuredOn: `public/${ATLAS_PUBLIC_DIR}/${config.atlas}.png`,
+        ...audit,
+      },
+      // What a second baked idle actually costs, measured on the frames that
+      // shipped rather than projected from a frame count. `idle_b` is the only
+      // lever a bake has on pose repertoire, so this is the price of the one
+      // thing playback phase offset cannot buy.
+      secondIdle: secondIdleCost(baked.result),
+      // What the round-4 outline costs and what the round-5 one costs, from
+      // one set of renders. The delta is the honest price of the rim.
+      contour: {
+        rimHex: RIM_HEX,
+        shippedIndexedPngBytes: baked.result.cost.indexedPngBytes,
+        controlNoRimIndexedPngBytes: baked.control.cost.indexedPngBytes,
+        extraBlenderRenders: 0,
+        note: "the rim is drawn in pixel space over cells that already exist",
+      },
+      // A 20-unit roster, projected from THIS bake's measured per-archetype
+      // numbers rather than from a guess. Bytes scale with trimmed sprite area
+      // (the atlas is indexed and shelf-packed, so packed area tracks content
+      // almost exactly); bake seconds scale with per-rig wall clock.
+      rosterProjection: projectRoster(baked, config),
+      crowd: {
+        units: roster.length,
+        fodderPerSide: roster.filter((unit) => unit.side === 0 && unit.tier === "fodder").length,
+        heroesPerSide: roster.filter((unit) => unit.side === 0 && unit.tier === "hero").length,
+        facingNote: FACING_NOTE,
+        motion: Object.fromEntries(
+          TREATMENTS.map((treatment) => [
+            treatment,
+            crowdMotionStats(roster, clipsFor, treatment),
+          ]),
+        ),
+        // Same measurement with facing spread removed: how much of the crowd's
+        // variety is the animation, and how much is just the formation not
+        // pointing the same way.
+        motionLockedFacing: Object.fromEntries(
+          TREATMENTS.map((treatment) => [
+            treatment,
+            crowdMotionStats(lockFacings(roster), clipsFor, treatment),
+          ]),
+        ),
+        // The second baked idle costs atlas and buys repertoire. Nothing in the
+        // timing statistics can see it — `phase` and `variants` have identical
+        // burstiness and identical frame synchrony by construction — so it has
+        // to be measured as "how many units are standing on the same image",
+        // and measured on the pixels of that image.
+        pixelIdentity: Object.fromEntries(
+          TREATMENTS.map((treatment) => [
+            treatment,
+            crowdPixelIdentity(roster, clipsFor, treatment, hashOf),
+          ]),
+        ),
+        pixelIdentityLockedFacing: Object.fromEntries(
+          TREATMENTS.map((treatment) => [
+            treatment,
+            crowdPixelIdentity(lockFacings(roster), clipsFor, treatment, hashOf),
+          ]),
+        ),
+      },
+    };
+  }
+
+  writeFileSync(
+    join(shotsDir, "crowd-cost.json"),
+    `${JSON.stringify({
+      generatedBy: "pnpm --filter @hazard-pay/webapp bake",
+      heroPortraitAtlas: {
+        cells: cost.cells,
+        indexedPngBytes: cost.indexedPngBytes,
+        bakeWallClockSeconds: Number(wallClockSeconds.toFixed(2)),
+      },
+      crowdWallClockSeconds: Number(crowdWallClock.toFixed(2)),
+      configs: configReports,
+    }, null, 2)}\n`,
+  );
+  writeFileSync(
+    join(shotsDir, "negative-space.json"),
+    `${JSON.stringify({
+      generatedBy: "pnpm --filter @hazard-pay/webapp bake",
+      what: "interior background runs per archetype per register, at three pipeline stages",
+      method: {
+        gap: "a run of transparent pixels with opaque pixels on both sides of it in the same row",
+        bands: "upper 60% of drawn height is arms/torso, lower 40% is legs",
+        stages: "render = Blender alpha; quantized = palette + consolidation; shipped = decoded "
+          + "back out of the atlas PNG the browser loads",
+        contour: "the ink pass dilates the silhouette 1 px on all eight neighbours, so it closes "
+          + "an interior gap from both sides: a 3 px render gap ships as 1 px, a 2 px gap ships "
+          + "as nothing",
+        facings: "all eight idle facings; every figure is reported as a count of facings that "
+          + "keep the gap, never as the best one",
+      },
+      registers: negativeSpace,
+    }, null, 2)}\n`,
+  );
+  writeFileSync(
+    join(shotsDir, "board-capacity.json"),
+    `${JSON.stringify({
+      generatedBy: "pnpm --filter @hazard-pay/webapp bake",
+      what: "how many units fit before the board is full, per register and per aperture",
+      method: {
+        full: "the army's painted bounding box no longer fits inside the aperture; sprite "
+          + "extents are measured off the compiled frames, not off the authored cells",
+        block: "the published 5-file block, grown, so the archetype mix stays the same",
+        caveat: "a board counted as usable to the frame edge — no projectiles, no HUD, no "
+          + "camera slack. Every number here is an upper bound.",
+      },
+      registers: boardCapacity,
+    }, null, 2)}\n`,
+  );
+  process.stdout.write(`  wrote crowd-cost.json + negative-space.json + board-capacity.json (${String(configs.length)} configs)\n`);
+
+  if (!skipPortrait) { await buildQuantizationComparison(); }
+}
+
+await main();
