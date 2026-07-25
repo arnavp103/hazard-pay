@@ -29,10 +29,12 @@ import {
   type Faction,
   HERO_HEIGHT,
   LEG_LENGTH,
+  MARK_PIXELS,
+  SIGNAL,
   type Tier,
   type UnitRig,
 } from "./figure.ts";
-import { emitMaterial, flatLights, INK, litMaterial } from "./flat.ts";
+import { emitMaterial, flatLights, INK, litMaterial, MARK_LAYER } from "./flat.ts";
 import { createBattle, type SimUnit, stepBattle } from "./sim.ts";
 
 export const STAGE_WIDTH = 480;
@@ -84,6 +86,8 @@ export interface CostReport {
   heroes: number;
   fodder: number;
   drawCalls: number;
+  /** Extra calls the marking pass costs: the mask render plus one composite. */
+  markDrawCalls: number;
   triangles: number;
   programs: number;
   boardMeshes: number;
@@ -118,6 +122,58 @@ export interface MountOptions {
   mark?: boolean;
   /** Tile N deterministic frames into one contact sheet instead of animating. */
   strip?: { frames: number; fps: number; from: number; columns: number };
+}
+
+/**
+ * Full-screen dilate of the hero silhouette mask.
+ *
+ * Samples three concentric rings outward; any pixel that is OUTSIDE a hero but
+ * within `radius` of one gets painted in that hero's faction tint. Faction
+ * arrives in the mask's red/green channel rather than as a colour, so neither
+ * pass has to agree with the renderer about colour space — the tints below are
+ * raw display-space components and go straight to the framebuffer.
+ */
+const MARK_FRAGMENT = `
+uniform sampler2D mask;
+uniform vec2 texel;
+uniform float radius;
+uniform vec3 crew;
+uniform vec3 opfor;
+varying vec2 vUv;
+void main() {
+  if (texture2D(mask, vUv).a > 0.35) { discard; }
+  float bestA = 0.0;
+  float bestR = 0.0;
+  float bestG = 0.0;
+  for (int ring = 1; ring <= 3; ring += 1) {
+    float rr = radius * float(ring) / 3.0;
+    for (int i = 0; i < 12; i += 1) {
+      float a = float(i) / 12.0 * 6.2831853;
+      vec4 s = texture2D(mask, vUv + vec2(cos(a), sin(a)) * texel * rr);
+      if (s.a > bestA) { bestA = s.a; bestR = s.r; bestG = s.g; }
+    }
+  }
+  if (bestA < 0.35) { discard; }
+  gl_FragColor = vec4(bestR >= bestG ? crew : opfor, 1.0);
+}
+`;
+
+const MARK_VERTEX = `
+varying vec2 vUv;
+void main() {
+  vUv = uv;
+  gl_Position = vec4(position.xy, 0.0, 1.0);
+}
+`;
+
+/** Raw display-space components — deliberately no colour-space conversion. */
+function rawRgb(hex: string): THREE.Vector3 {
+  const value = Number.parseInt(hex.slice(1), 16);
+  return new THREE.Vector3(
+    ((value >> 16) & 255) / 255,
+    ((value >> 8) & 255) / 255,
+    (value & 255) / 255,
+  );
 }
 
 export interface FlatSceneHandle {
@@ -439,8 +495,39 @@ export function mountFlatScene(host: HTMLElement, options: MountOptions = {}): F
   camera.position.copy(basePosition);
   camera.lookAt(target);
 
+  // --- Hero marking pass -----------------------------------------------------
+  const markedUnits = rigs.filter((rig) => rig.cost.markMeshes > 0).length;
+  const markOn = marking && markedUnits > 0;
+  const markTarget = markOn
+    ? new THREE.WebGLRenderTarget(width, height, { depthBuffer: true, samples: 4 })
+    : undefined;
+  const markScene = new THREE.Scene();
+  const markCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+  if (markTarget !== undefined) {
+    markScene.add(new THREE.Mesh(
+      new THREE.PlaneGeometry(2, 2),
+      new THREE.ShaderMaterial({
+        depthTest: false,
+        depthWrite: false,
+        fragmentShader: MARK_FRAGMENT,
+        transparent: true,
+        uniforms: {
+          crew: { value: rawRgb(SIGNAL.crew) },
+          mask: { value: markTarget.texture },
+          opfor: { value: rawRgb(SIGNAL.opfor) },
+          radius: { value: MARK_PIXELS * scale },
+          texel: { value: new THREE.Vector2(1 / width, 1 / height) },
+        },
+        vertexShader: MARK_VERTEX,
+      }),
+    ));
+  }
+
   const pan = new THREE.Vector3();
   const frames: number[] = [];
+  let sceneCalls = 0;
+  let sceneTriangles = 0;
+  let markCalls = 0;
   let heroCount = 0;
   let fodderCount = 0;
   let heroMeshes = 0;
@@ -469,6 +556,7 @@ export function mountFlatScene(host: HTMLElement, options: MountOptions = {}): F
     boardTriangles: Math.round(board.cost.triangles),
     drawCalls: 0,
     fodder: fodderCount,
+    markDrawCalls: 0,
     fps: 0,
     frameMs: { max: 0, mean: 0, p95: 0, samples: 0 },
     heroes: heroCount,
@@ -493,7 +581,8 @@ export function mountFlatScene(host: HTMLElement, options: MountOptions = {}): F
     const p95 = sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * 0.95))] ?? 0;
     report = {
       ...report,
-      drawCalls: renderer.info.render.calls,
+      drawCalls: sceneCalls,
+      markDrawCalls: markCalls,
       fps: mean > 0 ? Math.round(1000 / mean) : 0,
       frameMs: {
         max: Number((sorted[sorted.length - 1] ?? 0).toFixed(3)),
@@ -502,7 +591,7 @@ export function mountFlatScene(host: HTMLElement, options: MountOptions = {}): F
         samples: sorted.length,
       },
       programs: renderer.info.programs?.length ?? 0,
-      triangles: renderer.info.render.triangles,
+      triangles: sceneTriangles,
     };
     (globalThis as { __flatProceduralCost?: CostReport }).__flatProceduralCost = report;
   };
@@ -568,7 +657,26 @@ export function mountFlatScene(host: HTMLElement, options: MountOptions = {}): F
       camera.position.copy(basePosition).add(pan);
     }
     const before = performance.now();
+    if (markTarget !== undefined) {
+      // Heroes alone, flat faction channels, into an offscreen mask.
+      camera.layers.set(MARK_LAYER);
+      renderer.setRenderTarget(markTarget);
+      renderer.setClearColor(0x000000, 0);
+      renderer.clear();
+      renderer.render(scene, camera);
+      renderer.setRenderTarget(null);
+      camera.layers.set(0);
+      renderer.setClearColor("#1b1220", 1);
+      markCalls = renderer.info.render.calls + 1;
+    }
     renderer.render(scene, camera);
+    sceneCalls = renderer.info.render.calls;
+    sceneTriangles = renderer.info.render.triangles;
+    if (markTarget !== undefined) {
+      renderer.autoClear = false;
+      renderer.render(markScene, markCamera);
+      renderer.autoClear = true;
+    }
     frames.push(performance.now() - before);
     if (frames.length > 180) { frames.shift(); }
   };
@@ -616,6 +724,7 @@ export function mountFlatScene(host: HTMLElement, options: MountOptions = {}): F
       scene.traverse((object) => {
         if (object instanceof THREE.Mesh) { object.geometry.dispose(); }
       });
+      markTarget?.dispose();
       renderer.dispose();
       renderer.domElement.remove();
     },

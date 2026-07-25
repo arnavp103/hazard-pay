@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { describe, expect, it } from "vitest";
 
 import { UnitAnimator } from "./animator.ts";
+import { MARK_LAYER } from "./flat.ts";
 import {
   type Archetype,
   buildUnit,
@@ -307,17 +308,38 @@ describe("hero marking", () => {
     const rig = buildUnit({ archetype: "ranged", faction: "opfor", tier: "hero" });
     let inWeapon = 0;
     rig.handR.traverse((object) => {
-      if (object instanceof THREE.Mesh && object.renderOrder === 2) { inWeapon += 1; }
+      if (object instanceof THREE.Mesh && object.layers.isEnabled(MARK_LAYER)) { inWeapon += 1; }
     });
     expect(inWeapon).toBe(0);
   });
 
-  it("stands off the body by a border thickness that survives crowd zoom", () => {
+  it("keeps the mask off the main camera layer and off the vertex budget", () => {
+    // The border must not cost a second copy of the figure in either the main
+    // pass or in vertex memory: mask twins share their solid geometry buffer
+    // and live only on the mark layer.
+    const rig = buildUnit({ archetype: "melee", faction: "crew", tier: "hero" });
+    const solids = new Set<THREE.BufferGeometry>();
+    let masks = 0;
+    rig.root.traverse((object) => {
+      if (!(object instanceof THREE.Mesh)) { return; }
+      if (object.layers.isEnabled(MARK_LAYER)) {
+        masks += 1;
+        expect(object.layers.isEnabled(0)).toBe(false);
+        expect(solids.has(object.geometry)).toBe(true);
+      } else {
+        solids.add(object.geometry);
+      }
+    });
+    expect(masks).toBe(rig.cost.markMeshes);
+  });
+
+  it("does not change the silhouette it marks", () => {
+    // A screen-space border cannot move the body it wraps. An inverted hull
+    // did - it inflated the bounding box by its own thickness, which is one
+    // of the reasons that approach was abandoned.
     const marked = silhouette(posed("melee", "crew", "hero", true));
     const bare = silhouette(posed("melee", "crew", "hero", false));
-    const grew = marked.max.y - bare.max.y;
-    // ~2 px at the shared combat zoom, ~1.8 px at crowd zoom.
-    expect(grew).toBeGreaterThan(HERO_HEIGHT * 0.03);
-    expect(grew).toBeLessThan(HERO_HEIGHT * 0.06);
+    expect(marked.max.y).toBeCloseTo(bare.max.y, 6);
+    expect(marked.min.y).toBeCloseTo(bare.min.y, 6);
   });
 });

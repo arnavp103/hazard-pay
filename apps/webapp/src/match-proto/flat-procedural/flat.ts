@@ -47,23 +47,32 @@ export const emitMaterial = new THREE.MeshBasicMaterial({ vertexColors: true });
 /**
  * Hero marking — the "thick border or highlight" approved on #69.
  *
- * An inverted hull: every mass a marked bone owns is re-emitted, pushed out
- * along a smoothed normal, and drawn with `BackSide` AFTER all solid geometry
- * (`renderOrder` 2), depth-testing against it but not writing depth. That
- * ordering is the whole trick: inside the unit's own silhouette the solid
- * parts are nearer, so the depth test discards the shell and the border
- * appears ONLY on the outer contour. A naive inverted hull also outlines
- * every internal part boundary, which would turn this lane into the #81
- * lane's ink-shell register — the exact register #89 exists to be opposite of.
+ * The obvious implementation is an inverted hull, and it was tried first: bake
+ * an outward-expanded shell per bone and draw it behind the solids. It fails
+ * for an articulated figure. A hull is per-bone, so it traces every limb
+ * separately and outlines each place a limb crosses the torso — heroes came
+ * out as scribble and read WORSE than bare fodder, inverting the very
+ * hierarchy the marking exists to create.
+ *
+ * So the border is a screen-space silhouette instead. Every marked unit gets
+ * mask meshes that SHARE their solid geometry buffers (no extra vertex memory)
+ * on a dedicated camera layer. scene.ts renders that layer alone into a small
+ * target, then dilates it in one full-screen pass and composites the ring that
+ * falls outside the unit. The result is a true outer contour at a controlled
+ * pixel width with no internal contours at all — which also keeps this lane
+ * out of the #81 lane's ink-shell register.
+ *
+ * Faction is encoded in the mask's colour CHANNEL rather than its colour, so
+ * the composite shader can pick a border tint without either pass having to
+ * agree with the renderer about colour space.
  */
-export const markMaterial = new THREE.MeshBasicMaterial({
-  depthWrite: false,
-  side: THREE.BackSide,
-  vertexColors: true,
-});
+export const MARK_LAYER = 1;
 
-/** Draw order for the marking shell: strictly after every solid mass. */
-export const MARK_RENDER_ORDER = 2;
+/** Mask channel per faction — red for crew, green for opfor. */
+export const MARK_MATERIALS = {
+  crew: new THREE.MeshBasicMaterial({ color: 0xff0000, fog: false, toneMapped: false }),
+  opfor: new THREE.MeshBasicMaterial({ color: 0x00ff00, fog: false, toneMapped: false }),
+};
 
 const SCRATCH = new THREE.Color();
 
@@ -152,53 +161,6 @@ export class FlatBatch {
 
   get isEmpty(): boolean {
     return this.litPos.length === 0 && this.emitPos.length === 0;
-  }
-
-  /**
-   * Outward-expanded shell of this batch's solid masses, for the hero marking.
-   *
-   * The register bakes hard per-face normals, so offsetting along them tears
-   * the shell open at every edge. Normals are re-averaged per unique position
-   * first, which welds the shell shut without touching the solid geometry's
-   * faceting.
-   */
-  bakeMark(pad: number, hex: string): THREE.Mesh | undefined {
-    if (this.litPos.length === 0) { return undefined; }
-    const smooth = new Map<string, [number, number, number]>();
-    const key = (i: number): string => {
-      const x = Math.round(this.litPos[i * 3] as number * 1e4);
-      const y = Math.round(this.litPos[i * 3 + 1] as number * 1e4);
-      const z = Math.round(this.litPos[i * 3 + 2] as number * 1e4);
-      return `${x},${y},${z}`;
-    };
-    const count = this.litPos.length / 3;
-    for (let i = 0; i < count; i += 1) {
-      const at = smooth.get(key(i)) ?? [0, 0, 0];
-      at[0] += this.litNorm[i * 3] as number;
-      at[1] += this.litNorm[i * 3 + 1] as number;
-      at[2] += this.litNorm[i * 3 + 2] as number;
-      smooth.set(key(i), at);
-    }
-    const positions = new Float32Array(this.litPos.length);
-    const colors = new Float32Array(this.litPos.length);
-    const [r, g, b] = linearOf(hex);
-    for (let i = 0; i < count; i += 1) {
-      const n = smooth.get(key(i)) ?? [0, 1, 0];
-      const length = Math.hypot(n[0], n[1], n[2]) || 1;
-      positions[i * 3] = (this.litPos[i * 3] as number) + (n[0] / length) * pad;
-      positions[i * 3 + 1] = (this.litPos[i * 3 + 1] as number) + (n[1] / length) * pad;
-      positions[i * 3 + 2] = (this.litPos[i * 3 + 2] as number) + (n[2] / length) * pad;
-      colors[i * 3] = r;
-      colors[i * 3 + 1] = g;
-      colors[i * 3 + 2] = b;
-    }
-    const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
-    geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
-    const mesh = new THREE.Mesh(geometry, markMaterial);
-    mesh.renderOrder = MARK_RENDER_ORDER;
-    mesh.frustumCulled = false;
-    return mesh;
   }
 
   /** One lit mesh + at most one unlit mesh, both sharing the scene materials. */

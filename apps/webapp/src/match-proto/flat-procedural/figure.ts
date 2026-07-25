@@ -45,7 +45,7 @@
 
 import * as THREE from "three";
 
-import { box, cone, facet, FlatBatch, taper, wedge } from "./flat.ts";
+import { box, cone, facet, FlatBatch, MARK_LAYER, MARK_MATERIALS, taper, wedge } from "./flat.ts";
 
 export type Tier = "fodder" | "hero";
 export type Archetype = "medic" | "melee" | "ranged";
@@ -77,8 +77,8 @@ export const PROPORTIONS = {
   head: 0.265,
   /** Head mass height, crown to jaw. */
   headMass: 0.265,
-  upperArm: 0.2,
-  foreArm: 0.18,
+  upperArm: 0.185,
+  foreArm: 0.165,
 } as const;
 
 /** Head joint minus shoulder joint: the defect round 1 did not have. */
@@ -88,8 +88,12 @@ export const LEG_LENGTH = PROPORTIONS.thigh + PROPORTIONS.shin;
 /** Silhouette height divided by head height. Target register is 3.2-4. */
 export const HEAD_COUNT = 1 / PROPORTIONS.headMass;
 
-/** Border thickness of the hero marking, as a fraction of unit height. */
-export const MARK_THICKNESS = 0.042;
+/**
+ * Hero border half-width in PIXELS, not world units. A marker whose job is to
+ * be findable has to stay findable when the camera zooms out, so it is
+ * defined in the space the eye actually judges it in.
+ */
+export const MARK_PIXELS = 2.2;
 
 export interface UnitSpec {
   tier: Tier;
@@ -145,6 +149,12 @@ const PALETTES: Record<Faction, Palette> = {
     signal: "#e8a94e",
     skin: "#9a6f57",
   },
+};
+
+/** Marker tint per faction, for the silhouette-border composite. */
+export const SIGNAL: Record<Faction, string> = {
+  crew: PALETTES.crew.signal,
+  opfor: PALETTES.opfor.signal,
 };
 
 export interface UnitJoints {
@@ -600,17 +610,19 @@ export function buildUnit(spec: UnitSpec): UnitRig {
   for (const { batch, bone, noMark } of batches) {
     if (batch.isEmpty) { continue; }
     triangles += batch.triangles;
-    if (marked && noMark !== true) {
-      const shell = batch.bakeMark(MARK_THICKNESS * s, palette.signal);
-      if (shell !== undefined) {
-        bone.add(shell);
-        markMeshes += 1;
-      }
-    }
     for (const mesh of batch.bake()) {
       mesh.frustumCulled = false;
       bone.add(mesh);
       meshes += 1;
+      // Silhouette mask twin: same geometry buffer, flat faction channel, and
+      // parked on the mark layer so the main pass never sees it.
+      if (marked && noMark !== true) {
+        const mask = new THREE.Mesh(mesh.geometry, MARK_MATERIALS[spec.faction]);
+        mask.frustumCulled = false;
+        mask.layers.set(MARK_LAYER);
+        bone.add(mask);
+        markMeshes += 1;
+      }
     }
   }
 

@@ -124,9 +124,9 @@ const BIND: Record<JointName, Triple> = {
 const ARCHETYPE_BIND: Record<Archetype, Partial<Record<JointName, Triple>>> = {
   medic: {
     elbowL: [-0.5, 0, 0],
-    elbowR: [-0.58, 0, 0],
+    elbowR: [-0.5, 0, 0],
     shoulderL: [0.02, 0, 0.12],
-    shoulderR: [-0.42, 0, -0.14],
+    shoulderR: [-0.62, 0, -0.14],
   },
   melee: {
     elbowL: [-0.45, 0, 0],
