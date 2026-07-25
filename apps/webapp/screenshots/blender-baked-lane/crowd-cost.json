@@ -3,9 +3,9 @@
   "heroPortraitAtlas": {
     "cells": 208,
     "indexedPngBytes": 29306,
-    "bakeWallClockSeconds": 13.7
+    "bakeWallClockSeconds": 15.11
   },
-  "crowdWallClockSeconds": 53.31,
+  "crowdWallClockSeconds": 49.02,
   "configs": {
     "small": {
       "label": "Small — Hero's Hour register",
@@ -204,8 +204,8 @@
         }
       },
       "blenderRenders": 768,
-      "blenderRenderSeconds": 20.4,
-      "bakeWallClockSeconds": 27.41,
+      "blenderRenderSeconds": 16.42,
+      "bakeWallClockSeconds": 22.58,
       "atlasRoundTripMismatchedPixels": 0,
       "clusterDensityAudit": {
         "measuredOn": "public/blender-baked/crowd-small.png",
@@ -219,8 +219,8 @@
           "bytesPerTrimmedPixel": 0.174,
           "meanFodderTrimmedPixels": 8886,
           "meanHeroTrimmedPixels": 21411,
-          "meanFodderBakeSeconds": 5.93,
-          "meanHeroBakeSeconds": 13.23,
+          "meanFodderBakeSeconds": 4.78,
+          "meanHeroBakeSeconds": 11.11,
           "note": "faction B is a palette remap of faction A — it costs bytes, never renders"
         },
         "allFodder": {
@@ -230,7 +230,7 @@
           "factions": 2,
           "cells": 4480,
           "indexedBytes": 61859,
-          "blenderSeconds": 118.6
+          "blenderSeconds": 95.5
         },
         "sixteenFodderFourHeroes": {
           "archetypes": 20,
@@ -239,7 +239,7 @@
           "factions": 2,
           "cells": 4864,
           "indexedBytes": 79297,
-          "blenderSeconds": 147.8
+          "blenderSeconds": 120.8
         }
       },
       "crowd": {
@@ -498,8 +498,8 @@
         }
       },
       "blenderRenders": 768,
-      "blenderRenderSeconds": 17.11,
-      "bakeWallClockSeconds": 25.89,
+      "blenderRenderSeconds": 16.74,
+      "bakeWallClockSeconds": 26.44,
       "atlasRoundTripMismatchedPixels": 0,
       "clusterDensityAudit": {
         "measuredOn": "public/blender-baked/crowd-large.png",
@@ -513,8 +513,8 @@
           "bytesPerTrimmedPixel": 0.1685,
           "meanFodderTrimmedPixels": 23669,
           "meanHeroTrimmedPixels": 56189,
-          "meanFodderBakeSeconds": 6,
-          "meanHeroBakeSeconds": 9.36,
+          "meanFodderBakeSeconds": 5.17,
+          "meanHeroBakeSeconds": 10.68,
           "note": "faction B is a palette remap of faction A — it costs bytes, never renders"
         },
         "allFodder": {
@@ -524,7 +524,7 @@
           "factions": 2,
           "cells": 4480,
           "indexedBytes": 159488,
-          "blenderSeconds": 119.9
+          "blenderSeconds": 103.4
         },
         "sixteenFodderFourHeroes": {
           "archetypes": 20,
@@ -533,7 +533,7 @@
           "factions": 2,
           "cells": 4864,
           "indexedBytes": 203315,
-          "blenderSeconds": 133.4
+          "blenderSeconds": 125.4
         }
       },
       "crowd": {

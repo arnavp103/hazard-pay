@@ -234,11 +234,16 @@ export function markInset(
         for (let dx = -1; dx <= 1; dx += 1) {
           const nx = x + dx;
           const ny = y + dy;
-          if (nx < 0 || ny < 0 || nx >= width || ny >= height) { edge = true; break; }
-          if (!opaque(ny * width + nx)) { edge = true; break; }
+          const outside = nx < 0 || ny < 0 || nx >= width || ny >= height;
+          if (outside || !opaque(ny * width + nx)) {
+            edge = true;
+            break;
+          }
         }
       }
-      if (edge) { shell.push(i); claimed[i] = 1; }
+      if (!edge) { continue; }
+      shell.push(i);
+      claimed[i] = 1;
     }
   }
 
