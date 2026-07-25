@@ -67,8 +67,10 @@ export interface AtlasCost {
   cells: number;
   cellWidth: number;
   cellHeight: number;
-  /** What a naive uniform-grid sheet of the same cells would measure. */
-  uniformGrid: { width: number; height: number; pixels: number };
+  /** A naive sheet: every authored cell, untrimmed, on a square grid. */
+  uniformCellGrid: { width: number; height: number; pixels: number };
+  /** A uniform grid sized to the largest TRIMMED frame — trimming, no packing. */
+  uniformTrimGrid: { width: number; height: number; pixels: number };
   trimmed: { width: number; height: number; pixels: number; occupancy: number };
   /** What the same atlas costs as a plain truecolour PNG. */
   rgbaPngBytes: number;
@@ -296,7 +298,12 @@ export function compile(
       cells: frames.length,
       cellWidth: cell.width,
       cellHeight: cell.height,
-      uniformGrid: {
+      uniformCellGrid: {
+        width: columns * cell.width,
+        height: rows * cell.height,
+        pixels: columns * cell.width * rows * cell.height,
+      },
+      uniformTrimGrid: {
         width: columns * gridW,
         height: rows * gridH,
         pixels: columns * gridW * rows * gridH,

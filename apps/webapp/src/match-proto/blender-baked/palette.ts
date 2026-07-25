@@ -51,6 +51,11 @@ export const DIRECTION_B_PALETTE: readonly PaletteEntry[] = [
   // colour the roster reserves — r1 found the board's hazard stripe within
   // (1,3,3) of the medic's dominant accent.
   { name: "copper", hex: "#a06a3e", role: "world" },
+  // The board's one genuinely LIT value. Without it the environment topped out
+  // at L114 and the near-black massing had nothing to be dramatic against; and
+  // at L114 the world's warm accent was the same luminance as the character's
+  // mid rust, so it competed instead of reading as light.
+  { name: "lamp", hex: "#c98f52", role: "world" },
   // Sage cloth — the medic's coat, the largest area on the unit.
   { name: "sage-1", hex: "#262a2e", role: "identity" },
   { name: "sage-2", hex: "#3e4744", role: "identity" },

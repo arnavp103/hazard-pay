@@ -177,9 +177,12 @@ async function buildQuantizationComparison(): Promise<void> {
     variants.quantized?.push(Uint8Array.from(quantized));
     consolidate(quantized, CELL.width, CELL.height, 2);
     variants.consolidated?.push(Uint8Array.from(quantized));
-    variants.inked?.push(
-      inkSprite(quantized, read(loDir, loFrame.id), CELL.width, CELL.height, DEFAULT_INK),
-    );
+    // This row is captioned "what ships in the atlas", so it has to BE that:
+    // same ink pass, same post-ink consolidation. i3 caught the audit sheet
+    // understating the artifact by 2x because this step was missing here.
+    const inked = inkSprite(quantized, read(loDir, loFrame.id), CELL.width, CELL.height, DEFAULT_INK);
+    consolidate(inked, CELL.width, CELL.height, 2);
+    variants.inked?.push(inked);
   }
 
   for (const [name, cells] of Object.entries(variants)) {
@@ -230,8 +233,9 @@ async function main(): Promise<void> {
     `  ${String(cost.facings)} facings x ${String(cost.animations)} animations `
     + `x ${String(cost.framesPerFacing)} frames = ${String(cost.cells)} cells of `
     + `${String(cost.cellWidth)}x${String(cost.cellHeight)}\n`
-    + `  uniform grid would be ${String(cost.uniformGrid.width)}x${String(cost.uniformGrid.height)}; `
-    + `trimmed atlas is ${String(cost.trimmed.width)}x${String(cost.trimmed.height)} `
+    + `  untrimmed grid ${String(cost.uniformCellGrid.width)}x${String(cost.uniformCellGrid.height)}; `
+    + `trimmed grid ${String(cost.uniformTrimGrid.width)}x${String(cost.uniformTrimGrid.height)}; `
+    + `packed atlas ${String(cost.trimmed.width)}x${String(cost.trimmed.height)} `
     + `(${(cost.trimmed.occupancy * 100).toFixed(1)}% occupied)\n`
     + `  atlas PNG ${(cost.indexedPngBytes / 1024).toFixed(1)} KiB indexed `
     + `(${(cost.rgbaPngBytes / 1024).toFixed(1)} KiB as truecolour)\n`
