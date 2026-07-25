@@ -105,20 +105,24 @@ describe("the crowd idles without reading as synchronized toys", () => {
     }
   });
 
-  it("gives heroes lower-body motion the cheap fodder treatment does not have", () => {
-    const config = crowdConfigs.large;
-    const roster = buildRoster(config);
-    const hero = roster.find((unit) => unit.tier === "hero");
-    const fodder = roster.find((unit) => unit.tier === "fodder");
-    expect(hero).toBeDefined();
-    expect(fodder).toBeDefined();
-    const heroGrid = getGrid((hero?.gridKey) ?? "");
-    const fodderGrid = getGrid((fodder?.gridKey) ?? "");
-    const heroBand = (ms: number) => poseUnit(hero!, ms).rows.slice(heroGrid.bottomRow - 12, heroGrid.bottomRow - 6).join("|");
-    const fodderBand = (ms: number) => poseUnit(fodder!, ms).rows.slice(fodderGrid.bottomRow - 8, fodderGrid.bottomRow - 4).join("|");
-    const heroFrames = new Set(Array.from({ length: 12 }, (_, i) => heroBand(Math.round((i / 12) * CROWD_CYCLE_MS))));
-    const fodderFrames = new Set(Array.from({ length: 12 }, (_, i) => fodderBand(Math.round((i / 12) * CROWD_CYCLE_MS))));
-    expect(heroFrames.size).toBeGreaterThan(fodderFrames.size);
+  /**
+   * Round 2's critique closed on "the legs stay planted". At crowd scale
+   * that has to keep holding for BOTH tiers, or the mass reads as a rack
+   * of swaying mannequins. Fodder got the cheap version of the fix (a
+   * one-row knee settle on the exhale); this pins that it is really there.
+   */
+  it("moves the lower body of every unit, fodder included", () => {
+    for (const config of configs) {
+      for (const unit of buildRoster(config)) {
+        const grid = getGrid(unit.gridKey);
+        const band = (ms: number) => poseUnit(unit, ms)
+          .rows.slice(grid.bottomRow - 10, grid.bottomRow - 3).join("|");
+        const frames = new Set(
+          Array.from({ length: 12 }, (_, i) => band(Math.round((i / 12) * CROWD_CYCLE_MS))),
+        );
+        expect(frames.size).toBeGreaterThan(1);
+      }
+    }
   });
 });
 

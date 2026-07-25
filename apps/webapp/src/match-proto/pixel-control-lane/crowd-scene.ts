@@ -178,6 +178,38 @@ export function buildRoster(config: CrowdConfig): PlacedUnit[] {
   return units.sort((a, b) => (a.y - b.y) || (a.x - b.x));
 }
 
+/**
+ * A deliberately un-crowded control: one of each unit kind per side,
+ * standing apart on the same ground line at the same 1x scale. The crowd
+ * still answers "can you find the hero in a mass"; this answers the
+ * narrower question underneath it - "with occlusion removed, does the
+ * extra authored detail on the hero read at all at this resolution?"
+ */
+export function buildLineup(config: CrowdConfig): PlacedUnit[] {
+  const step = config.halfW * 3;
+  const kinds: ("melee" | "ranged" | "hero")[] = ["melee", "hero", "ranged"];
+  const units: PlacedUnit[] = [];
+  const sides: { team: TeamKey; dir: 1 | -1; centre: number }[] = [
+    { team: "rust", dir: 1, centre: Math.round(STAGE_W * 0.3) },
+    { team: "slate", dir: -1, centre: Math.round(STAGE_W * 0.72) },
+  ];
+  sides.forEach((side, sideIndex) => {
+    kinds.forEach((kind, index) => {
+      units.push({
+        id: `lineup-${side.team}-${kind}`,
+        gridKey: kindGrid(config, kind),
+        tier: kind === "hero" ? "hero" : "fodder",
+        team: side.team,
+        x: side.centre + (index - 1) * step,
+        y: config.originY + config.halfH * 4 + sideIndex * 2,
+        mirrored: side.dir === -1,
+        phaseMs: index * 380,
+      });
+    });
+  });
+  return units;
+}
+
 // --- generic grid transforms (any width/height) -----------------------
 
 const TRANSPARENT = ".";
@@ -255,8 +287,10 @@ export function poseFodder(grid: CrowdGrid, clockMs: number, phaseMs: number): P
   const t = phase(clockMs + phaseMs, CROWD_CYCLE_MS);
   const wave = Math.sin(t * Math.PI * 2);
   const pivot = Math.round(grid.bottomRow - (grid.bottomRow - grid.topRow) * 0.35);
-  const rows = leanRows(grid.rows, pivot, 0.07 * wave);
-  return { rows, bob: wave > 0.55 ? -1 : 0 };
+  const kneeY = Math.round(grid.bottomRow - (grid.bottomRow - grid.topRow) * 0.18);
+  let rows = leanRows(grid.rows, pivot, 0.1 * wave);
+  if (wave < -0.45) { rows = crouchRows(rows, kneeY, 1); }
+  return { rows, bob: wave > 0.4 ? -1 : 0 };
 }
 
 /**

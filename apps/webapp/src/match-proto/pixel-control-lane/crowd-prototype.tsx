@@ -29,6 +29,7 @@ import {
   STAGE_H,
   STAGE_W,
   blitOrigin,
+  buildLineup,
   buildRoster,
   crowdConfigs,
   footprintWidth,
@@ -47,6 +48,10 @@ const CLOCK_STEP_MS = 40;
 function readParam(name: string): string | null {
   if (globalThis.location === undefined) { return null; }
   return new URLSearchParams(globalThis.location.search).get(name);
+}
+
+function isLineup(): boolean {
+  return readParam("lineup") === "1";
 }
 
 export function readCrowdConfig(): ConfigKey {
@@ -70,6 +75,7 @@ function paintStage(
   board: HTMLImageElement | null,
   configKey: ConfigKey,
   clockMs: number,
+  lineup: boolean,
 ): void {
   context.imageSmoothingEnabled = false;
   context.fillStyle = "#120b10";
@@ -79,7 +85,7 @@ function paintStage(
   }
 
   const config = crowdConfigs[configKey];
-  const roster = buildRoster(config);
+  const roster = lineup ? buildLineup(config) : buildRoster(config);
 
   // Contact shadows first, identical treatment for every unit regardless
   // of tier - grounding must not smuggle in the marking that was deferred.
@@ -143,7 +149,7 @@ export function CrowdPrototype() {
     if (canvas === null) { return; }
     const context = canvas.getContext("2d", { willReadFrequently: true });
     if (context === null) { return; }
-    paintStage(context, board, configKey, clockMs);
+    paintStage(context, board, configKey, clockMs, isLineup());
   }, [board, configKey, clockMs]);
 
   const config = crowdConfigs[configKey];
