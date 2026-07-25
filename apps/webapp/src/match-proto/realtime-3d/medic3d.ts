@@ -12,6 +12,26 @@
  * squash/stretch on the attack impact — motion on twos/threes, not
  * interpolated smoothness.
  *
+ * ROUND 3 (#81): the flat-procedural lane found a head-occlusion defect in
+ * its own rig and warned this lane it likely inherited it. Measured in the
+ * camera's screen basis (`UP` in scene3d.ts, where both world +Y and world
+ * -Z push a point up-screen), this rig did NOT have it — the face cleared
+ * the chest by +0.234 h, sat nearer the camera (1.056 vs 1.017), the crown
+ * beat the pack by +0.395 h and a camera-direction raycast at the face hit
+ * the head first on 120/120 frames of idle, turn and attack.
+ *
+ * What it DID have is the same defect class one order milder: the pack
+ * AERIAL, a 0.34-tall antenna, was the tallest non-head mass and closed to
+ * +0.032 h of the crown on the turn and -0.007 h on the attack apex — the
+ * head lost the top of the silhouette outright for part of one clip. The
+ * pauldron was third at +0.178 h. Round 3 applies the sibling lane's rule 2
+ * — nothing above the collar but the head — by capping the aerial and the
+ * pauldron below the chest top, and buys margin with a real neck: the head
+ * joint now sits ~0.14 h above the shoulder line on a dark column, up from
+ * +0.030 h. `rig3d.test.ts` fires the camera's own ray at the face and
+ * requires the head to be the first hit across the whole clip range, so
+ * this cannot silently regress.
+ *
  * ROUND 2 (#81): the cold critique read material as hue-only and both
  * ambient clips as rig-quantized. This pass pushes value contrast between
  * three materials — dark matte cloth, brighter cool metal with a spec
@@ -36,6 +56,9 @@ const SHIN = "#312f37";
 const BOOT = "#221f26";
 const SKIN = "#a96e51";
 const HOOD = "#3b2936";
+// Neck column: darker than both the coat and the hood, so the gap between
+// collar and jaw reads as shadow and the head reads as carried, not fused.
+const NECK = "#2a1f28";
 // Metal: a clear band brighter/cooler than cloth, plus a spec highlight.
 const METAL = "#8b8f99";
 const METAL_HI = "#c6cad4";
@@ -51,6 +74,23 @@ const SIGNAL = "#2f9e96";
 const SIGNAL_HOT = "#c5fff1";
 
 export type MedicAnim = "attack" | "idle" | "turn";
+
+/**
+ * Torso-local height of the shoulder joints and of the head joint. Their
+ * difference is the neck: the sibling lane's round-1 rig had the head joint
+ * BELOW the shoulder joint, which is what made the head vanish under a
+ * camera that looks down 30 degrees. Keeping both as named constants means
+ * the neck is a property of the numbers rather than of two scattered
+ * literals that can drift apart.
+ */
+export const SHOULDER_Y = 0.44;
+export const HEAD_Y = 0.53;
+export const NECK_RISE = HEAD_Y - SHOULDER_Y;
+/**
+ * Torso-local top of the chest mass — the collar line. Nothing but the head
+ * is allowed above it, so the head owns the top of the silhouette outright.
+ */
+export const COLLAR_Y = 0.5;
 
 interface Joints {
   root: THREE.Group;
@@ -116,7 +156,7 @@ function leg(side: 1 | -1): { boot: THREE.Group; hip: THREE.Group; knee: THREE.G
 
 function arm(side: 1 | -1, cyber: boolean): { elbow: THREE.Group; hand: THREE.Group; shoulder: THREE.Group } {
   const shoulder = new THREE.Group();
-  shoulder.position.set(side * 0.31, 0.44, 0);
+  shoulder.position.set(side * 0.31, SHOULDER_Y, 0);
 
   const sleeve = inkBox(0.14, 0.3, 0.15, cel(COAT), SHELL);
   sleeve.position.y = -0.17;
@@ -167,10 +207,12 @@ function arm(side: 1 | -1, cyber: boolean): { elbow: THREE.Group; hand: THREE.Gr
 
 function headGroup(): THREE.Group {
   const head = new THREE.Group();
-  head.position.set(0, 0.46, 0);
+  head.position.set(0, HEAD_Y, 0);
 
-  const neck = inkBox(0.14, 0.1, 0.13, cel(SKIN), SHELL);
-  neck.position.y = 0.02;
+  // A real neck column, dark so it reads as shadowed gap rather than as a
+  // third body mass, tall enough to bridge the collar to the hood jaw.
+  const neck = inkBox(0.15, 0.22, 0.14, cel(NECK), SHELL);
+  neck.position.y = -0.06;
   head.add(neck);
 
   const hood = inkBox(0.36, 0.34, 0.34, cel(HOOD), SHELL);
@@ -306,8 +348,12 @@ export function buildMedic(): MedicRig {
   const packSignal = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.045, 0.03), flat(SIGNAL));
   packSignal.position.set(0.13, 0.38, -0.375);
   torso.add(packSignal);
-  const aerial = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.34, 0.03), flat("#1a1218"));
-  aerial.position.set(0.15, 0.56, -0.3);
+  // Aerial: round 2 ran this 0.34 tall to y=0.73, which made it the tallest
+  // non-head mass on the rig and let it beat the crown at the attack apex.
+  // Capped to a stub whose tip stays under COLLAR_Y — rule 2, nothing above
+  // the collar but the head.
+  const aerial = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.16, 0.03), flat("#1a1218"));
+  aerial.position.set(0.15, 0.34, -0.3);
   torso.add(aerial);
 
   const head = headGroup();
@@ -318,12 +364,17 @@ export function buildMedic(): MedicRig {
   torso.add(armL.shoulder, armR.shoulder);
 
   // Rust shoulder pad on the cyber side only — deliberate asymmetry.
-  const pad = inkBox(0.24, 0.11, 0.26, cel(LIVERY), SHELL);
-  pad.position.set(-0.04, 0.06, 0);
+  // Pauldron sits ON the shoulder rather than above it: its top clears
+  // SHOULDER_Y by half its height and still lands under the collar.
+  // Seated a touch below the joint so that even the pad's INK SHELL clears
+  // the collar. A rotated shell overhangs by more than its nominal thickness,
+  // which is how the round-2 pauldron kept a sliver above the collar line.
+  const pad = inkBox(0.24, 0.1, 0.26, cel(LIVERY), SHELL);
+  pad.position.set(-0.04, -0.02, 0);
   armL.shoulder.add(pad);
   // Chipped edge on the pad in worn rust — history on the identity color.
   const padChip = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.05, 0.1), flat(LIVERY_DK));
-  padChip.position.set(-0.14, 0.09, 0.09);
+  padChip.position.set(-0.14, 0.01, 0.09);
   armL.shoulder.add(padChip);
 
   const { tip, tipMaterial, tool } = injector();
