@@ -10,11 +10,17 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as EnvRegisterRouteImport } from './routes/env-register'
 import { Route as MatchProtoRouteImport } from './routes/match-proto'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EnvRegisterRoute = EnvRegisterRouteImport.update({
+  id: '/env-register',
+  path: '/env-register',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MatchProtoRoute = MatchProtoRouteImport.update({
@@ -25,27 +31,31 @@ const MatchProtoRoute = MatchProtoRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/env-register': typeof EnvRegisterRoute
   '/match-proto': typeof MatchProtoRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/env-register': typeof EnvRegisterRoute
   '/match-proto': typeof MatchProtoRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/env-register': typeof EnvRegisterRoute
   '/match-proto': typeof MatchProtoRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/match-proto'
+  fullPaths: '/' | '/env-register' | '/match-proto'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/match-proto'
-  id: '__root__' | '/' | '/match-proto'
+  to: '/' | '/env-register' | '/match-proto'
+  id: '__root__' | '/' | '/env-register' | '/match-proto'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  EnvRegisterRoute: typeof EnvRegisterRoute
   MatchProtoRoute: typeof MatchProtoRoute
 }
 
@@ -56,6 +66,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/env-register': {
+      id: '/env-register'
+      path: '/env-register'
+      fullPath: '/env-register'
+      preLoaderRoute: typeof EnvRegisterRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/match-proto': {
@@ -70,6 +87,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  EnvRegisterRoute: EnvRegisterRoute,
   MatchProtoRoute: MatchProtoRoute,
 }
 export const routeTree = rootRouteImport

@@ -1,0 +1,128 @@
+{
+  "lane": "environment-register",
+  "issue": 91,
+  "generated": "2026-07-25",
+  "protocol": {
+    "board": "one grime-market plaza, 20x20 cells of 2:1 dimetric 64x32 tiles, authored once and shared",
+    "boardResolution": "1280x720 native board pixels",
+    "framings": {
+      "combat": "2x of a 640x360 aperture -> 1280x720",
+      "crowd": "1x of the full 1280x720 board -> 1280x720",
+      "sideBySide": "2x of a 480x270 aperture -> 960x540 per panel",
+      "note": "every framing is a whole-number scale; treatment B is never resampled"
+    },
+    "controls": [
+      "shared board model: floor plan, prop manifest, projection, cameras, unit roster",
+      "shared prop geometry: both treatments fill the identical polygons",
+      "shared palette: a machine-checked 51-colour set (palette.test.ts asserts both treatments stay inside it)",
+      "shared unit layer: the same placeholder sprites composited by the same code over both boards"
+    ]
+  },
+  "measured": {
+    "boardPixels": 921600,
+    "paletteColours": 51,
+    "distinctColoursUsedByTreatmentB": 51,
+    "propInstances": 38,
+    "propKinds": 11,
+    "valueSaturationBudget": {
+      "note": "measured off the treatment B buffer with the unit layer composited",
+      "body": 0.931,
+      "identity": 0.062,
+      "emission": 0.0048,
+      "unitLocalColours": 0.0023,
+      "canonTarget": "70 / 25 / 5",
+      "reading": "the board runs far quieter than 70/25/5 on purpose - canon says playable map regions keep quieter contrast so units own the darkest contours and brightest points. The identity band here lives almost entirely on stall canopies and crates. At 1280x720 with 34 small units the roster cannot move the ratio; at a tighter combat aperture the identity share rises."
+    },
+    "treatmentA": {
+      "svgBytes": 116691,
+      "svgPaths": 1410,
+      "renderMs": 4,
+      "rasterizer": "browser (Image + drawImage); sharp/resvg would be the build-time equivalent, deliberately not added as a dependency"
+    },
+    "treatmentB": {
+      "renderMsGeometryOnly": 420,
+      "renderMsWithGeneratedPasses": 473,
+      "renderMsWithAuthoredStamps": 317,
+      "renderMsTotalColdBoard": 790,
+      "note": "software rasterizer in plain TS, no canvas, no dependency; a production pipeline would bake this to a PNG once"
+    }
+  },
+  "authoringEffort": {
+    "unitsOfMeasure": "this is an agent session, so effort is reported as authored artifacts and build-inspect rounds, not human hours",
+    "sharedInfrastructure": {
+      "linesOfCode": 1494,
+      "files": [
+        "palette.ts 145",
+        "pixel-canvas.ts 246",
+        "prop-geometry.ts 546",
+        "compose.ts 47",
+        "unit-sprites.ts 193",
+        "tests 282",
+        "borrowed-medic-48.ts 314 (copied lane art, not authored here)"
+      ],
+      "amortises": "across every future map, both treatments"
+    },
+    "perBoardAuthoring": {
+      "floorPlanFunction": "~35 lines (board-model.ts groundAt)",
+      "propManifest": "38 hand-placed entries, ~45 lines",
+      "propShapeBuilders": "11 kinds, ~230 lines in prop-geometry.ts - reusable across maps in the same district vocabulary",
+      "treatmentASurfaceWork": "0 - the register is entirely the two-pass ink and the flat fills, which are board-independent",
+      "treatmentBGeneratedPasses": "~130 lines of material detail (wood/steel/rust/concrete/plum/canvas/grate) - board-independent, reused by every map",
+      "treatmentBAuthoredStamps": {
+        "grids": 5,
+        "authoredCells": 913,
+        "linesOfCode": 167,
+        "reusable": "only inside the same district vocabulary - a foundry or a clinic needs its own motifs"
+      }
+    },
+    "buildInspectRounds": {
+      "round1": "first full build of both treatments, board at 640x360 with 32x16 tiles",
+      "round2": "scale correction - a 48x64 hero read four tiles tall, so the board was rebuilt at 1280x720 with 64x32 tiles",
+      "round3": "dressing pass - apron rings, awning valances, southern props, calmer floor clusters, unit formations moved onto open ground",
+      "round4": "cold-critique response - tile seams drawn last so the walkable grid survives the wear pass, wear made directional (floor smears along traffic, wall stains drip downward), canopy ramps desaturated below team-identity colour with a separate team-cloth ramp for units, stall posts thinned and darkened, the junction-box stamp moved off building faces where it read as a figure at building scale",
+      "note": "rounds 1 and 3 were cheap because geometry is shared; round 2 was cheap for the same reason - every prop rescaled from one projection change"
+    }
+  },
+  "layerContribution": {
+    "note": "how many of the 921,600 board pixels each layer of treatment B is responsible for",
+    "geometryOnly": "the flat baseline - every pixel, no surface",
+    "generatedSurfacePasses": 123699,
+    "authoredStamps": 4702,
+    "ratio": "26.3 generated pixels per authored pixel",
+    "authoredShareOfBoard": 0.0051
+  },
+  "projectedCostOfMoreMaps": {
+    "map2SameDistrict": {
+      "description": "a second grime-market board - different plan, same vocabulary",
+      "treatmentA": "floor plan + prop manifest only, ~80 lines. Prop shapes and the ink register carry over unchanged.",
+      "treatmentB": "the same ~80 lines. Generated passes carry over unchanged; the five stamps carry over because the motifs still fit.",
+      "verdict": "the two treatments cost the same for map 2. Density is free the second time only because the district did not change."
+    },
+    "map3DifferentDistrict": {
+      "description": "a foundry, a clinic block, a transit yard - new material vocabulary",
+      "treatmentA": "~80 lines of plan/manifest plus ~5 new prop-shape builders (~110 lines) plus optionally a district palette (~20 lines). The register still needs no per-map work.",
+      "treatmentB": "everything treatment A needs, PLUS a fresh authored stamp set. The existing 913 cells are market wares; a foundry needs crucibles, slag, tool racks, cable drums. At the density this board achieved that is another ~900 authored cells minimum, and this board is nowhere near MST density.",
+      "verdict": "treatment A's marginal cost per map is flat. Treatment B's marginal cost per map has a hand-authored term that does not amortise, and that term is the only part of B that produces objects rather than texture."
+    },
+    "costToActuallyReachMSTDensity": {
+      "achievedAuthoredShare": 0.0051,
+      "estimatedRequiredShare": "0.15 - 0.25 of the board carrying authored motif rather than generated surface",
+      "impliedMultiplier": "29x - 49x more authored cells for THIS board",
+      "impliedStampCount": "roughly 145 - 245 stamps at the current 180-cells-each average, versus the 5 authored here",
+      "perMap": "and that number is per map, for every map that is not a re-dress of the same district"
+    }
+  },
+  "toolboxUsed": [
+    "TypeScript (no new dependencies; pnpm-lock.yaml untouched)",
+    "browser SVG rasterization for treatment A",
+    "a hand-written software rasterizer for treatment B (pixel-canvas.ts)",
+    "agent-browser for deterministic capture",
+    "ImageMagick for montaging filmstrips and layer studies"
+  ],
+  "notUsed": [
+    "image-model generation",
+    "paid APIs",
+    "hosted services",
+    "any new npm dependency"
+  ]
+}
