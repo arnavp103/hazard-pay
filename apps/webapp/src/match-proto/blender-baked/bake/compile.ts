@@ -22,7 +22,13 @@ import pixelmatch from "pixelmatch";
 import { PNG } from "pngjs";
 
 import { consolidate, islandStats } from "../consolidate.ts";
-import { DIRECTION_B_PALETTE, paletteCoverage, quantizeToPalette, remapPalette } from "../palette.ts";
+import {
+  DIRECTION_B_PALETTE,
+  hexToRgb,
+  paletteCoverage,
+  quantizeToPalette,
+  remapPalette,
+} from "../palette.ts";
 import { toIndexed, writeIndexedPng } from "./indexed-png.ts";
 import { alphaBounds, DEFAULT_INK, type InkOptions, inkSprite, markOutline } from "./ink.ts";
 import { packBest, type PackItem } from "./pack.ts";
@@ -152,6 +158,13 @@ export interface CompileInput {
   remap?: Readonly<Record<string, string>>;
 }
 
+/** The rim value as a consolidate-protected key, when a rim is configured. */
+function rimProtect(ink: InkOptions): readonly number[] | undefined {
+  if (ink.rim === null) { return undefined; }
+  const [r, g, b] = hexToRgb(ink.rim.hex);
+  return [(r << 16) | (g << 8) | b];
+}
+
 function readRgba(path: string, width: number, height: number): Uint8Array {
   const png = PNG.sync.read(readFileSync(path));
   if (png.width !== width || png.height !== height) {
@@ -201,8 +214,9 @@ export function compileFrames(
     // …and again after inking. The seam pass can strand a lone darkened pixel
     // where two parts touch across three cells; measured, the drawing passes
     // were re-introducing more confetti than they were worth. Ink is protected,
-    // so the contour survives while orphan seams are folded back.
-    consolidate(finished, width, height, minIsland);
+    // so the contour survives while orphan seams are folded back — and so is
+    // the rim, which is the same contour drawn one value up.
+    consolidate(finished, width, height, minIsland, 4, rimProtect(ink));
     // The faction swap goes LAST, on finished pixels, so it can never change
     // which colours the quantizer chose or which seams the ink drew: the two
     // liveries are the same drawing carrying different indices.

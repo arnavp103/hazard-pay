@@ -43,7 +43,7 @@ import {
 import { consolidate } from "../consolidate.ts";
 import { DIRECTION_B_PALETTE, FACTION_B_LIVERY, quantizeToPalette } from "../palette.ts";
 import { compile, compileAtlas, type CompileInput } from "./compile.ts";
-import { DEFAULT_INK, inkSprite } from "./ink.ts";
+import { CROWD_INK, DEFAULT_INK, inkSprite, RIM_HEX } from "./ink.ts";
 import {
   assertManifestMatchesSpec,
   type BakeManifest,
@@ -289,27 +289,42 @@ async function bakeCrowdConfig(config: CrowdConfig): Promise<BakedConfig & {
   }
 
   const image = `${config.atlas}.png`;
-  const result = compileAtlas(inputs, image);
+  const result = compileAtlas(inputs, image, CROWD_INK);
   writeFileSync(join(publicDir, image), result.png);
   writeFileSync(join(publicDir, `${config.atlas}.json`), `${JSON.stringify(result.sheet, null, 2)}\n`);
   if (result.mismatchedPixels !== 0) {
     throw new Error(`${config.key} atlas round-trip failed: ${String(result.mismatchedPixels)} pixels differ`);
   }
 
+  // The round-4 contour, from the SAME renders, as a control. This is the one
+  // thing this lane can do that a hand-authored one cannot: the ink pass is
+  // post-render TypeScript, so an A/B of two outline treatments across a whole
+  // army costs a second compile and ZERO Blender frames. It is a control, not a
+  // shipped artifact — the crowd captures load it only to show the difference.
+  const control = compileAtlas(inputs, `${config.atlas}-norim.png`, DEFAULT_INK);
+  writeFileSync(join(publicDir, `${config.atlas}-norim.png`), control.png);
+  writeFileSync(
+    join(publicDir, `${config.atlas}-norim.json`),
+    `${JSON.stringify(control.sheet, null, 2)}\n`,
+  );
+
   const wallClockSeconds = (Date.now() - started) / 1000;
   const { cost } = result;
   process.stdout.write(
-    `  ${String(cost.cells)} cells · packed ${String(cost.trimmed.width)}x${String(cost.trimmed.height)} `
+    `  rim ${RIM_HEX} · control (no rim) ${(control.cost.indexedPngBytes / 1024).toFixed(1)} KiB, `
+    + `0 extra renders\n`
+    + `  ${String(cost.cells)} cells · packed ${String(cost.trimmed.width)}x${String(cost.trimmed.height)} `
     + `(${(cost.trimmed.occupancy * 100).toFixed(1)}% occupied) · `
     + `${(cost.indexedPngBytes / 1024).toFixed(1)} KiB indexed `
     + `(${(cost.rgbaPngBytes / 1024).toFixed(1)} KiB truecolour) · round-trip exact\n`
     + `  bake wall clock ${wallClockSeconds.toFixed(2)}s\n`,
   );
-  return { manifests, perUnitWallClock, renderSeconds, renders, result, wallClockSeconds };
+  return { control, manifests, perUnitWallClock, renderSeconds, renders, result, wallClockSeconds };
 }
 
 interface BakedConfig {
   result: ReturnType<typeof compileAtlas>;
+  control: ReturnType<typeof compileAtlas>;
   manifests: BakeManifest[];
   perUnitWallClock: Record<string, number>;
 }
@@ -469,6 +484,15 @@ async function main(): Promise<void> {
       clusterDensityAudit: {
         measuredOn: `public/${ATLAS_PUBLIC_DIR}/${config.atlas}.png`,
         ...audit,
+      },
+      // What the round-4 outline costs and what the round-5 one costs, from
+      // one set of renders. The delta is the honest price of the rim.
+      contour: {
+        rimHex: RIM_HEX,
+        shippedIndexedPngBytes: baked.result.cost.indexedPngBytes,
+        controlNoRimIndexedPngBytes: baked.control.cost.indexedPngBytes,
+        extraBlenderRenders: 0,
+        note: "the rim is drawn in pixel space over cells that already exist",
       },
       // A 20-unit roster, projected from THIS bake's measured per-archetype
       // numbers rather than from a guess. Bytes scale with trimmed sprite area

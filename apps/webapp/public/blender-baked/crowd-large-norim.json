@@ -29980,7 +29980,7 @@
     ],
     "facings": 8,
     "format": "RGBA8888",
-    "image": "crowd-large.png",
+    "image": "crowd-large-norim.png",
     "scale": "1",
     "size": {
       "h": 716,

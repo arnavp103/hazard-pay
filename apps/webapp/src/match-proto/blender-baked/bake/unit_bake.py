@@ -102,10 +102,51 @@ SCUFF = "#312c36"
 # authored at the hero's value simply becomes a hole in the board. Legs stay
 # dark: a light torso over dark legs is the one internal value break that
 # still reads when the whole figure is eleven pixels tall.
+# Round 5. The cofounder's read of the round-4 crowd was "the color of the
+# troops also seems pretty lacking in detail", and the atlas agrees with him in
+# numbers: measured over all eight idle facings at the large register, a brute
+# was 43.7% plum-black contour and a marksman 54.6%, and the eight commonest
+# colours on either unit contained no warm entry at all — the whole roster was
+# grey-violet, and the brightest thing on a fodder unit was a 3-px specular
+# highlight on its blade. Three things follow, and none of them spend the 5%
+# signal budget, because none of them are emissive:
+#
+#   * a real VALUE LADDER down the figure — light pauldron, mid cloth, dark
+#     hem, darker leg, darkest boot — so the silhouette has internal structure
+#     instead of one mass with confetti on it;
+#   * a LIVERY mass big enough to survive at eleven art pixels. It is in the
+#     rust ramp, which `FACTION_B_LIVERY` already remaps to steel, so it is the
+#     first thing on a fodder unit that tells the two armies apart at a glance
+#     and it costs no extra render to do it;
+#   * a GRIME value at the hem and the boots, which is where a soldier's kit
+#     actually gets dirty, and which doubles as the bottom rung of the ladder.
+#
+# The blade and barrel come DOWN. `METAL_BANDS`' lit rung clips and is then
+# normalised back to saturation by `band_headroom`, so every metal part in the
+# roster resolves to near-white; on a 60-px hero that is a cybernetic arm, on an
+# 11-px fodder unit it is the loudest thing on screen for no reason.
 FODDER_CLOTH = "#55635e"
+FODDER_CLOTH_DK = "#39423f"
 FODDER_PLATE = "#585460"
+# Pulled down from #6f6b7a after the first round-5 loupe: pauldrons plus a
+# plated shield rim put three light masses across the top of an 11-px unit and
+# the brute read as a pile of grey boxes rather than as a soldier. The value
+# ladder needs a top rung, not a spotlight.
+FODDER_PAULDRON = "#5b5766"
 FODDER_SHIELD = "#2e2a33"
 FODDER_TRIM = "#8a4436"
+# Chosen by working the cel bands backwards, not by eye: under CLOTH_BANDS this
+# base resolves to rust-1 / rust-2 / rust-3 for shadow / mid / lit. Landing ON
+# the rust ramp is the whole point — `FACTION_B_LIVERY` remaps rust-1..4 to
+# steel-1..4, so a torso in this colour is the one mass that tells the two
+# armies apart, and the second army still costs zero renders. A first pass put
+# the livery on a chest PANEL instead; measured, it was five pixels at the large
+# register and 0% of the small one, which is what "lacking in detail" looks like
+# in numbers. The livery has to be the torso or it is not there at all.
+FODDER_LIVERY = "#7e3a2c"
+FODDER_LIVERY_DK = "#582822"
+FODDER_GRIME = "#26222c"
+FODDER_STEEL = "#4a4e58"
 FODDER_OPTIC = "#241a22"
 
 # --- minimum feature size -------------------------------------------------
@@ -211,14 +252,25 @@ def band_range(shadow, mid, lit):
 
 CLOTH_BANDS = band_range(0.64, 1.58, 2.58)
 METAL_BANDS = band_range(1.50, 2.35, 3.10)
+# Fodder metal. The top rung is chosen to stay UNDER the clip point so
+# `band_headroom` leaves it alone: a fodder blade should read as a hard edge in
+# the crowd, not as the brightest object in the frame.
+FODDER_METAL_BANDS = band_range(0.80, 1.55, 2.30)
 
 
 def cel_material(hex_color: str, bands=None):
-    """Hard three-band cel emission. Cached per colour so parts share nodes."""
-    existing = _MATS.get(hex_color)
+    """Hard three-band cel emission. Cached per colour AND band range.
+
+    Keying the cache on colour alone was a latent bug: asking for the same hex
+    under two band ranges silently returned whichever was built first. Nothing
+    in the round-1..4 rigs did that, so this changes no existing pixel — but
+    round 5 puts cloth and metal ramps on adjacent greys and would have hit it.
+    """
+    multipliers = bands or BAND_MULTIPLIERS
+    cache_key = f"{hex_color}|{multipliers[2]}"
+    existing = _MATS.get(cache_key)
     if existing is not None:
         return existing
-    multipliers = bands or BAND_MULTIPLIERS
 
     mat = bpy.data.materials.new(f"cel_{hex_color.lstrip('#')}")
     mat.use_nodes = True
@@ -264,7 +316,7 @@ def cel_material(hex_color: str, bands=None):
     out = tree.nodes.new("ShaderNodeOutputMaterial")
     tree.links.new(emit.outputs["Emission"], out.inputs["Surface"])
 
-    _MATS[hex_color] = mat
+    _MATS[cache_key] = mat
     return mat
 
 
@@ -529,57 +581,90 @@ MARKSMAN_BIND = {
 }
 
 
-def build_fodder_legs(side, root, hip_z, thigh, shin, boot, mat_a, mat_b):
-    hip = empty(f"hip{side}", root, (side * 0.15, 0.0, hip_z))
+def build_fodder_legs(side, root, hip_z, thigh, shin, boot, mat_a, mat_b, hip_x=0.15,
+                     boot_mat=BOOT):
+    hip = empty(f"hip{side}", root, (side * hip_x, 0.0, hip_z))
     box("thigh", thigh, (0, -thigh[1] / 2 - 0.02, 0), cel_material(mat_a, CLOTH_BANDS), hip)
     knee = empty(f"knee{side}", hip, (0.0, 0.0, -(thigh[1] + 0.02)))
     box("shin", shin, (0, -shin[1] / 2, 0), cel_material(mat_b, CLOTH_BANDS), knee)
-    box("boot", boot, (0, -shin[1] - boot[1] / 2 + 0.02, 0.05), cel_material(BOOT, CLOTH_BANDS), knee)
+    box("boot", boot, (0, -shin[1] - boot[1] / 2 + 0.02, 0.05),
+        cel_material(boot_mat, CLOTH_BANDS), knee)
     return hip, knee
 
 
 def build_brute():
-    """Heavy melee fodder: a wide wedge with a slab shield."""
-    root = empty("root")
-    pelvis = empty("pelvis", root, (0.0, 0.0, 0.92))
-    box("hem", (0.54, 0.28, 0.36), (0, 0.0, 0), cel_material(PANTS, CLOTH_BANDS), pelvis)
+    """Heavy melee fodder: a wide low wedge behind a slab shield.
 
-    torso = empty("torso", pelvis, (0.0, 0.0, 0.16))
+    Round 5 pushes the archetype further apart from the marksman rather than
+    relying on the outline to explain them. Measured on round 4, the two fodder
+    silhouettes overlapped at IoU 0.76 (small) / 0.71 (large) with identical
+    drawn heights — they were the same shape at two widths. So: the brute gets
+    wider and squatter, the marksman taller and thinner, and the two events that
+    survive at eleven pixels — this one's shield, that one's barrel — both get
+    pushed further OUTSIDE the body line where they can break the outline.
+    """
+    root = empty("root")
+    pelvis = empty("pelvis", root, (0.0, 0.0, 0.84))
+    box("hem", (0.72, 0.30, 0.40), (0, 0.0, 0), cel_material(PANTS, CLOTH_BANDS), pelvis)
+    # The bottom rung of the value ladder, and where kit actually gets dirty.
+    detail_box("hem_wear", (0.66, 0.11, 0.34), (0, -0.13, 0.0),
+               cel_material(FODDER_GRIME, CLOTH_BANDS), pelvis)
+
+    torso = empty("torso", pelvis, (0.0, 0.0, 0.18))
     # Deliberately the widest mass in the roster: at 11 px the only thing that
     # says "heavy" is being wider than everything beside you.
-    box("chest", (0.74, 0.50, 0.44), (0, 0.25, 0), cel_material(FODDER_CLOTH, CLOTH_BANDS), torso)
-    box("plate", (0.52, 0.36, 0.11), (0, 0.22, 0.24), cel_material(FODDER_PLATE, CLOTH_BANDS), torso)
-    detail_box("plate_chip", (0.14, 0.10, 0.04), (-0.16, 0.12, 0.29), flat_material(SCUFF), torso)
-    box("collar", (0.60, 0.16, 0.34), (0, 0.46, -0.02), cel_material(COAT_DARK, CLOTH_BANDS), torso)
+    box("chest", (0.96, 0.46, 0.46), (0, 0.23, 0),
+        cel_material(FODDER_LIVERY, CLOTH_BANDS), torso)
+    box("plate", (0.62, 0.30, 0.12), (0, 0.26, 0.23), cel_material(FODDER_PLATE, CLOTH_BANDS), torso)
+    # A darker panel down the front of the livery: the value break that keeps
+    # the biggest mass on the unit from being one flat rectangle of colour.
+    box("tabard", (0.30, 0.46, 0.09), (0, 0.02, 0.26),
+        cel_material(FODDER_LIVERY_DK, CLOTH_BANDS), torso)
+    detail_box("plate_chip", (0.16, 0.11, 0.05), (-0.20, 0.14, 0.28), flat_material(SCUFF), torso)
+    box("collar", (0.74, 0.14, 0.36), (0, 0.45, -0.02), cel_material(COAT_DARK, CLOTH_BANDS), torso)
 
-    head = empty("head", torso, (0.0, 0.0, 0.46))
-    box("helm", (0.34, 0.32, 0.32), (0, 0.13, -0.02), cel_material(HOOD, CLOTH_BANDS), head)
-    detail_box("slit", (0.22, 0.05, 0.03), (0, 0.10, 0.16), flat_material(FODDER_OPTIC), head)
+    head = empty("head", torso, (0.0, 0.0, 0.42))
+    box("helm", (0.36, 0.28, 0.32), (0, 0.12, -0.02), cel_material(HOOD, CLOTH_BANDS), head)
+    detail_box("slit", (0.24, 0.05, 0.03), (0, 0.09, 0.16), flat_material(FODDER_OPTIC), head)
 
-    shoulder_l = empty("shoulderL", torso, (-0.40, 0.0, 0.40))
-    box("armL", (0.22, 0.32, 0.24), (0, -0.17, 0), cel_material(FODDER_CLOTH, CLOTH_BANDS), shoulder_l)
+    shoulder_l = empty("shoulderL", torso, (-0.52, 0.0, 0.38))
+    # Pauldrons are the TOP of the value ladder. They sit where the key hits
+    # first, so the figure reads light-over-dark down its whole height.
+    box("pauldL", (0.30, 0.20, 0.32), (-0.02, 0.06, 0),
+        cel_material(FODDER_PAULDRON, CLOTH_BANDS), shoulder_l)
+    box("armL", (0.26, 0.30, 0.26), (0, -0.18, 0),
+        cel_material(FODDER_CLOTH_DK, CLOTH_BANDS), shoulder_l)
     elbow_l = empty("elbowL", shoulder_l, (0.0, 0.0, -0.36))
-    box("foreL", (0.20, 0.26, 0.22), (0, -0.14, 0), cel_material(COAT_DARK, CLOTH_BANDS), elbow_l)
-    # The read. A 0.30 x 0.92 slab hung off the left arm, forward of the body:
-    # from every facing it puts a hard rectangle beside the torso, which is the
-    # one silhouette event that survives being nine pixels tall.
-    box("shield", (0.34, 0.98, 0.18), (-0.10, -0.20, 0.26), cel_material(FODDER_SHIELD, CLOTH_BANDS), elbow_l)
-    box("shield_rim", (0.38, 0.14, 0.20), (-0.10, -0.66, 0.26), cel_material(FODDER_PLATE, CLOTH_BANDS), elbow_l)
-    detail_box("shield_mark", (0.18, 0.22, 0.05), (-0.10, -0.16, 0.36), flat_material(FODDER_TRIM), elbow_l)
+    box("foreL", (0.22, 0.26, 0.24), (0, -0.14, 0), cel_material(COAT_DARK, CLOTH_BANDS), elbow_l)
+    # The read. A slab hung off the left arm, forward of and well outside the
+    # body: from every facing it puts a hard rectangle beside the torso, which
+    # is the one silhouette event that survives being nine pixels tall.
+    box("shield", (0.42, 1.16, 0.20), (-0.22, -0.18, 0.26),
+        cel_material(FODDER_SHIELD, CLOTH_BANDS), elbow_l)
+    box("shield_rim", (0.46, 0.16, 0.22), (-0.22, -0.76, 0.26),
+        cel_material(FODDER_PLATE, CLOTH_BANDS), elbow_l)
+    detail_box("shield_mark", (0.24, 0.32, 0.06), (-0.22, -0.14, 0.37),
+               cel_material(FODDER_LIVERY, CLOTH_BANDS), elbow_l)
 
-    shoulder_r = empty("shoulderR", torso, (0.40, 0.0, 0.40))
-    box("armR", (0.22, 0.32, 0.24), (0, -0.17, 0), cel_material(FODDER_CLOTH, CLOTH_BANDS), shoulder_r)
+    shoulder_r = empty("shoulderR", torso, (0.52, 0.0, 0.38))
+    box("pauldR", (0.30, 0.20, 0.32), (0.02, 0.06, 0),
+        cel_material(FODDER_PAULDRON, CLOTH_BANDS), shoulder_r)
+    box("armR", (0.26, 0.30, 0.26), (0, -0.18, 0),
+        cel_material(FODDER_CLOTH_DK, CLOTH_BANDS), shoulder_r)
     elbow_r = empty("elbowR", shoulder_r, (0.0, 0.0, -0.36))
     box("foreR", (0.20, 0.26, 0.22), (0, -0.14, 0), cel_material(SKIN), elbow_r)
     hand_r = empty("handR", elbow_r, (0.0, 0.0, -0.28))
-    box("haft", (0.08, 0.26, 0.08), (0, -0.10, 0.02), cel_material(BOOT, CLOTH_BANDS), hand_r)
-    box("cleaver", (0.13, 0.50, 0.38), (0, -0.38, 0.12), cel_material(TOE_METAL, METAL_BANDS), hand_r)
+    box("haft", (0.09, 0.26, 0.09), (0, -0.10, 0.02), cel_material(BOOT, CLOTH_BANDS), hand_r)
+    box("cleaver", (0.14, 0.54, 0.40), (0, -0.40, 0.14),
+        cel_material(FODDER_STEEL, FODDER_METAL_BANDS), hand_r)
 
     hip_l, knee_l = build_fodder_legs(
-        -1, root, 0.76, (0.24, 0.32, 0.26), (0.22, 0.28, 0.24), (0.28, 0.16, 0.40), PANTS, SHIN,
+        -1, root, 0.68, (0.30, 0.26, 0.30), (0.26, 0.24, 0.28), (0.32, 0.16, 0.42),
+        PANTS, FODDER_GRIME, hip_x=0.19, boot_mat=BOOT,
     )
     hip_r, knee_r = build_fodder_legs(
-        1, root, 0.76, (0.24, 0.32, 0.26), (0.22, 0.28, 0.24), (0.28, 0.16, 0.40), PANTS, SHIN,
+        1, root, 0.68, (0.30, 0.26, 0.30), (0.26, 0.24, 0.28), (0.32, 0.16, 0.42),
+        PANTS, FODDER_GRIME, hip_x=0.19, boot_mat=BOOT,
     )
 
     return {
@@ -592,48 +677,79 @@ def build_brute():
 
 
 def build_marksman():
-    """Ranged fodder: a narrow upright with a long barrel and an aerial."""
+    """Ranged fodder: a narrow upright with a long barrel and an aerial.
+
+    Round 5 lengthens the legs, narrows the chest and pushes the barrel a third
+    of a body-length further forward, so the archetype is a vertical line with
+    one horizontal spike rather than a slightly thinner brute.
+    """
     root = empty("root")
-    pelvis = empty("pelvis", root, (0.0, 0.0, 0.98))
-    box("hem", (0.34, 0.26, 0.28), (0, 0.0, 0), cel_material(PANTS, CLOTH_BANDS), pelvis)
+    pelvis = empty("pelvis", root, (0.0, 0.0, 1.06))
+    box("hem", (0.28, 0.26, 0.26), (0, 0.0, 0), cel_material(PANTS, CLOTH_BANDS), pelvis)
+    detail_box("hem_wear", (0.26, 0.09, 0.22), (0, -0.11, 0.0),
+               cel_material(FODDER_GRIME, CLOTH_BANDS), pelvis)
 
     torso = empty("torso", pelvis, (0.0, 0.0, 0.14))
-    box("chest", (0.40, 0.48, 0.28), (0, 0.24, 0), cel_material(FODDER_CLOTH, CLOTH_BANDS), torso)
-    detail_box("bandolier", (0.36, 0.09, 0.04), (0, 0.26, 0.16), flat_material(STRAP), torso, rot=(0, 0, 0.6))
+    # Fuller than the first round-5 pass. Measured at 0.34 wide, the marksman
+    # came out 70% contour with eighteen interior pixels at the small register —
+    # a shape with nothing inside it. The archetype is carried by the barrel and
+    # the aerial, so the torso can afford to be a body.
+    box("chest", (0.38, 0.52, 0.30), (0, 0.24, 0),
+        cel_material(FODDER_LIVERY, CLOTH_BANDS), torso)
+    box("sash", (0.40, 0.13, 0.07), (0, 0.22, 0.15),
+        cel_material(FODDER_LIVERY_DK, CLOTH_BANDS), torso, rot=(0, 0, 0.62))
+    detail_box("bandolier", (0.34, 0.08, 0.04), (0, 0.06, 0.15), flat_material(STRAP), torso,
+               rot=(0, 0, 0.6))
     # Tall thin pack + aerial: the top of this silhouette must not be a dome,
     # because a dome at 11 px is the same shape as the brute's helm.
-    box("pack", (0.26, 0.44, 0.20), (0, 0.20, -0.24), cel_material(PACK, CLOTH_BANDS), torso)
-    box("aerial", (0.05, 0.42, 0.05), (0.09, 0.55, -0.24), cel_material(AERIAL), torso, rot=(0, 0, -0.13))
+    box("pack", (0.22, 0.52, 0.18), (0, 0.20, -0.23), cel_material(PACK, CLOTH_BANDS), torso)
+    box("aerial", (0.05, 0.60, 0.05), (0.10, 0.70, -0.23), cel_material(AERIAL), torso,
+        rot=(0, 0, -0.13))
 
-    head = empty("head", torso, (0.0, 0.0, 0.44))
-    box("cowl", (0.26, 0.28, 0.28), (0, 0.12, -0.01), cel_material(HOOD, CLOTH_BANDS), head)
-    detail_box("optic", (0.18, 0.06, 0.03), (0, 0.10, 0.15), flat_material(FODDER_OPTIC), head)
+    head = empty("head", torso, (0.0, 0.0, 0.46))
+    # The livery goes on the HEAD as well as the chest for this archetype. A
+    # marksman is a vertical line: measured at the mid register it carries 33
+    # interior pixels against the brute's 62, and the head is the one place on
+    # it that has pixels from every facing. On the brute the torso is enough.
+    box("cowl", (0.24, 0.30, 0.26), (0, 0.12, -0.01),
+        cel_material(FODDER_LIVERY, CLOTH_BANDS), head)
+    detail_box("optic", (0.17, 0.06, 0.03), (0, 0.10, 0.14), flat_material(FODDER_OPTIC), head)
 
-    shoulder_l = empty("shoulderL", torso, (-0.24, 0.0, 0.38))
-    box("armL", (0.15, 0.28, 0.16), (0, -0.15, 0), cel_material(FODDER_CLOTH, CLOTH_BANDS), shoulder_l)
+    shoulder_l = empty("shoulderL", torso, (-0.19, 0.0, 0.40))
+    box("pauldL", (0.19, 0.14, 0.20), (-0.01, 0.05, 0),
+        cel_material(FODDER_PAULDRON, CLOTH_BANDS), shoulder_l)
+    box("armL", (0.13, 0.30, 0.15), (0, -0.17, 0),
+        cel_material(FODDER_CLOTH_DK, CLOTH_BANDS), shoulder_l)
     elbow_l = empty("elbowL", shoulder_l, (0.0, 0.0, -0.30))
-    box("foreL", (0.14, 0.24, 0.15), (0, -0.13, 0), cel_material(COAT_DARK, CLOTH_BANDS), elbow_l)
+    box("foreL", (0.13, 0.24, 0.14), (0, -0.13, 0), cel_material(COAT_DARK, CLOTH_BANDS), elbow_l)
 
-    shoulder_r = empty("shoulderR", torso, (0.24, 0.0, 0.38))
-    box("armR", (0.15, 0.28, 0.16), (0, -0.15, 0), cel_material(FODDER_CLOTH, CLOTH_BANDS), shoulder_r)
+    shoulder_r = empty("shoulderR", torso, (0.19, 0.0, 0.40))
+    box("pauldR", (0.19, 0.14, 0.20), (0.01, 0.05, 0),
+        cel_material(FODDER_PAULDRON, CLOTH_BANDS), shoulder_r)
+    box("armR", (0.13, 0.30, 0.15), (0, -0.17, 0),
+        cel_material(FODDER_CLOTH_DK, CLOTH_BANDS), shoulder_r)
     elbow_r = empty("elbowR", shoulder_r, (0.0, 0.0, -0.30))
-    box("foreR", (0.14, 0.24, 0.15), (0, -0.13, 0), cel_material(SKIN), elbow_r)
+    box("foreR", (0.13, 0.24, 0.14), (0, -0.13, 0), cel_material(SKIN), elbow_r)
 
     # The barrel rides the TORSO, not the hand: at this size a weapon that
     # swings with a 3-px forearm reads as jitter rather than as a weapon.
-    weapon = empty("weapon", torso, (0.14, 0.10, 0.12))
-    box("barrel", (0.11, 0.11, 0.94), (0, 0, 0.44), cel_material(TOE_METAL, METAL_BANDS), weapon)
-    box("stock", (0.11, 0.16, 0.30), (0, -0.04, -0.10), cel_material(BOOT, CLOTH_BANDS), weapon)
-    detail_box("scope", (0.08, 0.10, 0.18), (0, 0.11, 0.16), cel_material(FODDER_PLATE, CLOTH_BANDS), weapon)
-    muzzle = empty("muzzle", weapon, (0.0, 0.02, 0.90))
+    weapon = empty("weapon", torso, (0.15, 0.06, 0.15))
+    box("barrel", (0.10, 0.10, 1.26), (0, 0, 0.62),
+        cel_material(FODDER_STEEL, FODDER_METAL_BANDS), weapon)
+    box("stock", (0.10, 0.18, 0.32), (0, -0.05, -0.14), cel_material(BOOT, CLOTH_BANDS), weapon)
+    detail_box("scope", (0.08, 0.11, 0.20), (0, 0.11, 0.18),
+               cel_material(FODDER_PLATE, CLOTH_BANDS), weapon)
+    muzzle = empty("muzzle", weapon, (0.0, 0.02, 1.20))
     box("flash_core", (0.16, 0.16, 0.14), (0, 0, 0), flat_material(SIGNAL_HOT), muzzle)
     box("flash_bar", (0.30, 0.06, 0.10), (0, 0, 0), flat_material(SIGNAL), muzzle)
 
     hip_l, knee_l = build_fodder_legs(
-        -1, root, 0.82, (0.17, 0.36, 0.19), (0.15, 0.32, 0.17), (0.22, 0.14, 0.34), PANTS, SHIN,
+        -1, root, 0.94, (0.15, 0.44, 0.18), (0.14, 0.40, 0.16), (0.20, 0.14, 0.34),
+        PANTS, SHIN, hip_x=0.12, boot_mat=FODDER_GRIME,
     )
     hip_r, knee_r = build_fodder_legs(
-        1, root, 0.82, (0.17, 0.36, 0.19), (0.15, 0.32, 0.17), (0.22, 0.14, 0.34), PANTS, SHIN,
+        1, root, 0.94, (0.15, 0.44, 0.18), (0.14, 0.40, 0.16), (0.20, 0.14, 0.34),
+        PANTS, SHIN, hip_x=0.12, boot_mat=FODDER_GRIME,
     )
 
     return {

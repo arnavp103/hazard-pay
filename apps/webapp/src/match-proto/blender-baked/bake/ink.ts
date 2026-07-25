@@ -14,9 +14,32 @@
  *    the colour pass, and are drawn only where two touching parts are close
  *    in value. Where the cel bands already separate the forms, adding a line
  *    would just make a 31-px figure muddy.
+ *
+ * Round 5 adds the RIM. Measured on the shipped round-4 crowd still: the floor
+ * the crowd stands on is 51% `ink-2` (#1a1218, L20.1) and 35% `plum-3`
+ * (#332733, L42.4), while the contour is `ink` at L12.8 — a 7.3 L step against
+ * the single commonest thing it touches. 62% of every silhouette's edge pixels
+ * had no adjacent background more than 8 L away from them. A thicker contour in
+ * that colour buys nothing; it makes the invisible line wider. So the half of
+ * the contour that faces AWAY from the key is drawn one value up instead, which
+ * is the oldest trick in the sprite book and the only one that survives here.
  */
 
 import { darkerStep, hexToRgb, INK } from "../palette.ts";
+
+/**
+ * A value-lifted contour on the unlit side of the silhouette.
+ *
+ * `key` is the direction the light arrives from in SCREEN space (x right, y
+ * down), so a contour pixel whose outward normal points away from it is in
+ * shadow and gets `hex` instead of plum-black. Because the rig turns under a
+ * fixed world key, this direction is the same for all eight facings and can be
+ * a constant rather than a per-facing input.
+ */
+export interface RimOptions {
+  hex: string;
+  key: readonly [number, number];
+}
 
 export interface InkOptions {
   /** Grow a 1 px plum-black contour into the transparent margin. */
@@ -35,9 +58,37 @@ export interface InkOptions {
    * "darken" steps the darker side one rung down its own ramp.
    */
   internalMode: "darken" | "ink";
+  /** Lift the shadow-side contour off a dark floor. `null` keeps a pure line. */
+  rim: RimOptions | null;
 }
 
-export const DEFAULT_INK: InkOptions = { contour: true, internalLumaGap: 10, internalMode: "darken" };
+export const DEFAULT_INK: InkOptions = {
+  contour: true, internalLumaGap: 10, internalMode: "darken", rim: null,
+};
+
+/**
+ * Where the key arrives on screen. The Blender materials band on
+ * `normal · (0.6245, -0.039, 0.7807)`; projecting that onto the dimetric
+ * camera's right/up basis gives (0.414, 0.4415), i.e. up and to the right.
+ * Normalised, and with y flipped into image order, that is the constant below.
+ */
+export const SCREEN_KEY: readonly [number, number] = [0.684, -0.729];
+
+/**
+ * The rim value, chosen by measurement rather than by taste. Against the two
+ * floor colours that make up 87% of the ground under the crowd it clears 50.3
+ * and 28.0 L where plum-black clears 7.3 and 29.6. It is a `world`-role entry,
+ * so it spends none of the 25% identity or 5% signal budget — it reads as the
+ * ground's own bounce coming back up onto the figure. It is deliberately NOT
+ * one of the eight entries `FACTION_B_LIVERY` writes, so the rim cannot end up
+ * the same colour as a body mass on the second army.
+ */
+export const RIM_HEX = "#59404f";
+
+/** What the crowd atlases are inked with. The hero portrait keeps DEFAULT_INK. */
+export const CROWD_INK: InkOptions = {
+  ...DEFAULT_INK, rim: { hex: RIM_HEX, key: SCREEN_KEY },
+};
 
 /** Palette entries the internal pass must never overwrite: the scarce 5%. */
 const PROTECTED = new Set(["#2f9e96", "#a8f0e4", "#c8bda9"]);
@@ -111,27 +162,40 @@ export function inkSprite(
     // pixels — the contour pass was undoing the consolidation pass. Closing
     // the diagonals costs one pixel at each corner and buys a contour that is
     // actually continuous.
+    const rim = options.rim === null ? null : hexToRgb(options.rim.hex);
+    const key = options.rim?.key ?? SCREEN_KEY;
     for (let y = 0; y < height; y += 1) {
       for (let x = 0; x < width; x += 1) {
         const i = y * width + x;
         if (opaque(i)) { continue; }
+        // The outward normal falls out of the dilation for free: sum the
+        // directions that point AT the body and negate. No extra pass, no
+        // distance transform, and it is exact on a 1-px ring.
+        let inX = 0;
+        let inY = 0;
         let touching = false;
-        for (let dy = -1; dy <= 1 && !touching; dy += 1) {
+        for (let dy = -1; dy <= 1; dy += 1) {
           for (let dx = -1; dx <= 1; dx += 1) {
             if (dx === 0 && dy === 0) { continue; }
             const nx = x + dx;
             const ny = y + dy;
             if (nx < 0 || ny < 0 || nx >= width || ny >= height) { continue; }
-            if (opaque(ny * width + nx)) {
-              touching = true;
-              break;
-            }
+            if (!opaque(ny * width + nx)) { continue; }
+            touching = true;
+            inX += dx;
+            inY += dy;
           }
         }
         if (!touching) { continue; }
-        out[i * 4] = ir;
-        out[i * 4 + 1] = ig;
-        out[i * 4 + 2] = ib;
+        // A pixel wedged between two masses has no outward direction at all;
+        // it keeps the ink, because a rim pixel there would read as a hole.
+        const facing = -(inX * key[0] + inY * key[1]);
+        const [cr, cg, cb] = rim !== null && (inX !== 0 || inY !== 0) && facing <= 0
+          ? rim
+          : [ir, ig, ib];
+        out[i * 4] = cr;
+        out[i * 4 + 1] = cg;
+        out[i * 4 + 2] = cb;
         out[i * 4 + 3] = 0xff;
       }
     }

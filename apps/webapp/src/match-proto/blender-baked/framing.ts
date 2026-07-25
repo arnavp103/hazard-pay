@@ -186,7 +186,7 @@ function unitBake(
 export const HERO_MARK_HEX = "#c8bda9";
 
 export interface CrowdConfig {
-  readonly key: "large" | "small";
+  readonly key: "large" | "mid" | "small";
   readonly label: string;
   readonly note: string;
   readonly atlas: string;
@@ -234,13 +234,22 @@ function crowdConfig(
 }
 
 /**
- * The two configs the #69 resolution fork is stuck between. `small` is the
- * Hero's Hour register the cofounder's stated likes point at; `large` is where
- * a hand-authored pixel lane would owe a second set of drawings. Re-rendering
- * is nine seconds here, so this lane can just answer the question.
+ * The three registers. `small` is the Hero's Hour register the cofounder's
+ * stated likes point at; `large` is where a hand-authored pixel lane would owe
+ * a second set of drawings.
+ *
+ * `mid` is round 5's addition and the reason this lane is worth having: the
+ * cofounder asked for a slight bump off the small end after seeing the crowd,
+ * and answering that question cost one line here plus about two seconds of
+ * Blender. Nothing was redrawn — the same three rigs go through the same seam a
+ * third time at a third world scale. 22 → 28 → 36 is very nearly geometric
+ * (1.27x, 1.29x), so the ladder brackets the register question evenly instead
+ * of clustering at one end, and 28 lands on an integer art-pixel body (12 px
+ * plus the 2 px contour) rather than half a pixel.
  */
 export const CROWD_CONFIGS: readonly CrowdConfig[] = [
   crowdConfig("small", "Small — Hero's Hour register", "fodder 22px · hero 28px on screen", 22),
+  crowdConfig("mid", "Mid — the round-5 register", "fodder 28px · hero 36px on screen", 28),
   crowdConfig("large", "Large", "fodder 36px · hero 46px on screen", 36),
 ];
 

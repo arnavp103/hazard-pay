@@ -41,6 +41,20 @@ export interface CrowdMountOptions {
   marking: MarkMode;
   /** Deterministic capture: render exactly this clock value and hold. */
   freezeMs?: number;
+  /**
+   * Measurement hook, round 5. `board` draws the environment and nothing else,
+   * so a capture pair differs by exactly the roster. Subtracting the two gives
+   * an exact unit mask AND the background every contour pixel is standing
+   * against, which is the only way to measure how much of an outline is
+   * actually visible without reconstructing sprite placement by hand.
+   */
+  layers?: "all" | "board" | "noshadow";
+  /**
+   * `norim` loads the control atlas: identical renders, round-4's plum-black
+   * contour instead of round-5's value-lifted one. Same cells, same schedule,
+   * one image pass apart.
+   */
+  atlasVariant?: "norim" | "shipped";
 }
 
 export interface CrowdStageHandle {
@@ -88,8 +102,11 @@ export function mountCrowdStage(host: HTMLElement, options: CrowdMountOptions): 
       roundPixels: true,
       width: STAGE_WIDTH,
     });
+    const atlasName = options.atlasVariant === "norim"
+      ? `${options.config.atlas}-norim`
+      : options.config.atlas;
     const [{ sheet, units }, board] = await Promise.all([
-      loadCrowdSheet(options.config.atlas),
+      loadCrowdSheet(atlasName),
       loadBoardTexture(),
     ]);
     if (destroyed) {
@@ -106,7 +123,7 @@ export function mountCrowdStage(host: HTMLElement, options: CrowdMountOptions): 
     boardSprite.position.set(BOARD_OFFSET.x, BOARD_OFFSET.y);
     world.addChild(boardSprite);
 
-    const roster = buildRoster(options.config);
+    const roster = options.layers === "board" ? [] : buildRoster(options.config);
     // Shadows all go down first so no unit's shadow lands on top of the unit
     // in front of it — at 22 px that misreads as a hole in the ground.
     const shadowLayer = new Container();
@@ -121,10 +138,12 @@ export function mountCrowdStage(host: HTMLElement, options: CrowdMountOptions): 
       if (meta === undefined) { throw new Error(`atlas has no unit ${key}`); }
 
       const shadowWidth = Math.max(5, Math.round(meta.cell.w * 0.42));
-      const shadow = new Sprite(shadowTexture(shadowWidth, Math.max(3, Math.round(shadowWidth * 0.4))));
-      shadow.anchor.set(0.5, 0.5);
-      shadow.position.set(Math.round(unit.x), Math.round(unit.y) + 1);
-      shadowLayer.addChild(shadow);
+      if (options.layers !== "noshadow") {
+        const shadow = new Sprite(shadowTexture(shadowWidth, Math.max(3, Math.round(shadowWidth * 0.4))));
+        shadow.anchor.set(0.5, 0.5);
+        shadow.position.set(Math.round(unit.x), Math.round(unit.y) + 1);
+        shadowLayer.addChild(shadow);
+      }
 
       const sprite = new Sprite();
       sprite.anchor.set(meta.anchor.x / meta.cell.w, meta.anchor.y / meta.cell.h);

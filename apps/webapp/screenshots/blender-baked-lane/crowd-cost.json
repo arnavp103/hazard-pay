@@ -3,9 +3,9 @@
   "heroPortraitAtlas": {
     "cells": 208,
     "indexedPngBytes": 29306,
-    "bakeWallClockSeconds": 15.11
+    "bakeWallClockSeconds": 42.31
   },
-  "crowdWallClockSeconds": 49.02,
+  "crowdWallClockSeconds": 255.68,
   "configs": {
     "small": {
       "label": "Small — Hero's Hour register",
@@ -43,7 +43,7 @@
             }
           ],
           "facings": 8,
-          "partCount": 22,
+          "partCount": 26,
           "droppedDetails": 0,
           "measuredStandingArtPx": 11,
           "measuredMaxArtPx": 15
@@ -80,10 +80,10 @@
             }
           ],
           "facings": 8,
-          "partCount": 22,
+          "partCount": 26,
           "droppedDetails": 0,
-          "measuredStandingArtPx": 12,
-          "measuredMaxArtPx": 14
+          "measuredStandingArtPx": 13,
+          "measuredMaxArtPx": 15
         },
         {
           "id": "medic",
@@ -124,21 +124,21 @@
         "cellWidth": 38,
         "cells": 1408,
         "clusterDensity": {
-          "quantized": 0.5548,
-          "shipped": 0.1214,
-          "singletonShareQuantized": 0.6013,
-          "singletonShareShipped": 0.1158
+          "quantized": 0.5564,
+          "shipped": 0.1602,
+          "singletonShareQuantized": 0.6057,
+          "singletonShareShipped": 0.165
         },
         "facings": 8,
         "framesPerFacing": 176,
-        "indexedPngBytes": 31392,
-        "paletteEntriesUsed": 28,
-        "rgbaPngBytes": 237386,
+        "indexedPngBytes": 33279,
+        "paletteEntriesUsed": 29,
+        "rgbaPngBytes": 275984,
         "trimmed": {
-          "height": 688,
-          "occupancy": 0.8091892764857881,
-          "pixels": 222912,
-          "width": 324
+          "height": 448,
+          "occupancy": 0.8174660852713178,
+          "pixels": 231168,
+          "width": 516
         },
         "uniformCellGrid": {
           "height": 1064,
@@ -154,22 +154,22 @@
           "brute_a": {
             "cellPixels": 68992,
             "cells": 112,
-            "trimmedPixels": 9739
+            "trimmedPixels": 11925
           },
           "brute_b": {
             "cellPixels": 68992,
             "cells": 112,
-            "trimmedPixels": 9739
+            "trimmedPixels": 11925
           },
           "marksman_a": {
             "cellPixels": 68992,
             "cells": 112,
-            "trimmedPixels": 8033
+            "trimmedPixels": 10144
           },
           "marksman_b": {
             "cellPixels": 68992,
             "cells": 112,
-            "trimmedPixels": 8033
+            "trimmedPixels": 10144
           },
           "medic_a": {
             "cellPixels": 170240,
@@ -204,23 +204,30 @@
         }
       },
       "blenderRenders": 768,
-      "blenderRenderSeconds": 16.42,
-      "bakeWallClockSeconds": 22.58,
+      "blenderRenderSeconds": 43.08,
+      "bakeWallClockSeconds": 66.76,
       "atlasRoundTripMismatchedPixels": 0,
       "clusterDensityAudit": {
         "measuredOn": "public/blender-baked/crowd-small.png",
-        "islands": 17149,
-        "pixels": 141310,
-        "ratio": 0.1214,
-        "singletonShare": 0.1158
+        "islands": 23333,
+        "pixels": 145608,
+        "ratio": 0.1602,
+        "singletonShare": 0.165
+      },
+      "contour": {
+        "rimHex": "#59404f",
+        "shippedIndexedPngBytes": 33279,
+        "controlNoRimIndexedPngBytes": 31919,
+        "extraBlenderRenders": 0,
+        "note": "the rim is drawn in pixel space over cells that already exist"
       },
       "rosterProjection": {
         "basis": {
-          "bytesPerTrimmedPixel": 0.174,
-          "meanFodderTrimmedPixels": 8886,
+          "bytesPerTrimmedPixel": 0.1761,
+          "meanFodderTrimmedPixels": 11035,
           "meanHeroTrimmedPixels": 21411,
-          "meanFodderBakeSeconds": 4.78,
-          "meanHeroBakeSeconds": 11.11,
+          "meanFodderBakeSeconds": 14.47,
+          "meanHeroBakeSeconds": 24.6,
           "note": "faction B is a palette remap of faction A — it costs bytes, never renders"
         },
         "allFodder": {
@@ -229,8 +236,8 @@
           "heroArchetypes": 0,
           "factions": 2,
           "cells": 4480,
-          "indexedBytes": 61859,
-          "blenderSeconds": 95.5
+          "indexedBytes": 77729,
+          "blenderSeconds": 289.4
         },
         "sixteenFodderFourHeroes": {
           "archetypes": 20,
@@ -238,8 +245,309 @@
           "heroArchetypes": 4,
           "factions": 2,
           "cells": 4864,
-          "indexedBytes": 79297,
-          "blenderSeconds": 120.8
+          "indexedBytes": 92348,
+          "blenderSeconds": 329.9
+        }
+      },
+      "crowd": {
+        "units": 36,
+        "fodderPerSide": 16,
+        "heroesPerSide": 2,
+        "facingNote": "8 facings kept; 4 would halve fodder cells",
+        "motion": {
+          "sync": {
+            "changeBurstiness": 2.711,
+            "distinctCells": 76,
+            "meanDuplicateMultiplicity": 3.61,
+            "peakFrameSynchrony": 1
+          },
+          "phase": {
+            "changeBurstiness": 0.392,
+            "distinctCells": 76,
+            "meanDuplicateMultiplicity": 1.73,
+            "peakFrameSynchrony": 0.417
+          },
+          "variants": {
+            "changeBurstiness": 0.392,
+            "distinctCells": 100,
+            "meanDuplicateMultiplicity": 1.31,
+            "peakFrameSynchrony": 0.417
+          },
+          "full": {
+            "changeBurstiness": 0.342,
+            "distinctCells": 214,
+            "meanDuplicateMultiplicity": 1.19,
+            "peakFrameSynchrony": 0.472
+          }
+        },
+        "motionLockedFacing": {
+          "sync": {
+            "changeBurstiness": 2.711,
+            "distinctCells": 32,
+            "meanDuplicateMultiplicity": 7.78,
+            "peakFrameSynchrony": 1
+          },
+          "phase": {
+            "changeBurstiness": 0.392,
+            "distinctCells": 32,
+            "meanDuplicateMultiplicity": 2.77,
+            "peakFrameSynchrony": 0.417
+          },
+          "variants": {
+            "changeBurstiness": 0.392,
+            "distinctCells": 48,
+            "meanDuplicateMultiplicity": 1.88,
+            "peakFrameSynchrony": 0.417
+          },
+          "full": {
+            "changeBurstiness": 0.342,
+            "distinctCells": 96,
+            "meanDuplicateMultiplicity": 1.54,
+            "peakFrameSynchrony": 0.472
+          }
+        }
+      }
+    },
+    "mid": {
+      "label": "Mid — the round-5 register",
+      "note": "fodder 28px · hero 36px on screen",
+      "units": [
+        {
+          "id": "brute",
+          "tier": "fodder",
+          "scale": 0.4138,
+          "screenPx": 28,
+          "bodyArtPx": 12,
+          "cell": {
+            "height": 28,
+            "width": 38
+          },
+          "anchor": {
+            "x": 19,
+            "y": 23
+          },
+          "clips": [
+            {
+              "fps": 6,
+              "frames": 4,
+              "name": "idle"
+            },
+            {
+              "fps": 6,
+              "frames": 4,
+              "name": "idle_b"
+            },
+            {
+              "fps": 10,
+              "frames": 6,
+              "name": "attack"
+            }
+          ],
+          "facings": 8,
+          "partCount": 26,
+          "droppedDetails": 0,
+          "measuredStandingArtPx": 14,
+          "measuredMaxArtPx": 20
+        },
+        {
+          "id": "marksman",
+          "tier": "fodder",
+          "scale": 0.4138,
+          "screenPx": 28,
+          "bodyArtPx": 12,
+          "cell": {
+            "height": 28,
+            "width": 38
+          },
+          "anchor": {
+            "x": 19,
+            "y": 23
+          },
+          "clips": [
+            {
+              "fps": 6,
+              "frames": 4,
+              "name": "idle"
+            },
+            {
+              "fps": 6,
+              "frames": 4,
+              "name": "idle_b"
+            },
+            {
+              "fps": 10,
+              "frames": 6,
+              "name": "attack"
+            }
+          ],
+          "facings": 8,
+          "partCount": 26,
+          "droppedDetails": 0,
+          "measuredStandingArtPx": 16,
+          "measuredMaxArtPx": 19
+        },
+        {
+          "id": "medic",
+          "tier": "hero",
+          "scale": 0.5517,
+          "screenPx": 36,
+          "bodyArtPx": 16,
+          "cell": {
+            "height": 38,
+            "width": 50
+          },
+          "anchor": {
+            "x": 25,
+            "y": 31
+          },
+          "clips": [
+            {
+              "fps": 8,
+              "frames": 8,
+              "name": "idle"
+            },
+            {
+              "fps": 12,
+              "frames": 12,
+              "name": "attack"
+            }
+          ],
+          "facings": 8,
+          "partCount": 56,
+          "droppedDetails": 0,
+          "measuredStandingArtPx": 19,
+          "measuredMaxArtPx": 22
+        }
+      ],
+      "cost": {
+        "animations": 24,
+        "cellHeight": 38,
+        "cellWidth": 50,
+        "cells": 1408,
+        "clusterDensity": {
+          "quantized": 0.4241,
+          "shipped": 0.1681,
+          "singletonShareQuantized": 0.4938,
+          "singletonShareShipped": 0.1294
+        },
+        "facings": 8,
+        "framesPerFacing": 176,
+        "indexedPngBytes": 54876,
+        "paletteEntriesUsed": 29,
+        "rgbaPngBytes": 433408,
+        "trimmed": {
+          "height": 704,
+          "occupancy": 0.8396482998590556,
+          "pixels": 363264,
+          "width": 516
+        },
+        "uniformCellGrid": {
+          "height": 1444,
+          "pixels": 2743600,
+          "width": 1900
+        },
+        "uniformTrimGrid": {
+          "height": 912,
+          "pixels": 658464,
+          "width": 722
+        },
+        "units": {
+          "brute_a": {
+            "cellPixels": 119168,
+            "cells": 112,
+            "trimmedPixels": 18760
+          },
+          "brute_b": {
+            "cellPixels": 119168,
+            "cells": 112,
+            "trimmedPixels": 18760
+          },
+          "marksman_a": {
+            "cellPixels": 119168,
+            "cells": 112,
+            "trimmedPixels": 16303
+          },
+          "marksman_b": {
+            "cellPixels": 119168,
+            "cells": 112,
+            "trimmedPixels": 16303
+          },
+          "medic_a": {
+            "cellPixels": 304000,
+            "cells": 160,
+            "trimmedPixels": 35682
+          },
+          "medic_b": {
+            "cellPixels": 304000,
+            "cells": 160,
+            "trimmedPixels": 35682
+          },
+          "medic_a_marked": {
+            "cellPixels": 304000,
+            "cells": 160,
+            "trimmedPixels": 46080
+          },
+          "medic_b_marked": {
+            "cellPixels": 304000,
+            "cells": 160,
+            "trimmedPixels": 46080
+          },
+          "medic_a_marked_inset": {
+            "cellPixels": 304000,
+            "cells": 160,
+            "trimmedPixels": 35682
+          },
+          "medic_b_marked_inset": {
+            "cellPixels": 304000,
+            "cells": 160,
+            "trimmedPixels": 35682
+          }
+        }
+      },
+      "blenderRenders": 768,
+      "blenderRenderSeconds": 42.16,
+      "bakeWallClockSeconds": 78.24,
+      "atlasRoundTripMismatchedPixels": 0,
+      "clusterDensityAudit": {
+        "measuredOn": "public/blender-baked/crowd-mid.png",
+        "islands": 37367,
+        "pixels": 222316,
+        "ratio": 0.1681,
+        "singletonShare": 0.1294
+      },
+      "contour": {
+        "rimHex": "#59404f",
+        "shippedIndexedPngBytes": 54876,
+        "controlNoRimIndexedPngBytes": 52874,
+        "extraBlenderRenders": 0,
+        "note": "the rim is drawn in pixel space over cells that already exist"
+      },
+      "rosterProjection": {
+        "basis": {
+          "bytesPerTrimmedPixel": 0.1799,
+          "meanFodderTrimmedPixels": 17532,
+          "meanHeroTrimmedPixels": 35682,
+          "meanFodderBakeSeconds": 14.98,
+          "meanHeroBakeSeconds": 24.84,
+          "note": "faction B is a palette remap of faction A — it costs bytes, never renders"
+        },
+        "allFodder": {
+          "archetypes": 20,
+          "fodderArchetypes": 20,
+          "heroArchetypes": 0,
+          "factions": 2,
+          "cells": 4480,
+          "indexedBytes": 126166,
+          "blenderSeconds": 299.7
+        },
+        "sixteenFodderFourHeroes": {
+          "archetypes": 20,
+          "fodderArchetypes": 16,
+          "heroArchetypes": 4,
+          "factions": 2,
+          "cells": 4864,
+          "indexedBytes": 152290,
+          "blenderSeconds": 339.1
         }
       },
       "crowd": {
@@ -337,10 +645,10 @@
             }
           ],
           "facings": 8,
-          "partCount": 22,
+          "partCount": 26,
           "droppedDetails": 0,
-          "measuredStandingArtPx": 19,
-          "measuredMaxArtPx": 24
+          "measuredStandingArtPx": 18,
+          "measuredMaxArtPx": 26
         },
         {
           "id": "marksman",
@@ -374,10 +682,10 @@
             }
           ],
           "facings": 8,
-          "partCount": 22,
+          "partCount": 26,
           "droppedDetails": 0,
-          "measuredStandingArtPx": 18,
-          "measuredMaxArtPx": 22
+          "measuredStandingArtPx": 21,
+          "measuredMaxArtPx": 25
         },
         {
           "id": "medic",
@@ -418,20 +726,20 @@
         "cellWidth": 66,
         "cells": 1408,
         "clusterDensity": {
-          "quantized": 0.2994,
-          "shipped": 0.1329,
-          "singletonShareQuantized": 0.4069,
-          "singletonShareShipped": 0.0794
+          "quantized": 0.3032,
+          "shipped": 0.1644,
+          "singletonShareQuantized": 0.4162,
+          "singletonShareShipped": 0.1318
         },
         "facings": 8,
         "framesPerFacing": 176,
-        "indexedPngBytes": 77094,
-        "paletteEntriesUsed": 28,
-        "rgbaPngBytes": 576825,
+        "indexedPngBytes": 83894,
+        "paletteEntriesUsed": 29,
+        "rgbaPngBytes": 646062,
         "trimmed": {
-          "height": 688,
-          "occupancy": 0.8616248945656103,
-          "pixels": 531136,
+          "height": 716,
+          "occupancy": 0.8699887110313486,
+          "pixels": 552752,
           "width": 772
         },
         "uniformCellGrid": {
@@ -448,22 +756,22 @@
           "brute_a": {
             "cellPixels": 212800,
             "cells": 112,
-            "trimmedPixels": 26376
+            "trimmedPixels": 30934
           },
           "brute_b": {
             "cellPixels": 212800,
             "cells": 112,
-            "trimmedPixels": 26376
+            "trimmedPixels": 30934
           },
           "marksman_a": {
             "cellPixels": 212800,
             "cells": 112,
-            "trimmedPixels": 20961
+            "trimmedPixels": 28027
           },
           "marksman_b": {
             "cellPixels": 212800,
             "cells": 112,
-            "trimmedPixels": 20961
+            "trimmedPixels": 28027
           },
           "medic_a": {
             "cellPixels": 528000,
@@ -498,23 +806,30 @@
         }
       },
       "blenderRenders": 768,
-      "blenderRenderSeconds": 16.74,
-      "bakeWallClockSeconds": 26.44,
+      "blenderRenderSeconds": 48.54,
+      "bakeWallClockSeconds": 110.68,
       "atlasRoundTripMismatchedPixels": 0,
       "clusterDensityAudit": {
         "measuredOn": "public/blender-baked/crowd-large.png",
-        "islands": 43277,
-        "pixels": 325548,
-        "ratio": 0.1329,
-        "singletonShare": 0.0794
+        "islands": 55209,
+        "pixels": 335806,
+        "ratio": 0.1644,
+        "singletonShare": 0.1318
+      },
+      "contour": {
+        "rimHex": "#59404f",
+        "shippedIndexedPngBytes": 83894,
+        "controlNoRimIndexedPngBytes": 81374,
+        "extraBlenderRenders": 0,
+        "note": "the rim is drawn in pixel space over cells that already exist"
       },
       "rosterProjection": {
         "basis": {
-          "bytesPerTrimmedPixel": 0.1685,
-          "meanFodderTrimmedPixels": 23669,
+          "bytesPerTrimmedPixel": 0.1745,
+          "meanFodderTrimmedPixels": 29481,
           "meanHeroTrimmedPixels": 56189,
-          "meanFodderBakeSeconds": 5.17,
-          "meanHeroBakeSeconds": 10.68,
+          "meanFodderBakeSeconds": 16.27,
+          "meanHeroBakeSeconds": 30.8,
           "note": "faction B is a palette remap of faction A — it costs bytes, never renders"
         },
         "allFodder": {
@@ -523,8 +838,8 @@
           "heroArchetypes": 0,
           "factions": 2,
           "cells": 4480,
-          "indexedBytes": 159488,
-          "blenderSeconds": 103.4
+          "indexedBytes": 205723,
+          "blenderSeconds": 325.4
         },
         "sixteenFodderFourHeroes": {
           "archetypes": 20,
@@ -532,8 +847,8 @@
           "heroArchetypes": 4,
           "factions": 2,
           "cells": 4864,
-          "indexedBytes": 203315,
-          "blenderSeconds": 125.4
+          "indexedBytes": 242998,
+          "blenderSeconds": 383.5
         }
       },
       "crowd": {

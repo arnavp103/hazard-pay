@@ -106,7 +106,16 @@ export function consolidate(
   height: number,
   minIsland = 3,
   maxPasses = 4,
+  // Extra colours this pass may not absorb, as 0xRRGGBB. Round 5 uses it for
+  // the rim value: the rim IS the contour on the unlit side, so it is exactly
+  // as load-bearing as the ink and must survive the same way. Omitted, this is
+  // byte-for-byte the round-1..4 behaviour, which is what keeps the hero
+  // portrait atlas stable.
+  extraProtected?: readonly number[],
 ): number {
+  const protectedKeys = extraProtected === undefined
+    ? PROTECTED
+    : new Set([...PROTECTED, ...extraProtected]);
   let rewritten = 0;
   for (let pass = 0; pass < maxPasses; pass += 1) {
     const { ids, sizes } = label(rgba, width, height);
@@ -116,7 +125,7 @@ export function consolidate(
       const id = ids[i];
       if (id === undefined || id < 0) { continue; }
       if ((sizes[id] ?? 0) >= minIsland) { continue; }
-      if (PROTECTED.has(key(rgba, i))) { continue; }
+      if (protectedKeys.has(key(rgba, i))) { continue; }
 
       // Vote by shared edge, weighted by the neighbour island's size: a lone
       // pixel should join the mass beside it, not another lone pixel.

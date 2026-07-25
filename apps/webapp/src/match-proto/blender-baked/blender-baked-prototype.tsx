@@ -9,7 +9,9 @@
  * `?mode=idle|attack|turn` · `?facing=0..7` · `?zoom=` · `?capture=1` hides
  * dev chrome · `?freeze=<ms>` renders one deterministic frame ·
  * `?view=quant` swaps in the quantization comparison ·
- * `?view=crowd&config=small|large&treatment=sync|phase|variants|full`
+ * `?view=crowd&config=small|mid|large&treatment=sync|phase|variants|full`
+ * `&layers=board` draws the board with no roster — the control capture the
+ * round-5 contour measurement subtracts
  * `&mark=outward|inset`
  * runs the round-4 crowd. Run at `/match-proto`.
  */
@@ -89,6 +91,11 @@ function readMarking(): MarkMode {
   return raw === "outward" || raw === "inset" ? raw : "off";
 }
 
+function readLayers(): "all" | "board" | "noshadow" {
+  const raw = params().get("layers");
+  return raw === "board" || raw === "noshadow" ? raw : "all";
+}
+
 function readTreatment(): Treatment {
   const raw = params().get("treatment");
   return raw === "sync" || raw === "full" || raw === "variants" ? raw : "phase";
@@ -109,8 +116,10 @@ function CrowdSurface() {
     const host = hostRef.current;
     if (host === null) { return; }
     const handle = mountCrowdStage(host, {
+      atlasVariant: params().get("atlas") === "norim" ? "norim" : "shipped",
       config: configByKey(params().get("config")),
       freezeMs: readFreezeMs(),
+      layers: readLayers(),
       marking: readMarking(),
       treatment: readTreatment(),
     });
