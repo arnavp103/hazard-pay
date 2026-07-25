@@ -24,7 +24,7 @@ import { PNG } from "pngjs";
 import { consolidate, islandStats } from "../consolidate.ts";
 import { DIRECTION_B_PALETTE, paletteCoverage, quantizeToPalette, remapPalette } from "../palette.ts";
 import { toIndexed, writeIndexedPng } from "./indexed-png.ts";
-import { alphaBounds, DEFAULT_INK, type InkOptions, inkSprite } from "./ink.ts";
+import { alphaBounds, DEFAULT_INK, type InkOptions, inkSprite, markOutline } from "./ink.ts";
 import { packBest, type PackItem } from "./pack.ts";
 import type { BakeManifest } from "./seam.ts";
 
@@ -142,6 +142,8 @@ export interface CompileInput {
   tier: string;
   /** Frame-name prefix. Empty keeps the round-1..3 hero atlas naming intact. */
   prefix?: string;
+  /** Hero marking ring, grown outside the finished silhouette. */
+  mark?: { hex: string; thickness: number };
   /**
    * Palette-entry remap applied to the finished cells. A faction recolour in
    * an indexed-palette lane is an index swap, not a render — which is worth
@@ -183,6 +185,7 @@ export function compileFrames(
   unit = manifest.unit,
   prefix = "",
   remap?: Readonly<Record<string, string>>,
+  mark?: { hex: string; thickness: number },
 ): CompiledFrame[] {
   const { width, height } = manifest.cell;
   return manifest.frames.map((entry) => {
@@ -204,8 +207,13 @@ export function compileFrames(
     // which colours the quantizer chose or which seams the ink drew: the two
     // liveries are the same drawing carrying different indices.
     if (remap !== undefined) { remapPalette(finished, remap); }
+    // Hero marking last of all, outside everything else, so the with/without
+    // pair differs by exactly one pass and nothing else.
+    const marked = mark === undefined
+      ? finished
+      : markOutline(finished, width, height, mark.hex, mark.thickness);
 
-    const trim = alphaBounds(finished, width, height);
+    const trim = alphaBounds(marked, width, height);
     if (trim === null) {
       throw new Error(`${entry.color}: rendered nothing — check the camera framing`);
     }
@@ -217,7 +225,7 @@ export function compileFrames(
       cell: { height, width },
       clip: entry.clip,
       facing: entry.facing,
-      finished,
+      finished: marked,
       frame: entry.frame,
       name: `${prefix}${entry.clip}_${String(entry.frame).padStart(2, "0")}_${String(entry.facing)}`,
       quantized,
@@ -244,7 +252,7 @@ export function compileAtlas(
   for (const input of inputs) {
     const prefix = input.prefix ?? `${input.id}_`;
     const compiled = compileFrames(
-      input.manifest, input.workDir, ink, minIsland, input.id, prefix, input.remap,
+      input.manifest, input.workDir, ink, minIsland, input.id, prefix, input.remap, input.mark,
     );
     frames.push(...compiled);
     unitMeta[input.id] = {

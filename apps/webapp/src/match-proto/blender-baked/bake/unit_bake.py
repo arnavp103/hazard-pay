@@ -9,8 +9,9 @@ Round 4 added the fodder tier (#69's two-tier ruling): the same seam now bakes
 three rigs — the hero medic plus two fodder archetypes that must part on
 SILHOUETTE alone (a broad shield-carrying brute, a narrow long-barrelled
 marksman) — at any requested world scale. Tier separation is a slight size
-boost plus higher detail density and nothing else; no rim light, no banner, no
-ground decal, because marking was explicitly deferred by the cofounder.
+boost plus higher detail density; the third lever, hero marking, is drawn in
+pixel space by the TypeScript compiler rather than modelled here, because a
+ring authored at exactly one art pixel is not something geometry can promise.
 
 Design notes that matter:
 

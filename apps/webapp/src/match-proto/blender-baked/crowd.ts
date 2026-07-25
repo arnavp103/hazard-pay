@@ -83,11 +83,16 @@ export const FACING_NOTE = "8 facings kept; 4 would halve fodder cells";
 
 const RANKS = 4;
 const FILES = 5;
-/** Melee ranks first, then ranged, then the heroes at the back. */
+/**
+ * Melee ranks first, then ranged, with the two heroes deliberately NOT
+ * adjacent. Standing them side by side merges their marking rings into one
+ * shape, which measures the ring rather than the tier separation it is there
+ * to test.
+ */
 const SIDE_COMPOSITION: readonly UnitId[] = [
   ...Array.from({ length: 10 }, () => "brute" as const),
-  ...Array.from({ length: 6 }, () => "marksman" as const),
-  "medic", "medic",
+  "marksman", "marksman", "marksman", "medic", "marksman",
+  "marksman", "marksman", "medic",
 ];
 
 /**
@@ -168,7 +173,11 @@ export function crowdCueAt(
   clips: readonly ClipSpec[],
   elapsedMs: number,
   treatment: Treatment,
+  marked = false,
 ): CrowdCue {
+  // Marking is a hero-only variant of the same cells; fodder never carries it,
+  // because a ring on everything marks nothing.
+  const atlasUnit = marked && unit.tier === "hero" ? `${unit.unit}_marked` : unit.unit;
   const phase = treatment === "sync" ? 0 : unit.phaseMs;
   const t = elapsedMs + phase;
 
@@ -181,7 +190,7 @@ export function crowdCueAt(
       return {
         clip: "attack",
         frame: frameIn(attack, cycle),
-        track: `${unit.unit}_attack_${String(unit.facing)}`,
+        track: `${atlasUnit}_attack_${String(unit.facing)}`,
       };
     }
   }
@@ -194,7 +203,7 @@ export function crowdCueAt(
     ? unit.idleClip
     : "idle";
   const clip = clipOf(clips, name);
-  return { clip: name, frame: frameIn(clip, t), track: `${unit.unit}_${name}_${String(unit.facing)}` };
+  return { clip: name, frame: frameIn(clip, t), track: `${atlasUnit}_${name}_${String(unit.facing)}` };
 }
 
 export interface CrowdMotionStats {

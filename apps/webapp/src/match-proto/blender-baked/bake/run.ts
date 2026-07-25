@@ -38,6 +38,7 @@ import {
   CELL,
   CROWD_CONFIGS,
   type CrowdConfig,
+  HERO_MARK_HEX,
 } from "../framing.ts";
 import { consolidate } from "../consolidate.ts";
 import { DIRECTION_B_PALETTE, FACTION_B_LIVERY, quantizeToPalette } from "../palette.ts";
@@ -261,6 +262,17 @@ async function bakeCrowdConfig(config: CrowdConfig): Promise<BakedConfig & {
     // exactly indexable because a remap can only produce palette colours.
     inputs.push({ id: `${unit.id}_a`, manifest, tier: unit.tier, workDir: dir });
     inputs.push({ id: `${unit.id}_b`, manifest, remap: FACTION_B_LIVERY, tier: unit.tier, workDir: dir });
+    if (unit.tier === "hero") {
+      // Marked heroes ship as their own cells so a capture can show the crowd
+      // with and without the ring, differing by exactly one image pass. The
+      // marked pair is what makes the ring's contribution measurable instead
+      // of asserted — and its atlas cost is the price of the ruling.
+      const mark = { hex: HERO_MARK_HEX, thickness: config.markThickness };
+      inputs.push({ id: `${unit.id}_a_marked`, manifest, mark, tier: unit.tier, workDir: dir });
+      inputs.push({
+        id: `${unit.id}_b_marked`, manifest, mark, remap: FACTION_B_LIVERY, tier: unit.tier, workDir: dir,
+      });
+    }
   }
 
   const image = `${config.atlas}.png`;

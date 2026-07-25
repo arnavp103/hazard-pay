@@ -9,8 +9,8 @@
  * `?mode=idle|attack|turn` · `?facing=0..7` · `?zoom=` · `?capture=1` hides
  * dev chrome · `?freeze=<ms>` renders one deterministic frame ·
  * `?view=quant` swaps in the quantization comparison ·
- * `?view=crowd&config=small|large&treatment=sync|phase|full` runs the round-4
- * crowd. Run at `/match-proto`.
+ * `?view=crowd&config=small|large&treatment=sync|phase|variants|full&mark=1`
+ * runs the round-4 crowd. Run at `/match-proto`.
  */
 
 import { useEffect, useRef, useState } from "react";
@@ -105,6 +105,7 @@ function CrowdSurface() {
     const handle = mountCrowdStage(host, {
       config: configByKey(params().get("config")),
       freezeMs: readFreezeMs(),
+      marked: readFlag("mark"),
       treatment: readTreatment(),
     });
     void handle.ready;
@@ -125,6 +126,7 @@ function CrowdSurface() {
                 {config.note}
                 {" · "}
                 {treatment}
+                {readFlag("mark") ? " · marked" : ""}
               </span>
             </div>
           )}

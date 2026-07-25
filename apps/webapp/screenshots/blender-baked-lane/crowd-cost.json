@@ -3,9 +3,9 @@
   "heroPortraitAtlas": {
     "cells": 208,
     "indexedPngBytes": 29306,
-    "bakeWallClockSeconds": 8.2
+    "bakeWallClockSeconds": 15.02
   },
-  "crowdWallClockSeconds": 25.88,
+  "crowdWallClockSeconds": 50.14,
   "configs": {
     "small": {
       "label": "Small — Hero's Hour register",
@@ -119,36 +119,36 @@
         }
       ],
       "cost": {
-        "animations": 16,
+        "animations": 20,
         "cellHeight": 28,
         "cellWidth": 38,
-        "cells": 768,
+        "cells": 1088,
         "clusterDensity": {
-          "quantized": 0.5471,
-          "shipped": 0.117,
-          "singletonShareQuantized": 0.6085,
-          "singletonShareShipped": 0.0451
+          "quantized": 0.5524,
+          "shipped": 0.1054,
+          "singletonShareQuantized": 0.6036,
+          "singletonShareShipped": 0.0531
         },
         "facings": 8,
-        "framesPerFacing": 96,
-        "indexedPngBytes": 14723,
+        "framesPerFacing": 136,
+        "indexedPngBytes": 23153,
         "paletteEntriesUsed": 28,
-        "rgbaPngBytes": 100921,
+        "rgbaPngBytes": 174492,
         "trimmed": {
-          "height": 384,
-          "occupancy": 0.7849158653846153,
-          "pixels": 99840,
-          "width": 260
+          "height": 332,
+          "occupancy": 0.802956010086859,
+          "pixels": 171312,
+          "width": 516
         },
         "uniformCellGrid": {
-          "height": 784,
-          "pixels": 834176,
-          "width": 1064
+          "height": 924,
+          "pixels": 1158696,
+          "width": 1254
         },
         "uniformTrimGrid": {
-          "height": 476,
-          "pixels": 173264,
-          "width": 364
+          "height": 627,
+          "pixels": 310365,
+          "width": 495
         },
         "units": {
           "brute_a": {
@@ -180,27 +180,37 @@
             "cellPixels": 170240,
             "cells": 160,
             "trimmedPixels": 21411
+          },
+          "medic_a_marked": {
+            "cellPixels": 170240,
+            "cells": 160,
+            "trimmedPixels": 29595
+          },
+          "medic_b_marked": {
+            "cellPixels": 170240,
+            "cells": 160,
+            "trimmedPixels": 29595
           }
         }
       },
       "blenderRenders": 768,
-      "blenderRenderSeconds": 7.96,
-      "bakeWallClockSeconds": 11.28,
+      "blenderRenderSeconds": 15.74,
+      "bakeWallClockSeconds": 20.42,
       "atlasRoundTripMismatchedPixels": 0,
       "clusterDensityAudit": {
         "measuredOn": "public/blender-baked/crowd-small.png",
-        "islands": 7003,
-        "pixels": 59854,
-        "ratio": 0.117,
-        "singletonShare": 0.0451
+        "islands": 11494,
+        "pixels": 109028,
+        "ratio": 0.1054,
+        "singletonShare": 0.0531
       },
       "rosterProjection": {
         "basis": {
-          "bytesPerTrimmedPixel": 0.1879,
+          "bytesPerTrimmedPixel": 0.1683,
           "meanFodderTrimmedPixels": 8886,
           "meanHeroTrimmedPixels": 21411,
-          "meanFodderBakeSeconds": 2.33,
-          "meanHeroBakeSeconds": 5.9,
+          "meanFodderBakeSeconds": 4.74,
+          "meanHeroBakeSeconds": 9.23,
           "note": "faction B is a palette remap of faction A — it costs bytes, never renders"
         },
         "allFodder": {
@@ -209,8 +219,8 @@
           "heroArchetypes": 0,
           "factions": 2,
           "cells": 4480,
-          "indexedBytes": 66778,
-          "blenderSeconds": 46.7
+          "indexedBytes": 59827,
+          "blenderSeconds": 94.8
         },
         "sixteenFodderFourHeroes": {
           "archetypes": 20,
@@ -218,8 +228,8 @@
           "heroArchetypes": 4,
           "factions": 2,
           "cells": 4864,
-          "indexedBytes": 85603,
-          "blenderSeconds": 61
+          "indexedBytes": 76692,
+          "blenderSeconds": 112.8
         }
       },
       "crowd": {
@@ -230,27 +240,27 @@
         "motion": {
           "sync": {
             "changeBurstiness": 2.711,
-            "distinctCells": 72,
+            "distinctCells": 76,
             "meanDuplicateMultiplicity": 3.61,
             "peakFrameSynchrony": 1
           },
           "phase": {
-            "changeBurstiness": 0.325,
-            "distinctCells": 72,
-            "meanDuplicateMultiplicity": 1.65,
+            "changeBurstiness": 0.392,
+            "distinctCells": 76,
+            "meanDuplicateMultiplicity": 1.73,
             "peakFrameSynchrony": 0.417
           },
           "variants": {
-            "changeBurstiness": 0.325,
-            "distinctCells": 92,
+            "changeBurstiness": 0.392,
+            "distinctCells": 100,
             "meanDuplicateMultiplicity": 1.31,
             "peakFrameSynchrony": 0.417
           },
           "full": {
-            "changeBurstiness": 0.333,
-            "distinctCells": 200,
+            "changeBurstiness": 0.342,
+            "distinctCells": 214,
             "meanDuplicateMultiplicity": 1.19,
-            "peakFrameSynchrony": 0.444
+            "peakFrameSynchrony": 0.472
           }
         },
         "motionLockedFacing": {
@@ -261,22 +271,22 @@
             "peakFrameSynchrony": 1
           },
           "phase": {
-            "changeBurstiness": 0.325,
+            "changeBurstiness": 0.392,
             "distinctCells": 32,
-            "meanDuplicateMultiplicity": 2.84,
+            "meanDuplicateMultiplicity": 2.77,
             "peakFrameSynchrony": 0.417
           },
           "variants": {
-            "changeBurstiness": 0.325,
+            "changeBurstiness": 0.392,
             "distinctCells": 48,
-            "meanDuplicateMultiplicity": 1.95,
+            "meanDuplicateMultiplicity": 1.88,
             "peakFrameSynchrony": 0.417
           },
           "full": {
-            "changeBurstiness": 0.333,
+            "changeBurstiness": 0.342,
             "distinctCells": 96,
-            "meanDuplicateMultiplicity": 1.6,
-            "peakFrameSynchrony": 0.444
+            "meanDuplicateMultiplicity": 1.54,
+            "peakFrameSynchrony": 0.472
           }
         }
       }
@@ -393,36 +403,36 @@
         }
       ],
       "cost": {
-        "animations": 16,
+        "animations": 20,
         "cellHeight": 50,
         "cellWidth": 66,
-        "cells": 768,
+        "cells": 1088,
         "clusterDensity": {
-          "quantized": 0.2929,
-          "shipped": 0.1298,
-          "singletonShareQuantized": 0.4056,
-          "singletonShareShipped": 0.0218
+          "quantized": 0.2973,
+          "shipped": 0.1185,
+          "singletonShareQuantized": 0.4065,
+          "singletonShareShipped": 0.0264
         },
         "facings": 8,
-        "framesPerFacing": 96,
-        "indexedPngBytes": 38704,
+        "framesPerFacing": 136,
+        "indexedPngBytes": 60997,
         "paletteEntriesUsed": 28,
-        "rgbaPngBytes": 254762,
+        "rgbaPngBytes": 424048,
         "trimmed": {
-          "height": 764,
-          "occupancy": 0.846907722513089,
-          "pixels": 244480,
-          "width": 320
+          "height": 776,
+          "occupancy": 0.8622582514185247,
+          "pixels": 400416,
+          "width": 516
         },
         "uniformCellGrid": {
-          "height": 1400,
-          "pixels": 2587200,
-          "width": 1848
+          "height": 1650,
+          "pixels": 3593700,
+          "width": 2178
         },
         "uniformTrimGrid": {
-          "height": 784,
-          "pixels": 460992,
-          "width": 588
+          "height": 990,
+          "pixels": 751410,
+          "width": 759
         },
         "units": {
           "brute_a": {
@@ -454,27 +464,37 @@
             "cellPixels": 528000,
             "cells": 160,
             "trimmedPixels": 56189
+          },
+          "medic_a_marked": {
+            "cellPixels": 528000,
+            "cells": 160,
+            "trimmedPixels": 69105
+          },
+          "medic_b_marked": {
+            "cellPixels": 528000,
+            "cells": 160,
+            "trimmedPixels": 69105
           }
         }
       },
       "blenderRenders": 768,
-      "blenderRenderSeconds": 10.14,
-      "bakeWallClockSeconds": 14.61,
+      "blenderRenderSeconds": 20.34,
+      "bakeWallClockSeconds": 29.72,
       "atlasRoundTripMismatchedPixels": 0,
       "clusterDensityAudit": {
         "measuredOn": "public/blender-baked/crowd-large.png",
-        "islands": 18507,
-        "pixels": 142552,
-        "ratio": 0.1298,
-        "singletonShare": 0.0218
+        "islands": 29416,
+        "pixels": 248148,
+        "ratio": 0.1185,
+        "singletonShare": 0.0264
       },
       "rosterProjection": {
         "basis": {
-          "bytesPerTrimmedPixel": 0.1869,
+          "bytesPerTrimmedPixel": 0.1767,
           "meanFodderTrimmedPixels": 23669,
           "meanHeroTrimmedPixels": 56189,
-          "meanFodderBakeSeconds": 2.89,
-          "meanHeroBakeSeconds": 7.02,
+          "meanFodderBakeSeconds": 6.03,
+          "meanHeroBakeSeconds": 13.8,
           "note": "faction B is a palette remap of faction A — it costs bytes, never renders"
         },
         "allFodder": {
@@ -483,8 +503,8 @@
           "heroArchetypes": 0,
           "factions": 2,
           "cells": 4480,
-          "indexedBytes": 176973,
-          "blenderSeconds": 57.8
+          "indexedBytes": 167259,
+          "blenderSeconds": 120.5
         },
         "sixteenFodderFourHeroes": {
           "archetypes": 20,
@@ -492,8 +512,8 @@
           "heroArchetypes": 4,
           "factions": 2,
           "cells": 4864,
-          "indexedBytes": 225605,
-          "blenderSeconds": 74.3
+          "indexedBytes": 213222,
+          "blenderSeconds": 151.6
         }
       },
       "crowd": {
@@ -504,27 +524,27 @@
         "motion": {
           "sync": {
             "changeBurstiness": 2.711,
-            "distinctCells": 72,
+            "distinctCells": 76,
             "meanDuplicateMultiplicity": 3.61,
             "peakFrameSynchrony": 1
           },
           "phase": {
-            "changeBurstiness": 0.325,
-            "distinctCells": 72,
-            "meanDuplicateMultiplicity": 1.65,
+            "changeBurstiness": 0.392,
+            "distinctCells": 76,
+            "meanDuplicateMultiplicity": 1.73,
             "peakFrameSynchrony": 0.417
           },
           "variants": {
-            "changeBurstiness": 0.325,
-            "distinctCells": 92,
+            "changeBurstiness": 0.392,
+            "distinctCells": 100,
             "meanDuplicateMultiplicity": 1.31,
             "peakFrameSynchrony": 0.417
           },
           "full": {
-            "changeBurstiness": 0.333,
-            "distinctCells": 200,
+            "changeBurstiness": 0.342,
+            "distinctCells": 214,
             "meanDuplicateMultiplicity": 1.19,
-            "peakFrameSynchrony": 0.444
+            "peakFrameSynchrony": 0.472
           }
         },
         "motionLockedFacing": {
@@ -535,22 +555,22 @@
             "peakFrameSynchrony": 1
           },
           "phase": {
-            "changeBurstiness": 0.325,
+            "changeBurstiness": 0.392,
             "distinctCells": 32,
-            "meanDuplicateMultiplicity": 2.84,
+            "meanDuplicateMultiplicity": 2.77,
             "peakFrameSynchrony": 0.417
           },
           "variants": {
-            "changeBurstiness": 0.325,
+            "changeBurstiness": 0.392,
             "distinctCells": 48,
-            "meanDuplicateMultiplicity": 1.95,
+            "meanDuplicateMultiplicity": 1.88,
             "peakFrameSynchrony": 0.417
           },
           "full": {
-            "changeBurstiness": 0.333,
+            "changeBurstiness": 0.342,
             "distinctCells": 96,
-            "meanDuplicateMultiplicity": 1.6,
-            "peakFrameSynchrony": 0.444
+            "meanDuplicateMultiplicity": 1.54,
+            "peakFrameSynchrony": 0.472
           }
         }
       }

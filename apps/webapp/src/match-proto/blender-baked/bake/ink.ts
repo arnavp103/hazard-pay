@@ -140,6 +140,64 @@ export function inkSprite(
   return out;
 }
 
+/**
+ * Hero marking: a thick outline grown OUTSIDE the finished silhouette.
+ *
+ * Approved on #69 after the flat-procedural lane proved size + detail density
+ * cannot separate a hero from fodder at small angular size — a perception
+ * limit no pipeline escapes. The important property for a bake-off is where
+ * this costs: the ring is authored in pixel space over cells that already
+ * exist, so it needs no new render, no new rig and no new pose. It does need
+ * atlas cells, which is exactly the trade this lane keeps paying.
+ *
+ * The ring is grown from the sprite's own alpha with a Chebyshev distance
+ * transform, so it is a constant `thickness` all the way round including the
+ * diagonals — a 4-neighbour grow leaves a ring that thins at every corner,
+ * which is the same defect the contour pass had at 1 px.
+ */
+export function markOutline(
+  rgba: Uint8Array,
+  width: number,
+  height: number,
+  hex: string,
+  thickness: number,
+): Uint8Array {
+  const out = new Uint8Array(rgba);
+  if (thickness <= 0) { return out; }
+  const [mr, mg, mb] = hexToRgb(hex);
+  let ring: number[] = [];
+  for (let i = 0; i < width * height; i += 1) {
+    if ((rgba[i * 4 + 3] ?? 0) > 0) { ring.push(i); }
+  }
+  const claimed = new Uint8Array(width * height);
+  for (const i of ring) { claimed[i] = 1; }
+
+  for (let step = 0; step < thickness; step += 1) {
+    const next: number[] = [];
+    for (const at of ring) {
+      const x = at % width;
+      const y = (at - x) / width;
+      for (let dy = -1; dy <= 1; dy += 1) {
+        for (let dx = -1; dx <= 1; dx += 1) {
+          const nx = x + dx;
+          const ny = y + dy;
+          if (nx < 0 || ny < 0 || nx >= width || ny >= height) { continue; }
+          const n = ny * width + nx;
+          if (claimed[n] === 1) { continue; }
+          claimed[n] = 1;
+          next.push(n);
+          out[n * 4] = mr;
+          out[n * 4 + 1] = mg;
+          out[n * 4 + 2] = mb;
+          out[n * 4 + 3] = 0xff;
+        }
+      }
+    }
+    ring = next;
+  }
+  return out;
+}
+
 /** Tight opaque bounding box, or null for an entirely empty cell. */
 export function alphaBounds(
   rgba: Uint8Array,

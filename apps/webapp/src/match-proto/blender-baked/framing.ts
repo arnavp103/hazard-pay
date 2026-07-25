@@ -85,9 +85,12 @@ export const HERO_BODY_ART_PX = 29;
 export const CONTOUR_ART_PX = 2;
 
 /**
- * Tier separation, exactly as ruled on #69: a SLIGHT size boost plus higher
- * detail density. No rim light, no banner, no ground decal — marking was
- * explicitly deferred, and leaning on it would answer a different question.
+ * Tier separation on #69 is now three things: a SLIGHT size boost, higher
+ * detail density, and — approved 2026-07-25 — marking. The boost stays at the
+ * ruled 1.2-1.3x rather than growing to compensate, because the sibling lane
+ * showed the shortfall is perceptual and marking is the sanctioned answer to
+ * it. `HERO_MARK_HEX` below is that third lever, and the crowd captures ship
+ * with and without it so its contribution is measured, not assumed.
  */
 export const TIER_SIZE_BOOST = 1.28;
 
@@ -172,12 +175,24 @@ function unitBake(
   };
 }
 
+/**
+ * Hero marking (#69, approved 2026-07-25 after the flat-procedural lane showed
+ * size + detail density alone cannot find a hero at small angular size). One
+ * colour for both factions on purpose: the ring's job is "this one matters",
+ * not "this one is ours", and mixing the two would make the with/without pair
+ * unreadable. `pale` is the only bright neutral in the palette that neither
+ * army and neither board ramp already owns.
+ */
+export const HERO_MARK_HEX = "#c8bda9";
+
 export interface CrowdConfig {
   readonly key: "large" | "small";
   readonly label: string;
   readonly note: string;
   readonly atlas: string;
   readonly units: readonly UnitBake[];
+  /** Marking ring thickness in ART px — proportional, ~1/14 of hero height. */
+  readonly markThickness: number;
   /** Formation spacing in art px, proportional to unit size. */
   readonly spacing: {
     readonly along: readonly [number, number];
@@ -200,6 +215,11 @@ function crowdConfig(
     atlas: `crowd-${key}`,
     key,
     label,
+    // One art pixel at BOTH registers, which is already twice the weight of the
+    // sprite's own contour. A 2 px ring was captured first and rejected on the
+    // evidence: at the large register it swallows the figure it is marking, so
+    // you find the hero and then cannot read it. See marking-large-2px-ring.png.
+    markThickness: 1,
     note,
     spacing: {
       along: [step * 1.2, -step * 0.6],

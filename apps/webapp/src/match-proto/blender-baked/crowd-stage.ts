@@ -30,6 +30,8 @@ const base = `/${ATLAS_PUBLIC_DIR}`;
 export interface CrowdMountOptions {
   config: CrowdConfig;
   treatment: Treatment;
+  /** Draw the approved hero marking ring (#69). */
+  marked: boolean;
   /** Deterministic capture: render exactly this clock value and hold. */
   freezeMs?: number;
 }
@@ -107,8 +109,9 @@ export function mountCrowdStage(host: HTMLElement, options: CrowdMountOptions): 
 
     const drawables: { unit: CrowdUnit; sprite: Sprite; clips: readonly ClipSpec[] }[] = [];
     for (const unit of roster) {
-      const meta = units[unit.unit];
-      if (meta === undefined) { throw new Error(`atlas has no unit ${unit.unit}`); }
+      const key = options.marked && unit.tier === "hero" ? `${unit.unit}_marked` : unit.unit;
+      const meta = units[key];
+      if (meta === undefined) { throw new Error(`atlas has no unit ${key}`); }
 
       const shadowWidth = Math.max(5, Math.round(meta.cell.w * 0.42));
       const shadow = new Sprite(shadowTexture(shadowWidth, Math.max(3, Math.round(shadowWidth * 0.4))));
@@ -125,7 +128,9 @@ export function mountCrowdStage(host: HTMLElement, options: CrowdMountOptions): 
 
     const draw = (elapsedMs: number): void => {
       for (const drawable of drawables) {
-        const cue = crowdCueAt(drawable.unit, drawable.clips, elapsedMs, options.treatment);
+        const cue = crowdCueAt(
+          drawable.unit, drawable.clips, elapsedMs, options.treatment, options.marked,
+        );
         const texture = sheet.animations[cue.track]?.[cue.frame];
         if (texture !== undefined) { drawable.sprite.texture = texture; }
       }
@@ -146,6 +151,7 @@ export function mountCrowdStage(host: HTMLElement, options: CrowdMountOptions): 
       Object.assign(globalThis, {
         __crowdInfo: {
           config: options.config.key,
+          marked: options.marked,
           treatment: options.treatment,
           units: roster.length,
         },
