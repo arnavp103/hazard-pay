@@ -4,6 +4,7 @@ import {
   buildRoster,
   crowdCueAt,
   crowdMotionStats,
+  crowdPixelIdentity,
   type CrowdUnit,
   lockFacings,
   type Treatment,
@@ -115,5 +116,36 @@ describe("crowdMotionStats", () => {
     expect(locked.distinctCells).toBeLessThan(stats("phase").distinctCells);
     expect(locked.meanDuplicateMultiplicity)
       .toBeGreaterThan(stats("phase").meanDuplicateMultiplicity);
+  });
+});
+
+describe("crowdPixelIdentity", () => {
+  // A hash function that is deliberately blind to the difference between two
+  // clips: it stands in for two baked cells that came out byte-identical, which
+  // is exactly the case a name-based count cannot see.
+  const blindHash = (track: string, frame: number): string => `${track.split("_").slice(-1).join()}#${String(frame)}`;
+  const trueHash = (track: string, frame: number): string => `${track}#${String(frame)}`;
+
+  it("counts IMAGES, so byte-identical cells with different names collapse", () => {
+    const roster = buildRoster(small);
+    const blind = crowdPixelIdentity(roster, clipsFor, "variants", blindHash, 1000);
+    const named = crowdPixelIdentity(roster, clipsFor, "variants", trueHash, 1000);
+    expect(blind.distinctImages).toBeLessThan(named.distinctImages);
+    expect(blind.meanIdenticalMultiplicity).toBeGreaterThan(named.meanIdenticalMultiplicity);
+  });
+
+  it("shows the second baked idle buying repertoire a locked line badly needs", () => {
+    const locked = lockFacings(buildRoster(small));
+    const one = crowdPixelIdentity(locked, clipsFor, "phase", trueHash);
+    const two = crowdPixelIdentity(locked, clipsFor, "variants", trueHash);
+    expect(two.distinctImages).toBeGreaterThan(one.distinctImages);
+    expect(two.meanIdenticalMultiplicity).toBeLessThan(one.meanIdenticalMultiplicity);
+  });
+
+  it("puts the whole crowd on a handful of images under lockstep", () => {
+    const locked = lockFacings(buildRoster(small));
+    const sync = crowdPixelIdentity(locked, clipsFor, "sync", trueHash);
+    expect(sync.meanIdenticalMultiplicity).toBeGreaterThan(5);
+    expect(sync.peakIdenticalUnits).toBeGreaterThan(8);
   });
 });
