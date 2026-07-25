@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { CELL, CLIPS, FACINGS } from "../framing.ts";
-import { assertManifestMatchesSpec, bakeManifestSchema, buildSpec } from "./seam.ts";
+import { CELL, CLIPS, FACINGS, RIG_HEIGHT_UNITS } from "../framing.ts";
+import {
+  assertManifestMatchesSpec,
+  assertRigHeight,
+  bakeManifestSchema,
+  buildSpec,
+} from "./seam.ts";
 
 const spec = buildSpec("/tmp/work", "/tmp/work/manifest.json");
 
@@ -23,6 +28,7 @@ function manifestFixture(overrides: Record<string, unknown> = {}): unknown {
     unit: "medic",
     unitScale: 1,
     droppedDetails: 0,
+    authoredHeightUnits: 1.9104,
     cell: { width: CELL.width, height: CELL.height },
     supersample: 1,
     pixelsPerUnit: spec.pixelsPerUnit,
@@ -97,5 +103,39 @@ describe("buildSpec", () => {
     expect(spec.supersample).toBe(1);
     expect(spec.cell).toEqual({ width: CELL.width, height: CELL.height });
     expect(spec.clips.map((clip) => clip.name)).toEqual(CLIPS.map((clip) => clip.name));
+  });
+});
+
+/**
+ * The round-5 regression, as a test rather than as a note.
+ *
+ * Every tier size on the register ladder is `bodyArtPx / (RIG_HEIGHT_UNITS[rig]
+ * * PIXELS_PER_UNIT)`. When that constant is wrong for a rig, nothing fails —
+ * the rig simply draws at a size nobody asked for, and the hero:fodder ratio the
+ * #69 ruling is written in drifts silently. It drifted from 1.27 to 1.08 in
+ * round 5 that way. So the table is now checked against the geometry Blender
+ * actually built, on every bake.
+ */
+describe("assertRigHeight", () => {
+  it("accepts a rig that matches the declared authored height", () => {
+    const manifest = bakeManifestSchema.parse(manifestFixture({
+      authoredHeightUnits: RIG_HEIGHT_UNITS.medic,
+      unit: "medic",
+    }));
+    expect(() => { assertRigHeight(manifest); }).not.toThrow();
+  });
+
+  it("rejects a drift of more than a twentieth of an art pixel, with the fix in the message", () => {
+    const manifest = bakeManifestSchema.parse(manifestFixture({
+      authoredHeightUnits: RIG_HEIGHT_UNITS.medic + 0.2,
+      unit: "medic",
+    }));
+    expect(() => { assertRigHeight(manifest); })
+      .toThrow(String((RIG_HEIGHT_UNITS.medic + 0.2).toFixed(4)));
+  });
+
+  it("refuses a rig the framing has no size for at all", () => {
+    const manifest = bakeManifestSchema.parse(manifestFixture({ unit: "not-a-rig" }));
+    expect(() => { assertRigHeight(manifest); }).toThrow("no RIG_HEIGHT_UNITS entry");
   });
 });

@@ -24,6 +24,41 @@ export const STAGE_HEIGHT = 270;
 export const ART_WIDTH = STAGE_WIDTH / ART_SCALE;
 export const ART_HEIGHT = STAGE_HEIGHT / ART_SCALE;
 
+/**
+ * Round 6. The register ladder and the unit count pull against each other: at
+ * `large` the round-5 crowd already put 36 units across 78% of a 480x270 frame
+ * with no projectiles and no HUD, and the premise of the game is large battles.
+ * There is exactly one lever that can resolve that without shrinking the units
+ * back down, and it is the aperture — so it becomes a parameter rather than a
+ * constant, and the crowd surface can be asked the question directly.
+ *
+ * `wide` keeps ART_SCALE at 2 and doubles the art grid to 480x270 art pixels.
+ * That is the honest version of the change: the sprites stay the same physical
+ * size in art pixels and the BOARD gets bigger, which is what "fit more units"
+ * has to mean in a lane where the art pixel is canon (#68).
+ */
+export interface StagePreset {
+  readonly key: "standard" | "wide";
+  readonly width: number;
+  readonly height: number;
+  readonly artWidth: number;
+  readonly artHeight: number;
+  readonly label: string;
+}
+
+function stagePreset(key: StagePreset["key"], width: number, height: number, label: string): StagePreset {
+  return { artHeight: height / ART_SCALE, artWidth: width / ART_SCALE, height, key, label, width };
+}
+
+export const STAGE_PRESETS: readonly StagePreset[] = [
+  stagePreset("standard", STAGE_WIDTH, STAGE_HEIGHT, "480x270 — the bake-off aperture"),
+  stagePreset("wide", 960, 540, "960x540 — the large-battle aperture"),
+];
+
+export function stageByKey(key: string | null): StagePreset {
+  return STAGE_PRESETS.find((preset) => preset.key === key) ?? (STAGE_PRESETS[0] as StagePreset);
+}
+
 /** Art pixels per Blender world unit. 40 * 0.82 / ART_SCALE, rounded to an integer. */
 export const PIXELS_PER_UNIT = 16;
 
@@ -94,8 +129,49 @@ export const CONTOUR_ART_PX = 2;
  */
 export const TIER_SIZE_BOOST = 1.28;
 
-export type UnitId = "brute" | "marksman" | "medic";
+export type UnitId = "brute" | "marksman" | "medic" | "ranger";
 export type TierKey = "fodder" | "hero";
+
+/**
+ * Authored rig height in world units, in the bind pose, per rig.
+ *
+ * This table exists because of a bug, and the bug is worth stating plainly.
+ * Rounds 4-5 scaled EVERY rig by `bodyArtPx / HERO_BODY_ART_PX`, where that
+ * constant is the medic's authored height. That is only correct for the medic.
+ * The marksman rig is a third taller than the medic in authored units, so
+ * "brute and marksman at 22 px" actually drew 11 px and 13 px — and when round 5
+ * lengthened the marksman further, the hero:ranged size ratio the #69 tier
+ * ruling is expressed in fell from 1.27 to 1.08 at the small register without a
+ * single line of the tier code changing. A size boost measured against the
+ * SHORTEST fodder archetype is not a size boost.
+ *
+ * The fix is arithmetic: scale each rig by its OWN authored height, so every
+ * fodder archetype draws the same body height and the hero is exactly
+ * `TIER_SIZE_BOOST` times the tallest of them by construction.
+ *
+ * The numbers are not authored by hand. `unit_bake.py` measures the rig's world
+ * bbox in the bind pose and reports `authoredHeightUnits` in the manifest;
+ * `run.ts` asserts this table against it on every bake and fails loudly with the
+ * correct value, so the table cannot drift away from the geometry again.
+ */
+export const RIG_HEIGHT_UNITS: Readonly<Record<UnitId, number>> = {
+  brute: 2.2977,
+  marksman: 2.6889,
+  medic: 1.9104,
+  ranger: 2.5749,
+};
+
+/**
+ * The brute stands a head shorter than the marksman.
+ *
+ * Round 5 gave the two fodder archetypes the same target height and got two
+ * DIFFERENT drawn heights out of it, by accident, because the scale arithmetic
+ * was wrong. Round 6 makes the difference deliberate and small: it is one more
+ * axis of archetype separation at a register where the measured silhouette IoU
+ * was 0.76, and it costs nothing. The hero is then sized off the TALLEST fodder
+ * archetype — which is the round-5 regression, stated as arithmetic.
+ */
+export const BRUTE_HEIGHT_RATIO = 0.9;
 
 export interface ClipSpec { readonly name: string; readonly frames: number; readonly fps: number }
 
@@ -145,23 +221,28 @@ function evenCeil(value: number): number {
  * frame is trimmed to its alpha bbox before packing — so the margin is spent
  * generously and only shows up in the untrimmed-grid comparison.
  */
-const CELL_MARGIN = 1.4;
+const CELL_MARGIN = 1.6;
 
 /**
- * Derive a unit's whole bake geometry from one number: how tall it should be
- * on screen. Cell and anchor scale with the rig, so a 22 px fodder unit does
- * not carry the hero cell's slack around the atlas.
+ * Derive a unit's whole bake geometry from one number: how tall its BODY should
+ * be in art pixels.
+ *
+ * Two scales, and keeping them apart is the round-6 fix. `scale` is the rig's
+ * own world scale and depends on how tall that rig was authored. `cellScale`
+ * sizes the sprite cell and depends only on the target height, because a cell
+ * has to hold a body of a given number of art pixels regardless of which rig
+ * produced it. Rounds 4-5 used one number for both jobs, which is exactly how a
+ * taller rig ended up drawing taller than the size it was asked for.
  */
 function unitBake(
   id: UnitId,
   tier: TierKey,
-  screenPx: number,
+  bodyArtPx: number,
   clips: readonly ClipSpec[],
   facings = FACINGS,
 ): UnitBake {
-  const bodyArtPx = screenPx / ART_SCALE - CONTOUR_ART_PX;
-  const scale = bodyArtPx / HERO_BODY_ART_PX;
-  const cellScale = scale * CELL_MARGIN;
+  const scale = bodyArtPx / (RIG_HEIGHT_UNITS[id] * PIXELS_PER_UNIT);
+  const cellScale = (bodyArtPx / HERO_BODY_ART_PX) * CELL_MARGIN;
   return {
     anchor: { x: Math.round(ANCHOR.x * cellScale), y: Math.round(ANCHOR.y * cellScale) },
     bodyArtPx,
@@ -169,7 +250,7 @@ function unitBake(
     clips,
     facings,
     id,
-    screenPx,
+    screenPx: Math.round((bodyArtPx + CONTOUR_ART_PX) * ART_SCALE),
     scale,
     tier,
   };
@@ -186,7 +267,7 @@ function unitBake(
 export const HERO_MARK_HEX = "#c8bda9";
 
 export interface CrowdConfig {
-  readonly key: "large" | "mid" | "small";
+  readonly key: "large" | "mid" | "small" | "xl" | "xxl";
   readonly label: string;
   readonly note: string;
   readonly atlas: string;
@@ -206,7 +287,13 @@ function crowdConfig(
   note: string,
   fodderScreenPx: number,
 ): CrowdConfig {
-  const heroScreenPx = Math.round(fodderScreenPx * TIER_SIZE_BOOST);
+  // Both tiers are expressed as BODY art pixels and the hero is derived from
+  // the fodder body, so the ratio the #69 ruling is written in survives the
+  // trip through the rigs. It is checked after the bake against the measured
+  // silhouettes rather than trusted.
+  const tallestFodderBodyArtPx = fodderScreenPx / ART_SCALE - CONTOUR_ART_PX;
+  const bruteBodyArtPx = Math.round(tallestFodderBodyArtPx * BRUTE_HEIGHT_RATIO);
+  const heroBodyArtPx = Math.round(tallestFodderBodyArtPx * TIER_SIZE_BOOST);
   // A rank runs up-right and ranks stack down-right: the 2:1 dimetric block.
   // Spacing tracks unit size so both configs read as the same formation
   // density — the comparison is meant to isolate resolution, not crowding.
@@ -226,9 +313,10 @@ function crowdConfig(
       rank: [step * 0.72, step * 0.36],
     },
     units: [
-      unitBake("brute", "fodder", fodderScreenPx, FODDER_CLIPS),
-      unitBake("marksman", "fodder", fodderScreenPx, FODDER_CLIPS),
-      unitBake("medic", "hero", heroScreenPx, HERO_CROWD_CLIPS),
+      unitBake("brute", "fodder", bruteBodyArtPx, FODDER_CLIPS),
+      unitBake("marksman", "fodder", tallestFodderBodyArtPx, FODDER_CLIPS),
+      unitBake("medic", "hero", heroBodyArtPx, HERO_CROWD_CLIPS),
+      unitBake("ranger", "hero", heroBodyArtPx, HERO_CROWD_CLIPS),
     ],
   };
 }
@@ -246,11 +334,27 @@ function crowdConfig(
  * (1.27x, 1.29x), so the ladder brackets the register question evenly instead
  * of clustering at one end, and 28 lands on an integer art-pixel body (12 px
  * plus the 2 px contour) rather than half a pixel.
+ *
+ * `xl` and `xxl` are round 6's, and they are here because the cofounder looked
+ * at the round-5 crowd and said the fine pixel work reads better than the
+ * coarse work did, "i still think we need to make the blender even higher
+ * resolution, there should be more gaps". 44 and 56 continue the same ~1.25x
+ * ladder. Adding them cost two lines and one bake; a hand-authored lane would
+ * owe two more complete sets of drawings for the whole roster, which is the
+ * entire proposition this lane is being evaluated on.
+ *
+ * They are also where the round-6 rig work stops being theoretical: the gaps
+ * between arm and torso are ~0.5 world units of real geometry, the contour pass
+ * eats 1 art px off each side of every gap, and below `xl` that arithmetic ends
+ * with nothing left. The register ladder and the negative-space direction are
+ * the same decision.
  */
 export const CROWD_CONFIGS: readonly CrowdConfig[] = [
-  crowdConfig("small", "Small — Hero's Hour register", "fodder 22px · hero 28px on screen", 22),
-  crowdConfig("mid", "Mid — the round-5 register", "fodder 28px · hero 36px on screen", 28),
-  crowdConfig("large", "Large", "fodder 36px · hero 46px on screen", 36),
+  crowdConfig("small", "Small — Hero's Hour register", "fodder 22px on screen", 22),
+  crowdConfig("mid", "Mid — the round-5 register", "fodder 28px on screen", 28),
+  crowdConfig("large", "Large — round 5's top", "fodder 36px on screen", 36),
+  crowdConfig("xl", "XL — round 6", "fodder 44px on screen", 44),
+  crowdConfig("xxl", "XXL — round 6", "fodder 56px on screen", 56),
 ];
 
 export function configByKey(key: string | null): CrowdConfig {

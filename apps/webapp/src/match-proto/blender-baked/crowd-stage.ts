@@ -22,12 +22,15 @@ import {
 import {
   ART_SCALE,
   ATLAS_PUBLIC_DIR,
+  BOARD_HEIGHT,
   BOARD_OFFSET,
+  BOARD_WIDTH,
   type ClipSpec,
   configByKey,
   type CrowdConfig,
-  STAGE_HEIGHT,
-  STAGE_WIDTH,
+  type StagePreset,
+  STAGE_PRESETS,
+  stageByKey,
 } from "./framing.ts";
 import { INK } from "./palette.ts";
 import { loadBoardTexture, shadowTexture } from "./scene.ts";
@@ -55,6 +58,13 @@ export interface CrowdMountOptions {
    * one image pass apart.
    */
   atlasVariant?: "norim" | "shipped";
+  /**
+   * Which aperture to draw. Round 6's cost question — thinner, taller, higher
+   * resolution units mean fewer units on the board, and the premise is large
+   * battles — has exactly one lever that is not "make them smaller again", and
+   * this is it.
+   */
+  stage?: StagePreset;
 }
 
 export interface CrowdStageHandle {
@@ -92,15 +102,16 @@ export function mountCrowdStage(host: HTMLElement, options: CrowdMountOptions): 
   let app: Application | undefined;
 
   const ready = (async () => {
+    const stage = options.stage ?? (STAGE_PRESETS[0] as StagePreset);
     const candidate = new Application();
     await candidate.init({
       antialias: false,
       autoDensity: true,
       background: INK,
-      height: STAGE_HEIGHT,
+      height: stage.height,
       resolution: globalThis.devicePixelRatio || 1,
       roundPixels: true,
-      width: STAGE_WIDTH,
+      width: stage.width,
     });
     const atlasName = options.atlasVariant === "norim"
       ? `${options.config.atlas}-norim`
@@ -119,11 +130,26 @@ export function mountCrowdStage(host: HTMLElement, options: CrowdMountOptions): 
     world.scale.set(ART_SCALE);
     app.stage.addChild(world);
 
-    const boardSprite = new Sprite(board);
-    boardSprite.position.set(BOARD_OFFSET.x, BOARD_OFFSET.y);
-    world.addChild(boardSprite);
+    // The board art is 336x144 art pixels — it was authored for the 240x135
+    // aperture and there is no wider version of it, because it is shared art
+    // from #74/#79 and not this lane's to redraw. On the wide stage it is TILED
+    // so the units have ground under them. Stated plainly because it is visible:
+    // the seams in the 960x540 captures are this, not a rendering bug, and a
+    // real wide board would be one drawing rather than four. What the tiling
+    // does preserve is the only property under test — the board and the units
+    // stay on the same art pixel at the same size.
+    const tilesX = Math.ceil((stage.artWidth - BOARD_OFFSET.x) / BOARD_WIDTH);
+    const tilesY = Math.ceil((stage.artHeight - BOARD_OFFSET.y) / BOARD_HEIGHT);
+    for (let ty = 0; ty < Math.max(1, tilesY); ty += 1) {
+      for (let tx = 0; tx < Math.max(1, tilesX); tx += 1) {
+        const boardSprite = new Sprite(board);
+        boardSprite.position.set(BOARD_OFFSET.x + tx * BOARD_WIDTH, BOARD_OFFSET.y + ty * BOARD_HEIGHT);
+        world.addChild(boardSprite);
+      }
+    }
 
-    const roster = options.layers === "board" ? [] : buildRoster(options.config);
+    const aperture = { artHeight: stage.artHeight, artWidth: stage.artWidth };
+    const roster = options.layers === "board" ? [] : buildRoster(options.config, 0x5a17, aperture);
     // Shadows all go down first so no unit's shadow lands on top of the unit
     // in front of it — at 22 px that misreads as a hole in the ground.
     const shadowLayer = new Container();
@@ -205,4 +231,4 @@ export function mountCrowdStage(host: HTMLElement, options: CrowdMountOptions): 
   };
 }
 
-export { configByKey };
+export { configByKey, stageByKey };

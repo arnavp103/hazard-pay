@@ -17,7 +17,16 @@
 
 import { z } from "zod";
 
-import { ANCHOR, CELL, CLIPS, FACINGS, PIXELS_PER_UNIT, type UnitBake } from "../framing.ts";
+import {
+  ANCHOR,
+  CELL,
+  CLIPS,
+  FACINGS,
+  PIXELS_PER_UNIT,
+  RIG_HEIGHT_UNITS,
+  type UnitBake,
+  type UnitId,
+} from "../framing.ts";
 
 const sizeSchema = z.object({ width: z.number().int().positive(), height: z.number().int().positive() });
 const pointSchema = z.object({ x: z.number(), y: z.number() });
@@ -32,7 +41,7 @@ export const bakeSpecSchema = z.object({
   workDir: z.string(),
   manifestPath: z.string(),
   /** Which rig to build. Python owns the geometry; TypeScript owns the choice. */
-  unit: z.enum(["brute", "marksman", "medic"]),
+  unit: z.enum(["brute", "marksman", "medic", "ranger"]),
   /** Uniform world scale on the authored rig — the tier's size boost. */
   unitScale: z.number().positive(),
   cell: sizeSchema,
@@ -70,6 +79,15 @@ export const bakeManifestSchema = z.object({
    * sub-pixel confetti that flickers between facings.
    */
   droppedDetails: z.number().int().min(0),
+  /**
+   * The rig's own world-Z extent in the bind pose, divided back out of the tier
+   * scale — i.e. how tall this rig is when nobody has scaled it. TypeScript owns
+   * every tunable number in this lane, but it cannot own this one: it is a
+   * property of geometry Python built. Round 6 reads it back to check
+   * `RIG_HEIGHT_UNITS`, which is the constant a size-boost ratio is computed
+   * from and the one round 5 got wrong for two rigs out of three.
+   */
+  authoredHeightUnits: z.number().positive(),
   clips: z.array(clipSchema).nonempty(),
   frames: z.array(z.object({
     clip: z.string(),
@@ -142,4 +160,27 @@ export function assertManifestMatchesSpec(manifest: BakeManifest, spec: BakeSpec
   if (problems.length > 0) {
     throw new Error(`bake manifest disagrees with the spec: ${problems.join(", ")}`);
   }
+}
+
+/**
+ * Hold `RIG_HEIGHT_UNITS` to what Blender actually built.
+ *
+ * The tolerance is one twentieth of an art pixel at PIXELS_PER_UNIT — tight
+ * enough that any real geometry change trips it, loose enough to survive float
+ * round-tripping through JSON. The message carries the correct value so the fix
+ * is a copy-paste rather than an investigation.
+ */
+export function assertRigHeight(manifest: BakeManifest): void {
+  const declared = RIG_HEIGHT_UNITS[manifest.unit as UnitId] as number | undefined;
+  if (declared === undefined) {
+    throw new Error(`no RIG_HEIGHT_UNITS entry for ${manifest.unit}`);
+  }
+  const tolerance = 0.05 / PIXELS_PER_UNIT;
+  if (Math.abs(declared - manifest.authoredHeightUnits) <= tolerance) { return; }
+  throw new Error(
+    `RIG_HEIGHT_UNITS.${manifest.unit} is ${declared.toFixed(4)} but the rig Blender built `
+    + `is ${manifest.authoredHeightUnits.toFixed(4)} world units tall. Every tier size on the `
+    + `ladder is derived from this number — set it to ${manifest.authoredHeightUnits.toFixed(4)} `
+    + "and re-bake.",
+  );
 }

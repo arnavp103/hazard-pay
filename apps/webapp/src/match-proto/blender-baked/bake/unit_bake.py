@@ -38,6 +38,7 @@ import time
 
 import bmesh
 import bpy
+import mathutils
 
 TAU = math.pi * 2.0
 
@@ -148,6 +149,56 @@ FODDER_LIVERY_DK = "#582822"
 FODDER_GRIME = "#26222c"
 FODDER_STEEL = "#4a4e58"
 FODDER_OPTIC = "#241a22"
+# Round 6. Thin limbs are two or three art pixels wide at every register below
+# `xl`, and a 3-px limb in the same value as the torso is not a limb, it is a
+# bulge. The sleeve therefore goes a clear step DARKER than the cloth so the
+# negative space between arm and torso has a dark edge on its outer side as well
+# as its inner one — the gap reads even in the facings where it closes to zero.
+FODDER_SLEEVE = "#2f353a"
+FODDER_GLOVE = "#1e2226"
+
+# --- metal-slug-tactics hero ----------------------------------------------
+# Round 6. The cofounder asked to see the hero redrawn in the design a parallel
+# exploration produced (`docs/art-direction/hero-design-fanout`, style
+# `metal-slug-tactics`). That artifact is a 2D pixel grid at 28 and 44 rows; this
+# is a 3D rig, so what crosses over is the design's INTENT, not its pixels:
+#
+#   * two goggle lenses either side of a real nose block, with a mouth and a
+#     chin under them — the grid spends five of its forty-four rows on a face
+#     that is doing something, where every other candidate spends one on a visor;
+#   * OVERSIZED gear: a helmet brim wider than the shoulders and boots wider
+#     than the calves, so the silhouette has three distinct widths down its
+#     height instead of tapering smoothly;
+#   * arms that leave the body at the shoulder and come back at the wrist. An
+#     independent cold judge measured this candidate as having the deepest
+#     negative space of the eight (2-5 px on both sides across seventeen rows)
+#     and the only genuinely asymmetric pose (mask symmetry 0.614 against
+#     0.72-0.89 for the rest). Both are preserved deliberately;
+#   * ink-like contours and clustered shading, which this lane already has in
+#     `ink.ts` and `consolidate.ts` and does not need to re-invent.
+#
+# Its known defect, which the same judge found and this rig has to fix: it
+# FLOATS. The grid's contact span is 8 px under a 32 px body, the narrowest in
+# the set, so the figure hovers over its own drop shadow. The boots below are
+# long, wide and splayed for exactly that reason, and the contact span is
+# measured per register in round-6-negative-space.json rather than asserted.
+MST_COAT = "#414f4c"
+MST_COAT_DK = "#2f3a39"
+MST_COAT_LT = "#5c6a65"
+# The sleeve is the rust ramp on purpose: it is the one warm mass on the figure
+# and it is on the ARMS, which is what makes the arm/torso window read as two
+# different materials meeting a gap rather than as one shape with a notch in it.
+MST_SLEEVE = "#a8503a"
+MST_SLEEVE_DK = "#7a3a2c"
+MST_GLOVE = "#48212a"
+MST_TROUSER = "#4b4655"
+MST_TROUSER_DK = "#2f2b38"
+MST_BOOT = "#5c4c45"
+MST_BOOT_DK = "#2b252b"
+MST_STRAP = "#241a28"
+MST_SKIN = "#d6875c"
+MST_SKIN_DK = "#8a4a38"
+MST_LENS = "#e8ded0"
 
 # --- minimum feature size -------------------------------------------------
 # A finding, not a fudge. The rival rig was authored for a REAL-TIME 60-px
@@ -554,30 +605,43 @@ def build_medic():
 # work would answer a different one. Faction livery is applied downstream as a
 # palette-index remap, which costs no render at all.
 
+# Round 6, and the sign matters: the euler goes THREE (rx, ry, rz) -> Blender
+# (rx, -rz, ry), so a point hanging at -Z under a joint swings to +X for rz > 0.
+# The left shoulder sits at -X, so an OUTWARD left arm needs rz NEGATIVE and an
+# outward right arm needs rz positive. Rounds 4-5 had both signs the other way
+# round: every arm in the roster was rolled a little ACROSS the body, which is
+# exactly why no fodder unit had daylight beside its torso at any register.
 BRUTE_BIND = {
-    "elbowL": (-0.34, 0, 0.10),
-    "elbowR": (-0.62, 0, -0.10),
-    "head": (0.14, 0, 0),
-    "hipL": (0.06, 0, 0.05),
-    "hipR": (-0.06, 0, -0.05),
-    "kneeL": (-0.10, 0, 0),
-    "kneeR": (-0.10, 0, 0),
-    "shoulderL": (0.10, 0, 0.30),
-    "shoulderR": (-0.30, 0, -0.34),
-    "torso": (0.16, 0.06, 0),
+    "elbowL": (-0.22, 0, 0.07),
+    "elbowR": (-0.50, 0, 0.16),
+    "head": (0.12, 0, 0),
+    # Legs splay outward from the hip, so the gap between them is widest at the
+    # boot — the part of the figure that has the ground behind it rather than
+    # the other leg.
+    "hipL": (0.05, 0, -0.13),
+    "hipR": (-0.05, 0, 0.15),
+    "kneeL": (-0.08, 0, 0),
+    "kneeR": (-0.08, 0, 0),
+    "shoulderL": (0.08, 0, -0.20),
+    "shoulderR": (-0.22, 0, 0.52),
+    "torso": (0.13, 0.06, 0),
 }
 
 MARKSMAN_BIND = {
-    "elbowL": (-0.95, 0, 0.14),
-    "elbowR": (-0.80, 0, -0.10),
-    "head": (-0.06, 0, 0),
-    "hipL": (0.16, 0, 0),
-    "hipR": (-0.14, 0.12, 0),
-    "kneeL": (-0.20, 0, 0),
-    "kneeR": (-0.08, 0, 0),
-    "shoulderL": (-0.55, 0, 0.20),
-    "shoulderR": (-0.42, 0, -0.12),
-    "torso": (0.12, 0.22, 0),
+    # Both elbows break forward while the shoulders roll out: the arms leave the
+    # body line at the shoulder, come back at the wrist, and the window they
+    # enclose is a triangle rather than a slot. A slot closes the moment the
+    # figure turns; a triangle keeps some width through more of the facing ring.
+    "elbowL": (-0.58, 0, -0.20),
+    "elbowR": (-0.50, 0, 0.22),
+    "head": (-0.05, 0, 0),
+    "hipL": (0.14, 0, -0.10),
+    "hipR": (-0.12, 0.12, 0.13),
+    "kneeL": (-0.18, 0, 0),
+    "kneeR": (-0.07, 0, 0),
+    "shoulderL": (-0.30, 0, -0.62),
+    "shoulderR": (-0.20, 0, 0.58),
+    "torso": (0.10, 0.22, 0),
 }
 
 
@@ -593,78 +657,87 @@ def build_fodder_legs(side, root, hip_z, thigh, shin, boot, mat_a, mat_b, hip_x=
 
 
 def build_brute():
-    """Heavy melee fodder: a wide low wedge behind a slab shield.
+    """Heavy melee fodder — round 6: the same archetype, thin and tall.
 
-    Round 5 pushes the archetype further apart from the marksman rather than
-    relying on the outline to explain them. Measured on round 4, the two fodder
-    silhouettes overlapped at IoU 0.76 (small) / 0.71 (large) with identical
-    drawn heights — they were the same shape at two widths. So: the brute gets
-    wider and squatter, the marksman taller and thinner, and the two events that
-    survive at eleven pixels — this one's shield, that one's barrel — both get
-    pushed further OUTSIDE the body line where they can break the outline.
+    The cofounder's round-5 note is a taste direction, not a measurement, and it
+    runs the opposite way to every cold critique this lane has had: "make it
+    thinner and taller and play around with negative space between arms and
+    torso, and legs". So the brute keeps its two archetype events — the slab
+    shield outside the body line and the widest shoulders in the roster — and
+    loses the bulk everywhere else. Chest 0.96 -> 0.58 wide, hem 0.72 -> 0.36,
+    limbs a third thinner, and the whole rig ~15% taller.
+
+    Three deliberate consequences, all of them measured in round-6-negative-
+    space.json rather than asserted here:
+
+      * "heavy" can no longer be carried by width, so it moves entirely onto the
+        shield and the pauldrons;
+      * the arm/torso window and the leg gap are now real geometry, wide enough
+        to survive the 1-px contour dilation ONLY above the `large` register;
+      * a 0.58-wide chest at the small register is four art pixels of torso, so
+        the value ladder inside it has fewer rungs to spend.
     """
     root = empty("root")
-    pelvis = empty("pelvis", root, (0.0, 0.0, 0.84))
-    box("hem", (0.72, 0.30, 0.40), (0, 0.0, 0), cel_material(PANTS, CLOTH_BANDS), pelvis)
-    # The bottom rung of the value ladder, and where kit actually gets dirty.
-    detail_box("hem_wear", (0.66, 0.11, 0.34), (0, -0.13, 0.0),
+    pelvis = empty("pelvis", root, (0.0, 0.0, 1.10))
+    # The hem is the narrowest part of the body on purpose: it is the mass the
+    # leg gap has to open BELOW, and every millimetre of skirt is a row of
+    # daylight that never happens.
+    box("hem", (0.36, 0.30, 0.26), (0, 0.0, 0), cel_material(PANTS, CLOTH_BANDS), pelvis)
+    detail_box("hem_wear", (0.34, 0.11, 0.24), (0, -0.13, 0.0),
                cel_material(FODDER_GRIME, CLOTH_BANDS), pelvis)
 
-    torso = empty("torso", pelvis, (0.0, 0.0, 0.18))
-    # Deliberately the widest mass in the roster: at 11 px the only thing that
-    # says "heavy" is being wider than everything beside you.
-    box("chest", (0.96, 0.46, 0.46), (0, 0.23, 0),
+    torso = empty("torso", pelvis, (0.0, 0.0, 0.20))
+    box("chest", (0.58, 0.60, 0.34), (0, 0.26, 0),
         cel_material(FODDER_LIVERY, CLOTH_BANDS), torso)
-    box("plate", (0.62, 0.30, 0.12), (0, 0.26, 0.23), cel_material(FODDER_PLATE, CLOTH_BANDS), torso)
-    # A darker panel down the front of the livery: the value break that keeps
-    # the biggest mass on the unit from being one flat rectangle of colour.
-    box("tabard", (0.30, 0.46, 0.09), (0, 0.02, 0.26),
+    box("plate", (0.44, 0.34, 0.10), (0, 0.34, 0.17), cel_material(FODDER_PLATE, CLOTH_BANDS), torso)
+    box("tabard", (0.20, 0.56, 0.08), (0, 0.02, 0.19),
         cel_material(FODDER_LIVERY_DK, CLOTH_BANDS), torso)
-    detail_box("plate_chip", (0.16, 0.11, 0.05), (-0.20, 0.14, 0.28), flat_material(SCUFF), torso)
-    box("collar", (0.74, 0.14, 0.36), (0, 0.45, -0.02), cel_material(COAT_DARK, CLOTH_BANDS), torso)
+    detail_box("plate_chip", (0.13, 0.11, 0.05), (-0.14, 0.20, 0.21), flat_material(SCUFF), torso)
+    box("collar", (0.44, 0.14, 0.28), (0, 0.56, -0.02), cel_material(COAT_DARK, CLOTH_BANDS), torso)
 
-    head = empty("head", torso, (0.0, 0.0, 0.42))
-    box("helm", (0.36, 0.28, 0.32), (0, 0.12, -0.02), cel_material(HOOD, CLOTH_BANDS), head)
-    detail_box("slit", (0.24, 0.05, 0.03), (0, 0.09, 0.16), flat_material(FODDER_OPTIC), head)
+    head = empty("head", torso, (0.0, 0.0, 0.66))
+    box("helm", (0.32, 0.30, 0.30), (0, 0.12, -0.02), cel_material(HOOD, CLOTH_BANDS), head)
+    detail_box("slit", (0.22, 0.05, 0.03), (0, 0.09, 0.15), flat_material(FODDER_OPTIC), head)
 
-    shoulder_l = empty("shoulderL", torso, (-0.52, 0.0, 0.38))
-    # Pauldrons are the TOP of the value ladder. They sit where the key hits
-    # first, so the figure reads light-over-dark down its whole height.
-    box("pauldL", (0.30, 0.20, 0.32), (-0.02, 0.06, 0),
+    # Shoulders sit WIDER than the chest by more than half a chest width. That
+    # offset plus the outward roll in BRUTE_BIND is the whole negative-space
+    # mechanism: the arm leaves at the shoulder and the torso does not follow.
+    shoulder_l = empty("shoulderL", torso, (-0.44, 0.0, 0.54))
+    box("pauldL", (0.26, 0.18, 0.28), (-0.03, 0.05, 0),
         cel_material(FODDER_PAULDRON, CLOTH_BANDS), shoulder_l)
-    box("armL", (0.26, 0.30, 0.26), (0, -0.18, 0),
-        cel_material(FODDER_CLOTH_DK, CLOTH_BANDS), shoulder_l)
-    elbow_l = empty("elbowL", shoulder_l, (0.0, 0.0, -0.36))
-    box("foreL", (0.22, 0.26, 0.24), (0, -0.14, 0), cel_material(COAT_DARK, CLOTH_BANDS), elbow_l)
-    # The read. A slab hung off the left arm, forward of and well outside the
-    # body: from every facing it puts a hard rectangle beside the torso, which
-    # is the one silhouette event that survives being nine pixels tall.
-    box("shield", (0.42, 1.16, 0.20), (-0.22, -0.18, 0.26),
+    box("armL", (0.16, 0.34, 0.17), (0, -0.20, 0),
+        cel_material(FODDER_SLEEVE, CLOTH_BANDS), shoulder_l)
+    elbow_l = empty("elbowL", shoulder_l, (0.0, 0.0, -0.40))
+    box("foreL", (0.14, 0.30, 0.15), (0, -0.16, 0), cel_material(FODDER_GLOVE, CLOTH_BANDS), elbow_l)
+    # The shield goes narrower and TALLER with the rig. It is still the widest
+    # single event on the unit, but it is now a plank rather than a door, which
+    # is what stops a thin figure being re-fattened by the thing it carries.
+    box("shield", (0.26, 1.00, 0.15), (-0.22, -0.14, 0.16),
         cel_material(FODDER_SHIELD, CLOTH_BANDS), elbow_l)
-    box("shield_rim", (0.46, 0.16, 0.22), (-0.22, -0.76, 0.26),
+    box("shield_rim", (0.30, 0.14, 0.17), (-0.22, -0.64, 0.16),
         cel_material(FODDER_PLATE, CLOTH_BANDS), elbow_l)
-    detail_box("shield_mark", (0.24, 0.32, 0.06), (-0.22, -0.14, 0.37),
+    detail_box("shield_mark", (0.15, 0.28, 0.06), (-0.22, -0.12, 0.24),
                cel_material(FODDER_LIVERY, CLOTH_BANDS), elbow_l)
 
-    shoulder_r = empty("shoulderR", torso, (0.52, 0.0, 0.38))
-    box("pauldR", (0.30, 0.20, 0.32), (0.02, 0.06, 0),
+    shoulder_r = empty("shoulderR", torso, (0.44, 0.0, 0.54))
+    box("pauldR", (0.26, 0.18, 0.28), (0.03, 0.05, 0),
         cel_material(FODDER_PAULDRON, CLOTH_BANDS), shoulder_r)
-    box("armR", (0.26, 0.30, 0.26), (0, -0.18, 0),
-        cel_material(FODDER_CLOTH_DK, CLOTH_BANDS), shoulder_r)
-    elbow_r = empty("elbowR", shoulder_r, (0.0, 0.0, -0.36))
-    box("foreR", (0.20, 0.26, 0.22), (0, -0.14, 0), cel_material(SKIN), elbow_r)
-    hand_r = empty("handR", elbow_r, (0.0, 0.0, -0.28))
-    box("haft", (0.09, 0.26, 0.09), (0, -0.10, 0.02), cel_material(BOOT, CLOTH_BANDS), hand_r)
-    box("cleaver", (0.14, 0.54, 0.40), (0, -0.40, 0.14),
+    box("armR", (0.16, 0.34, 0.17), (0, -0.20, 0),
+        cel_material(FODDER_SLEEVE, CLOTH_BANDS), shoulder_r)
+    elbow_r = empty("elbowR", shoulder_r, (0.0, 0.0, -0.40))
+    box("foreR", (0.14, 0.30, 0.15), (0, -0.16, 0), cel_material(SKIN), elbow_r)
+    hand_r = empty("handR", elbow_r, (0.0, 0.0, -0.32))
+    box("haft", (0.08, 0.26, 0.08), (0, -0.10, 0.02), cel_material(BOOT, CLOTH_BANDS), hand_r)
+    box("cleaver", (0.11, 0.56, 0.36), (0, -0.42, 0.13),
         cel_material(FODDER_STEEL, FODDER_METAL_BANDS), hand_r)
 
     hip_l, knee_l = build_fodder_legs(
-        -1, root, 0.68, (0.30, 0.26, 0.30), (0.26, 0.24, 0.28), (0.32, 0.16, 0.42),
-        PANTS, FODDER_GRIME, hip_x=0.19, boot_mat=BOOT,
+        -1, root, 0.96, (0.18, 0.42, 0.20), (0.16, 0.40, 0.18), (0.26, 0.16, 0.38),
+        PANTS, FODDER_GRIME, hip_x=0.23, boot_mat=BOOT,
     )
     hip_r, knee_r = build_fodder_legs(
-        1, root, 0.68, (0.30, 0.26, 0.30), (0.26, 0.24, 0.28), (0.32, 0.16, 0.42),
-        PANTS, FODDER_GRIME, hip_x=0.19, boot_mat=BOOT,
+        1, root, 0.96, (0.18, 0.42, 0.20), (0.16, 0.40, 0.18), (0.26, 0.16, 0.38),
+        PANTS, FODDER_GRIME, hip_x=0.23, boot_mat=BOOT,
     )
 
     return {
@@ -684,72 +757,70 @@ def build_marksman():
     one horizontal spike rather than a slightly thinner brute.
     """
     root = empty("root")
-    pelvis = empty("pelvis", root, (0.0, 0.0, 1.06))
-    box("hem", (0.28, 0.26, 0.26), (0, 0.0, 0), cel_material(PANTS, CLOTH_BANDS), pelvis)
-    detail_box("hem_wear", (0.26, 0.09, 0.22), (0, -0.11, 0.0),
+    pelvis = empty("pelvis", root, (0.0, 0.0, 1.24))
+    box("hem", (0.24, 0.26, 0.22), (0, 0.0, 0), cel_material(PANTS, CLOTH_BANDS), pelvis)
+    detail_box("hem_wear", (0.22, 0.09, 0.20), (0, -0.11, 0.0),
                cel_material(FODDER_GRIME, CLOTH_BANDS), pelvis)
 
-    torso = empty("torso", pelvis, (0.0, 0.0, 0.14))
-    # Fuller than the first round-5 pass. Measured at 0.34 wide, the marksman
-    # came out 70% contour with eighteen interior pixels at the small register —
-    # a shape with nothing inside it. The archetype is carried by the barrel and
-    # the aerial, so the torso can afford to be a body.
-    box("chest", (0.38, 0.52, 0.30), (0, 0.24, 0),
+    torso = empty("torso", pelvis, (0.0, 0.0, 0.16))
+    # Round 5 widened this to 0.38 because a 0.34 torso was "70% contour with
+    # eighteen interior pixels". Round 6 takes it back DOWN to 0.32 and buys the
+    # interior back with height instead: the chest is 0.62 tall against round 5's
+    # 0.52, so the same pixel count is spread over a taller, narrower column. It
+    # is the one trade that satisfies "thinner and taller" without emptying the
+    # figure out, and it only works because the register ladder now goes up to 56.
+    box("chest", (0.32, 0.62, 0.26), (0, 0.28, 0),
         cel_material(FODDER_LIVERY, CLOTH_BANDS), torso)
-    box("sash", (0.40, 0.13, 0.07), (0, 0.22, 0.15),
+    box("sash", (0.34, 0.13, 0.06), (0, 0.26, 0.13),
         cel_material(FODDER_LIVERY_DK, CLOTH_BANDS), torso, rot=(0, 0, 0.62))
-    detail_box("bandolier", (0.34, 0.08, 0.04), (0, 0.06, 0.15), flat_material(STRAP), torso,
+    detail_box("bandolier", (0.30, 0.08, 0.04), (0, 0.08, 0.13), flat_material(STRAP), torso,
                rot=(0, 0, 0.6))
-    # Tall thin pack + aerial: the top of this silhouette must not be a dome,
-    # because a dome at 11 px is the same shape as the brute's helm.
-    box("pack", (0.22, 0.52, 0.18), (0, 0.20, -0.23), cel_material(PACK, CLOTH_BANDS), torso)
-    box("aerial", (0.05, 0.60, 0.05), (0.10, 0.70, -0.23), cel_material(AERIAL), torso,
+    box("pack", (0.18, 0.56, 0.15), (0, 0.24, -0.19), cel_material(PACK, CLOTH_BANDS), torso)
+    box("aerial", (0.05, 0.66, 0.05), (0.09, 0.80, -0.19), cel_material(AERIAL), torso,
         rot=(0, 0, -0.13))
 
-    head = empty("head", torso, (0.0, 0.0, 0.46))
-    # The livery goes on the HEAD as well as the chest for this archetype. A
-    # marksman is a vertical line: measured at the mid register it carries 33
-    # interior pixels against the brute's 62, and the head is the one place on
-    # it that has pixels from every facing. On the brute the torso is enough.
-    box("cowl", (0.24, 0.30, 0.26), (0, 0.12, -0.01),
+    head = empty("head", torso, (0.0, 0.0, 0.62))
+    box("cowl", (0.22, 0.30, 0.24), (0, 0.12, -0.01),
         cel_material(FODDER_LIVERY, CLOTH_BANDS), head)
-    detail_box("optic", (0.17, 0.06, 0.03), (0, 0.10, 0.14), flat_material(FODDER_OPTIC), head)
+    detail_box("optic", (0.16, 0.06, 0.03), (0, 0.10, 0.13), flat_material(FODDER_OPTIC), head)
 
-    shoulder_l = empty("shoulderL", torso, (-0.19, 0.0, 0.40))
-    box("pauldL", (0.19, 0.14, 0.20), (-0.01, 0.05, 0),
+    # Shoulders at +/-0.26 against a 0.32 chest: the arm hangs entirely outside
+    # the torso column before the outward roll is applied at all.
+    shoulder_l = empty("shoulderL", torso, (-0.30, 0.0, 0.52))
+    box("pauldL", (0.16, 0.13, 0.17), (-0.01, 0.05, 0),
         cel_material(FODDER_PAULDRON, CLOTH_BANDS), shoulder_l)
-    box("armL", (0.13, 0.30, 0.15), (0, -0.17, 0),
-        cel_material(FODDER_CLOTH_DK, CLOTH_BANDS), shoulder_l)
-    elbow_l = empty("elbowL", shoulder_l, (0.0, 0.0, -0.30))
-    box("foreL", (0.13, 0.24, 0.14), (0, -0.13, 0), cel_material(COAT_DARK, CLOTH_BANDS), elbow_l)
+    box("armL", (0.11, 0.32, 0.12), (0, -0.18, 0),
+        cel_material(FODDER_SLEEVE, CLOTH_BANDS), shoulder_l)
+    elbow_l = empty("elbowL", shoulder_l, (0.0, 0.0, -0.34))
+    box("foreL", (0.11, 0.26, 0.12), (0, -0.14, 0), cel_material(FODDER_GLOVE, CLOTH_BANDS), elbow_l)
 
-    shoulder_r = empty("shoulderR", torso, (0.19, 0.0, 0.40))
-    box("pauldR", (0.19, 0.14, 0.20), (0.01, 0.05, 0),
+    shoulder_r = empty("shoulderR", torso, (0.30, 0.0, 0.52))
+    box("pauldR", (0.16, 0.13, 0.17), (0.01, 0.05, 0),
         cel_material(FODDER_PAULDRON, CLOTH_BANDS), shoulder_r)
-    box("armR", (0.13, 0.30, 0.15), (0, -0.17, 0),
-        cel_material(FODDER_CLOTH_DK, CLOTH_BANDS), shoulder_r)
-    elbow_r = empty("elbowR", shoulder_r, (0.0, 0.0, -0.30))
-    box("foreR", (0.13, 0.24, 0.14), (0, -0.13, 0), cel_material(SKIN), elbow_r)
+    box("armR", (0.11, 0.32, 0.12), (0, -0.18, 0),
+        cel_material(FODDER_SLEEVE, CLOTH_BANDS), shoulder_r)
+    elbow_r = empty("elbowR", shoulder_r, (0.0, 0.0, -0.34))
+    box("foreR", (0.11, 0.26, 0.12), (0, -0.14, 0), cel_material(SKIN), elbow_r)
 
     # The barrel rides the TORSO, not the hand: at this size a weapon that
     # swings with a 3-px forearm reads as jitter rather than as a weapon.
-    weapon = empty("weapon", torso, (0.15, 0.06, 0.15))
-    box("barrel", (0.10, 0.10, 1.26), (0, 0, 0.62),
+    weapon = empty("weapon", torso, (0.13, 0.10, 0.13))
+    box("barrel", (0.09, 0.09, 1.34), (0, 0, 0.66),
         cel_material(FODDER_STEEL, FODDER_METAL_BANDS), weapon)
-    box("stock", (0.10, 0.18, 0.32), (0, -0.05, -0.14), cel_material(BOOT, CLOTH_BANDS), weapon)
-    detail_box("scope", (0.08, 0.11, 0.20), (0, 0.11, 0.18),
+    box("stock", (0.09, 0.17, 0.30), (0, -0.05, -0.14), cel_material(BOOT, CLOTH_BANDS), weapon)
+    detail_box("scope", (0.07, 0.11, 0.19), (0, 0.11, 0.18),
                cel_material(FODDER_PLATE, CLOTH_BANDS), weapon)
-    muzzle = empty("muzzle", weapon, (0.0, 0.02, 1.20))
+    muzzle = empty("muzzle", weapon, (0.0, 0.02, 1.28))
     box("flash_core", (0.16, 0.16, 0.14), (0, 0, 0), flat_material(SIGNAL_HOT), muzzle)
     box("flash_bar", (0.30, 0.06, 0.10), (0, 0, 0), flat_material(SIGNAL), muzzle)
 
     hip_l, knee_l = build_fodder_legs(
-        -1, root, 0.94, (0.15, 0.44, 0.18), (0.14, 0.40, 0.16), (0.20, 0.14, 0.34),
-        PANTS, SHIN, hip_x=0.12, boot_mat=FODDER_GRIME,
+        -1, root, 1.10, (0.13, 0.50, 0.15), (0.12, 0.46, 0.14), (0.20, 0.14, 0.32),
+        PANTS, SHIN, hip_x=0.19, boot_mat=FODDER_GRIME,
     )
     hip_r, knee_r = build_fodder_legs(
-        1, root, 0.94, (0.15, 0.44, 0.18), (0.14, 0.40, 0.16), (0.20, 0.14, 0.34),
-        PANTS, SHIN, hip_x=0.12, boot_mat=FODDER_GRIME,
+        1, root, 1.10, (0.13, 0.50, 0.15), (0.12, 0.46, 0.14), (0.20, 0.14, 0.32),
+        PANTS, SHIN, hip_x=0.19, boot_mat=FODDER_GRIME,
     )
 
     return {
@@ -759,6 +830,132 @@ def build_marksman():
         "hipL": hip_l, "kneeL": knee_l, "hipR": hip_r, "kneeR": knee_r,
         "muzzle": muzzle,
         "_bind": MARKSMAN_BIND,
+    }
+
+
+def build_ranger():
+    """The metal-slug-tactics hero, as a rig rather than as a redraw.
+
+    Read alongside `build_medic`: same seam, same camera, same clips, same
+    materials system. Everything that differs is proportion and pose, which is
+    the whole argument for a procedural lane — a second hero silhouette cost one
+    function and about eleven seconds of Blender, where a hand-authored lane owes
+    a full second character at every register on the ladder.
+    """
+    root = empty("root")
+
+    # Legs first: this rig's contact patch is load-bearing, not an afterthought.
+    hip_l, knee_l = build_fodder_legs(
+        -1, root, 1.02, (0.19, 0.44, 0.21), (0.17, 0.42, 0.19), (0.30, 0.16, 0.44),
+        MST_TROUSER, MST_TROUSER_DK, hip_x=0.24, boot_mat=MST_BOOT,
+    )
+    hip_r, knee_r = build_fodder_legs(
+        1, root, 1.02, (0.19, 0.44, 0.21), (0.17, 0.42, 0.19), (0.30, 0.16, 0.44),
+        MST_TROUSER, MST_TROUSER_DK, hip_x=0.24, boot_mat=MST_BOOT,
+    )
+    # A dark sole under each boot. It is the bottom rung of the value ladder and
+    # it is also the thing that makes contact legible: a light boot ending in
+    # nothing reads as hovering, a light boot ending in a hard dark line reads as
+    # standing on something.
+    for knee, side in ((knee_l, -1), (knee_r, 1)):
+        box("sole", (0.32, 0.07, 0.46), (0, -0.60, 0.02),
+            cel_material(MST_BOOT_DK, CLOTH_BANDS), knee)
+        detail_box("boot_cuff", (0.33, 0.09, 0.34), (0, -0.44, -0.04),
+                   cel_material(MST_STRAP, CLOTH_BANDS), knee)
+        del side
+
+    pelvis = empty("pelvis", root, (0.0, 0.0, 1.16))
+    box("belt", (0.34, 0.16, 0.28), (0, 0.0, 0), cel_material(MST_STRAP, CLOTH_BANDS), pelvis)
+    detail_box("buckle", (0.09, 0.09, 0.04), (0.0, 0.0, 0.16), flat_material(METAL), pelvis)
+
+    torso = empty("torso", pelvis, (0.0, 0.0, 0.18))
+    # 0.44 wide against a 2.3-unit rig: narrower, proportionally, than anything
+    # else in the roster. The negative space is bought here first and only then
+    # widened by the shoulder offset.
+    box("chest", (0.44, 0.62, 0.30), (0, 0.28, 0), cel_material(MST_COAT, CLOTH_BANDS), torso)
+    box("chest_shade", (0.17, 0.58, 0.09), (-0.11, 0.28, 0.16),
+        cel_material(MST_COAT_DK, CLOTH_BANDS), torso)
+    # The grid's white chest emblem. It is `pale`, the only bright neutral in the
+    # palette, and it is the single largest non-cloth mass on the front of the
+    # figure — which is what stops a narrow torso reading as an empty column.
+    detail_box("emblem", (0.15, 0.13, 0.04), (0.06, 0.30, 0.17), flat_material(PALE), torso)
+    box("collar", (0.40, 0.13, 0.30), (0, 0.58, -0.01), cel_material(MST_COAT_DK, CLOTH_BANDS), torso)
+    detail_box("harness", (0.46, 0.07, 0.04), (0, 0.20, 0.16), flat_material(MST_STRAP), torso,
+               rot=(0, 0, 0.5))
+    box("pack", (0.28, 0.42, 0.20), (0, 0.26, -0.22), cel_material(MST_COAT_DK, CLOTH_BANDS), torso)
+    detail_box("pack_roll", (0.30, 0.14, 0.16), (0, 0.50, -0.22),
+               cel_material(MST_SLEEVE_DK, CLOTH_BANDS), torso)
+
+    head = empty("head", torso, (0.0, 0.0, 0.66))
+    box("neck", (0.14, 0.10, 0.13), (0, 0.0, 0), cel_material(MST_SKIN_DK), head)
+    # Face, mouth, chin. Three masses where every other rig in this lane has one
+    # block and a visor slit.
+    box("face", (0.26, 0.22, 0.11), (0, 0.13, 0.11), cel_material(MST_SKIN), head)
+    detail_box("mouth", (0.12, 0.05, 0.03), (0, 0.10, 0.17), flat_material(MST_STRAP), head)
+    box("chin", (0.17, 0.09, 0.09), (0, 0.03, 0.10), cel_material(MST_SKIN_DK), head)
+    # The helmet. The brim is the design's signature and it is deliberately wider
+    # than the shoulders: an oversized silhouette event at the TOP of the figure
+    # is what a reader finds first in a crowd.
+    box("helm", (0.36, 0.28, 0.34), (0, 0.30, -0.03), cel_material(MST_COAT_LT, CLOTH_BANDS), head)
+    box("brim", (0.54, 0.09, 0.48), (0, 0.19, 0.04), cel_material(MST_COAT_DK, CLOTH_BANDS), head)
+    detail_box("brim_lip", (0.50, 0.05, 0.07), (0, 0.15, 0.24), flat_material(MST_STRAP), head)
+    # Goggle strap, then two lenses either side of a nose block that stands
+    # PROUD of them — that protrusion is what puts a real cast shadow between the
+    # lenses instead of a painted-on dark pixel.
+    box("goggle", (0.34, 0.11, 0.30), (0, 0.24, 0.02), cel_material(MST_STRAP, CLOTH_BANDS), head)
+    detail_box("lens_l", (0.11, 0.08, 0.05), (-0.08, 0.24, 0.15), flat_material(MST_LENS), head)
+    detail_box("lens_r", (0.11, 0.08, 0.05), (0.08, 0.24, 0.15), flat_material(MST_LENS), head)
+    box("nose", (0.07, 0.16, 0.09), (0, 0.20, 0.17), cel_material(MST_SKIN_DK), head)
+
+    # Arms. Shoulders sit at +/-0.34 against a 0.22 chest half-width, and
+    # RANGER_BIND rolls them further out; the window between arm and torso is
+    # bounded above by the pauldron and open below, which is exactly the shape
+    # the source grid draws.
+    shoulder_l = empty("shoulderL", torso, (-0.38, 0.0, 0.52))
+    box("pauldL", (0.24, 0.16, 0.26), (-0.02, 0.06, 0), cel_material(MST_COAT_LT, CLOTH_BANDS),
+        shoulder_l)
+    box("sleeveL", (0.15, 0.34, 0.16), (0, -0.19, 0), cel_material(MST_SLEEVE, CLOTH_BANDS),
+        shoulder_l)
+    elbow_l = empty("elbowL", shoulder_l, (0.0, 0.0, -0.38))
+    box("foreL", (0.14, 0.30, 0.15), (0, -0.16, 0), cel_material(MST_SLEEVE_DK, CLOTH_BANDS),
+        elbow_l)
+    detail_box("cuffL", (0.16, 0.07, 0.17), (0, -0.03, 0), flat_material(MST_STRAP), elbow_l)
+    hand_l = empty("handL", elbow_l, (0.0, 0.0, -0.34))
+    box("fistL", (0.16, 0.14, 0.15), (0, -0.05, 0), cel_material(MST_GLOVE, CLOTH_BANDS), hand_l)
+
+    shoulder_r = empty("shoulderR", torso, (0.38, 0.0, 0.52))
+    box("pauldR", (0.24, 0.16, 0.26), (0.02, 0.06, 0), cel_material(MST_COAT_LT, CLOTH_BANDS),
+        shoulder_r)
+    box("sleeveR", (0.15, 0.34, 0.16), (0, -0.19, 0), cel_material(MST_SLEEVE, CLOTH_BANDS),
+        shoulder_r)
+    elbow_r = empty("elbowR", shoulder_r, (0.0, 0.0, -0.38))
+    box("foreR", (0.14, 0.30, 0.15), (0, -0.16, 0), cel_material(MST_SLEEVE_DK, CLOTH_BANDS),
+        elbow_r)
+    detail_box("cuffR", (0.16, 0.07, 0.17), (0, -0.03, 0), flat_material(MST_STRAP), elbow_r)
+    hand_r = empty("handR", elbow_r, (0.0, 0.0, -0.34))
+    box("fistR", (0.16, 0.14, 0.15), (0, -0.05, 0), cel_material(MST_GLOVE, CLOTH_BANDS), hand_r)
+
+    # The teal emitter. Named `tip`/`needle`/`burst` so `apply_pose` drives it
+    # with the medic's own emission budget rules and no new branch: one bright
+    # frame of contact, one dim frame, effectively invisible otherwise.
+    tool = empty("tool", hand_r, (0.0, -0.06, -0.06))
+    cylinder("emit_body", 0.07, 0.36, (0, -0.02, 0.16), cel_material(METAL, METAL_BANDS), tool)
+    box("emit_grip", (0.08, 0.14, 0.09), (0, -0.10, 0.01), cel_material(MST_STRAP, CLOTH_BANDS),
+        tool)
+    detail_box("emit_band", (0.09, 0.09, 0.05), (0, 0.02, 0.24), flat_material(MST_SLEEVE), tool)
+    tip = empty("tip", tool, (0.0, -0.02, 0.36))
+    needle = cylinder("emit_core", 0.045, 0.11, (0, 0, 0), flat_material(SIGNAL), tip)
+    burst = empty("burst", tool, (0.0, -0.02, 0.50))
+    box("burst_core", (0.20, 0.20, 0.06), (0, 0, 0), flat_material(SIGNAL_HOT), burst)
+    box("burst_bar", (0.34, 0.07, 0.05), (0, 0, 0), flat_material(SIGNAL), burst)
+
+    return {
+        "root": root, "pelvis": pelvis, "torso": torso, "head": head,
+        "shoulderL": shoulder_l, "elbowL": elbow_l,
+        "shoulderR": shoulder_r, "elbowR": elbow_r,
+        "hipL": hip_l, "kneeL": knee_l, "hipR": hip_r, "kneeR": knee_r,
+        "tip": tip, "needle": needle, "burst": burst,
+        "_bind": RANGER_BIND,
     }
 
 
@@ -779,6 +976,25 @@ BIND = {
     "shoulderL": (0.12, 0, 0.06),
     "shoulderR": (-0.15, 0, -0.08),
     "torso": (0.07, 0.1, 0),
+}
+
+# The asymmetric stance, kept because it is the source design's rarest property:
+# an independent judge measured its mask symmetry at 0.614 where every other
+# candidate in the fan-out sat between 0.72 and 0.89. Nothing here mirrors —
+# different shoulder roll, different elbow break, different hip angle, weight on
+# the left leg. It costs nothing (a bind table is ten tuples) and it is the
+# difference between a character and a mannequin standing at attention.
+RANGER_BIND = {
+    "elbowL": (-0.46, 0, -0.20),
+    "elbowR": (-0.86, 0.10, 0.16),
+    "head": (0.03, -0.16, 0),
+    "hipL": (0.16, 0, -0.15),
+    "hipR": (-0.20, 0.16, 0.19),
+    "kneeL": (-0.10, 0, 0),
+    "kneeR": (-0.22, 0, 0),
+    "shoulderL": (0.10, 0, -0.60),
+    "shoulderR": (-0.30, 0, 0.50),
+    "torso": (0.05, 0.14, -0.04),
 }
 
 JOINTS = ("torso", "head", "shoulderL", "elbowL", "shoulderR", "elbowR",
@@ -983,12 +1199,14 @@ RIGS = {
     "brute": build_brute,
     "marksman": build_marksman,
     "medic": build_medic,
+    "ranger": build_ranger,
 }
 
 CLIPS = {
     "brute": {"attack": brute_attack, "idle": fodder_idle, "idle_b": fodder_idle_b},
     "marksman": {"attack": marksman_attack, "idle": fodder_idle, "idle_b": fodder_idle_b},
     "medic": {"attack": attack_pose, "idle": idle_pose, "pivot": pivot_pose},
+    "ranger": {"attack": attack_pose, "idle": idle_pose, "pivot": pivot_pose},
 }
 
 
@@ -1097,6 +1315,46 @@ def set_pass(mode):
         obj.data.materials[0] = id_mat if mode == "id" else cel_mat
 
 
+def authored_height_units(rig, mount, facings):
+    """How tall this rig DRAWS at unit scale, in world units, over the facing ring.
+
+    Projected onto the camera's up axis rather than measured in world Z, because
+    those are not the same number: the camera is a 2:1 dimetric ortho, so a
+    horizontal extent contributes 0.354 of itself to the sprite's height and a
+    vertical one contributes 0.866. The marksman's barrel is horizontal and its
+    aerial is vertical; taking world Z would have called it 45 art px tall when
+    it draws 41, and every tier ratio downstream would inherit the error.
+
+    Maxed over the eight facings for the same reason `standingArtPx` is: the cell
+    has to hold the tallest one, and a ratio quoted from the shortest facing is a
+    ratio quoted from the flattering facing.
+
+    Round 5 shipped a real arithmetic bug that this exists to close. Every rig
+    was scaled by `bodyArtPx / HERO_BODY_ART_PX`, where the constant is the
+    MEDIC's authored height — so two rigs asked for "the same 22 px" drew at
+    different heights, and the hero:ranged size ratio fell from a clean 1.27 to
+    1.08 at the small register the moment round 5 lengthened the marksman. The
+    fix is arithmetic, and it needs the one number Python is in a position to
+    know: how tall the rig actually is. TypeScript reads this back and asserts it
+    against its own table, so the table can never silently drift again.
+    """
+    tallest = 0.0
+    for facing in range(facings):
+        apply_pose(rig, empty_pose(), -facing * (TAU / facings))
+        bpy.context.view_layer.update()
+        low = None
+        high = None
+        for obj, _cel, _id in _PARTS:
+            for corner in obj.bound_box:
+                point = obj.matrix_world @ mathutils.Vector(corner)
+                up = point.x * CAM_UP[0] + point.y * CAM_UP[1] + point.z * CAM_UP[2]
+                low = up if low is None else min(low, up)
+                high = up if high is None else max(high, up)
+        if low is not None and high is not None:
+            tallest = max(tallest, high - low)
+    return tallest / max(1e-9, mount.scale.z)
+
+
 def main():
     started = time.time()
     argv = sys.argv[sys.argv.index("--") + 1:]
@@ -1118,6 +1376,8 @@ def main():
     rig["root"].parent = mount
     mount.scale = (unit_scale, unit_scale, unit_scale)
     setup_camera(spec)
+
+    authored_height = authored_height_units(rig, mount, spec["facings"])
 
     out_dir = spec["workDir"]
     facings = spec["facings"]
@@ -1159,6 +1419,7 @@ def main():
         "unit": unit,
         "unitScale": unit_scale,
         "droppedDetails": _DROPPED[0],
+        "authoredHeightUnits": round(authored_height, 4),
         "cell": spec["cell"],
         "supersample": spec["supersample"],
         "pixelsPerUnit": spec["pixelsPerUnit"],

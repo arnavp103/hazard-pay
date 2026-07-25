@@ -1,33 +1,45 @@
 /**
- * THROWAWAY PROTOTYPE (#82), round 4: gallery plates built from the atlas.
+ * THROWAWAY PROTOTYPE (#82), round 6: gallery plates built from the atlas.
  *
- * `pnpm --filter @hazard-pay/webapp gallery`. Everything here reads the
- * SHIPPED files out of `public/blender-baked` — the same PNG and JSON the
- * browser loads — so a plate cannot flatter the artifact by rendering from an
- * earlier pipeline stage. That specific mistake has cost this lane a cold
- * critique already.
+ * `pnpm --filter @hazard-pay/webapp gallery`. Everything here reads the SHIPPED
+ * files out of `public/blender-baked` — the same PNG and JSON the browser loads
+ * — so a plate cannot flatter the artifact by rendering from an earlier pipeline
+ * stage. That specific mistake has cost this lane a cold critique already.
  *
- * Round 5 writes into `screenshots/blender-baked-lane/round-5/` and leaves
- * round 4's plates where they are: the two rounds are meant to be comparable,
- * and overwriting the older evidence with the newer artifact would make that
- * impossible. It adds two plates the round-4 gallery did not have — the two
- * fodder archetypes ADJACENT, which is how the crowd actually presents them,
- * and the same cell inked both ways, which is the contour A/B.
+ * Round 6 writes into `screenshots/blender-baked-lane/round-6/` and leaves
+ * round 5's plates where they are. It adds four plates the round-5 gallery did
+ * not have:
+ *
+ *  - the whole register ladder on ONE plate, so 22 -> 56 is a progression rather
+ *    than five separate images a reader has to hold in their head;
+ *  - the metal-slug-tactics hero at every register, alone and beside the medic;
+ *  - the NEGATIVE-SPACE plate, which paints every interior background pixel that
+ *    survived to the atlas in a flat marker colour. It is the only plate in this
+ *    lane whose subject is the absence of pixels, and it is measured on the
+ *    decoded atlas rather than on the render for exactly that reason;
+ *  - the thin-and-tall A/B against round 5, which needs the round-5 atlases and
+ *    therefore takes them from a directory the caller points it at
+ *    (`HP_R5_ATLAS_DIR`) rather than pretending the overwritten ones still exist.
  */
 
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { PNG } from "pngjs";
 
 import { ATLAS_PUBLIC_DIR, CROWD_CONFIGS } from "../framing.ts";
+import { interiorRuns, measureGaps } from "../negative-space.ts";
 import { hexToRgb, INK } from "../palette.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const webappDir = join(dirname(here), "..", "..", "..");
 const publicDir = join(webappDir, "public", ATLAS_PUBLIC_DIR);
-const shotsDir = join(webappDir, "screenshots", "blender-baked-lane", "round-5");
+const shotsDir = join(webappDir, "screenshots", "blender-baked-lane", "round-6");
+const beforeDir = process.env.HP_R5_ATLAS_DIR ?? "";
+
+/** The marker the negative-space plate paints surviving gaps in. */
+const GAP_HEX = "#2f9e96";
 
 interface SheetJson {
   frames: Record<string, {
@@ -47,19 +59,18 @@ interface SheetJson {
   };
 }
 
-function loadAtlas(name: string): { png: PNG; sheet: SheetJson } {
+interface Tile { data: Uint8Array; width: number; height: number }
+interface Atlas { png: PNG; sheet: SheetJson }
+
+function loadAtlas(name: string, dir = publicDir): Atlas {
   return {
-    png: PNG.sync.read(readFileSync(join(publicDir, `${name}.png`))),
-    sheet: JSON.parse(readFileSync(join(publicDir, `${name}.json`), "utf8")) as SheetJson,
+    png: PNG.sync.read(readFileSync(join(dir, `${name}.png`))),
+    sheet: JSON.parse(readFileSync(join(dir, `${name}.json`), "utf8")) as SheetJson,
   };
 }
 
 /** Rebuild one full cell out of the packed atlas — trim undone, as Pixi does. */
-function cellOf(atlas: PNG, sheet: SheetJson, frameName: string): {
-  data: Uint8Array;
-  width: number;
-  height: number;
-} {
+function cellOf(atlas: PNG, sheet: SheetJson, frameName: string): Tile {
   const entry = sheet.frames[frameName];
   if (entry === undefined) { throw new Error(`no frame ${frameName}`); }
   const width = entry.sourceSize.w;
@@ -77,8 +88,6 @@ function cellOf(atlas: PNG, sheet: SheetJson, frameName: string): {
   }
   return { data, height, width };
 }
-
-interface Tile { data: Uint8Array; width: number; height: number }
 
 /** Crop a cell to its opaque bbox so a plate is figures, not empty margin. */
 function trimTile(tile: Tile): Tile {
@@ -166,85 +175,162 @@ export function toGrayscale(png: PNG): PNG {
 }
 
 /**
- * The two archetypes side by side, one facing per column, both factions.
+ * Paint every interior background pixel the figure encloses, in the shipped
+ * atlas cell. Teal is daylight that survived quantization, consolidation and the
+ * contour dilation; everything else on the plate is the sprite as it ships.
  *
- * Round 4 shipped them as two separate 8-facing sheets, which is the one layout
- * that makes archetype separation LOOK solved: a reader compares a brute to a
- * brute. In a crowd they stand next to each other, so that is how the plate has
- * to present them, and the round-5 rig work is meant to be judged on it.
+ * The pixels are painted rather than annotated because at these sizes an arrow
+ * is bigger than the thing it points at.
  */
-function adjacencyPlate(atlas: PNG, sheet: SheetJson, zoom: number): PNG {
-  const facings = [6, 7, 0, 1, 2];
-  const tiles: (Tile | null)[] = [];
-  for (const unit of ["brute_a", "marksman_a", "brute_b", "marksman_b"]) {
-    for (const facing of facings) {
-      const name = sheet.animations[`${unit}_idle_${String(facing)}`]?.[0];
-      tiles.push(name === undefined ? null : trimTile(cellOf(atlas, sheet, name)));
+function gapOverlay(shipped: Tile): Tile {
+  const out: Tile = {
+    data: new Uint8Array(shipped.data), height: shipped.height, width: shipped.width,
+  };
+  const mask = new Uint8Array(shipped.width * shipped.height);
+  for (let i = 0; i < mask.length; i += 1) {
+    mask[i] = (shipped.data[i * 4 + 3] ?? 0) > 0 ? 1 : 0;
+  }
+  const [gr, gg, gb] = hexToRgb(GAP_HEX);
+  for (let y = 0; y < shipped.height; y += 1) {
+    for (const run of interiorRuns(mask, shipped.width, y)) {
+      for (let x = run.x; x < run.x + run.width; x += 1) {
+        const i = y * shipped.width + x;
+        out.data[i * 4] = gr;
+        out.data[i * 4 + 1] = gg;
+        out.data[i * 4 + 2] = gb;
+        out.data[i * 4 + 3] = 0xff;
+      }
     }
   }
-  return plate(tiles, facings.length, 3, zoom);
+  return out;
+}
+
+const FACINGS_SHOWN = [6, 0, 2, 4];
+const LADDER = ["brute_a", "marksman_a", "medic_a", "ranger_a"];
+
+function idleTile(atlas: Atlas, unit: string, facing: number): Tile | null {
+  const name = atlas.sheet.animations[`${unit}_idle_${String(facing)}`]?.[0];
+  return name === undefined ? null : cellOf(atlas.png, atlas.sheet, name);
 }
 
 function main(): void {
   mkdirSync(shotsDir, { recursive: true });
+  const ladderByRegister: (Tile | null)[] = [];
+  const mstByRegister: (Tile | null)[] = [];
+  const summary: Record<string, unknown> = {};
+
   for (const config of CROWD_CONFIGS) {
-    const { png: atlas, sheet } = loadAtlas(config.atlas);
+    const atlas = loadAtlas(config.atlas);
 
-    // Two archetypes adjacent, and the same plate with no hue at all.
-    const adjacent = adjacencyPlate(atlas, sheet, 4);
-    writeFileSync(join(shotsDir, `fodder-loupe-${config.key}.png`), PNG.sync.write(adjacent));
-    writeFileSync(
-      join(shotsDir, `fodder-loupe-${config.key}-gray.png`),
-      PNG.sync.write(toGrayscale(adjacent)),
-    );
-
-    // The contour A/B, from ONE set of Blender renders inked two ways.
-    const control = loadAtlas(`${config.atlas}-norim`);
-    const pair: (Tile | null)[] = [];
-    for (const source of [control, { png: atlas, sheet }]) {
-      for (const unit of ["brute_a", "marksman_a", "medic_a"]) {
-        const name = source.sheet.animations[`${unit}_idle_6`]?.[0];
-        pair.push(name === undefined ? null : trimTile(cellOf(source.png, source.sheet, name)));
-      }
+    // 1. Tier ladder at this register: both fodder, both heroes, both factions.
+    const ladder: (Tile | null)[] = [];
+    for (const unit of [...LADDER, "brute_b", "marksman_b", "medic_b", "ranger_b"]) {
+      const tile = idleTile(atlas, unit, 0);
+      ladder.push(tile === null ? null : trimTile(tile));
     }
-    writeFileSync(
-      join(shotsDir, `contour-ab-${config.key}.png`),
-      PNG.sync.write(plate(pair, 3, 4, 6)),
-    );
-
-    // Archetype sheet: every facing of both fodder archetypes, both factions.
-    const rows: (Tile | null)[] = [];
-    for (const unit of ["brute_a", "marksman_a", "brute_b", "marksman_b"]) {
-      for (let facing = 0; facing < 8; facing += 1) {
-        const track = sheet.animations[`${unit}_idle_${String(facing)}`];
-        const name = track?.[0];
-        rows.push(name === undefined ? null : trimTile(cellOf(atlas, sheet, name)));
-      }
-    }
-    const archetypes = plate(rows, 8, 3, 4);
-    writeFileSync(join(shotsDir, `fodder-archetypes-${config.key}.png`), PNG.sync.write(archetypes));
-
-    // Tier ladder: fodder, fodder, hero at 1x and 4x on one ground line. This
-    // is the plate the #69 resolution fork is actually about.
-    const ladder: Tile[] = [];
-    for (const unit of ["brute_a", "marksman_a", "medic_a", "brute_b", "marksman_b", "medic_b"]) {
-      const name = sheet.animations[`${unit}_idle_0`]?.[0];
-      if (name === undefined) { throw new Error(`no idle for ${unit}`); }
-      ladder.push(trimTile(cellOf(atlas, sheet, name)));
-    }
-    writeFileSync(join(shotsDir, `tier-ladder-${config.key}-1x.png`), PNG.sync.write(plate(ladder, 6, 4, 1)));
-    const zoomed = plate(ladder, 6, 4, 4);
+    writeFileSync(join(shotsDir, `tier-ladder-${config.key}-1x.png`), PNG.sync.write(plate(ladder, 8, 4, 1)));
+    const zoomed = plate(ladder, 8, 4, 4);
     writeFileSync(join(shotsDir, `tier-ladder-${config.key}.png`), PNG.sync.write(zoomed));
-    writeFileSync(
-      join(shotsDir, `tier-ladder-${config.key}-gray.png`),
-      PNG.sync.write(toGrayscale(zoomed)),
-    );
+    writeFileSync(join(shotsDir, `tier-ladder-${config.key}-gray.png`), PNG.sync.write(toGrayscale(zoomed)));
+    for (const unit of LADDER) {
+      const tile = idleTile(atlas, unit, 6);
+      ladderByRegister.push(tile === null ? null : trimTile(tile));
+    }
 
-    const measured = Object.entries(sheet.meta.units)
+    // 2. The metal-slug-tactics hero: every facing, then beside the medic.
+    const mst: (Tile | null)[] = [];
+    for (let facing = 0; facing < 8; facing += 1) {
+      const tile = idleTile(atlas, "ranger_a", facing);
+      mst.push(tile === null ? null : trimTile(tile));
+    }
+    writeFileSync(join(shotsDir, `mst-hero-${config.key}.png`), PNG.sync.write(plate(mst, 8, 3, 5)));
+    const ab: (Tile | null)[] = [];
+    for (const unit of ["medic_a", "ranger_a", "medic_b", "ranger_b"]) {
+      for (const facing of FACINGS_SHOWN) {
+        const tile = idleTile(atlas, unit, facing);
+        ab.push(tile === null ? null : trimTile(tile));
+      }
+    }
+    const abPlate = plate(ab, FACINGS_SHOWN.length, 4, 5);
+    writeFileSync(join(shotsDir, `hero-ab-${config.key}.png`), PNG.sync.write(abPlate));
+    writeFileSync(join(shotsDir, `hero-ab-${config.key}-gray.png`), PNG.sync.write(toGrayscale(abPlate)));
+    const single = idleTile(atlas, "ranger_a", 6);
+    mstByRegister.push(single === null ? null : trimTile(single));
+
+    // 3. The negative-space plate, measured on the decoded atlas.
+    const loupe: (Tile | null)[] = [];
+    const counts: Record<string, unknown> = {};
+    for (const unit of LADDER) {
+      for (const facing of FACINGS_SHOWN) {
+        const shipped = idleTile(atlas, unit, facing);
+        loupe.push(shipped === null ? null : trimTile(gapOverlay(shipped)));
+      }
+      const stats = Array.from({ length: 8 }, (_unused, facing) => {
+        const tile = idleTile(atlas, unit, facing);
+        return tile === null ? null : measureGaps(tile.data, tile.width, tile.height);
+      }).filter((entry) => entry !== null);
+      counts[unit] = {
+        armMaxWidth: stats.map((entry) => entry.arm.maxWidth),
+        armRowsWithGap: stats.map((entry) => entry.arm.rowsWithGap),
+        contactSpan: stats.map((entry) => entry.contactSpan),
+        legMaxWidth: stats.map((entry) => entry.leg.maxWidth),
+        legRowsWithGap: stats.map((entry) => entry.leg.rowsWithGap),
+      };
+    }
+    writeFileSync(
+      join(shotsDir, `negative-space-${config.key}.png`),
+      PNG.sync.write(plate(loupe, FACINGS_SHOWN.length, 4, 4)),
+    );
+    summary[config.key] = counts;
+
+    // 4. Thin-and-tall against round 5, where a round-5 atlas exists to compare.
+    if (beforeDir !== "" && existsSync(join(beforeDir, `${config.atlas}.png`))) {
+      const before = loadAtlas(config.atlas, beforeDir);
+      const pair: (Tile | null)[] = [];
+      for (const source of [before, atlas]) {
+        for (const unit of ["brute_a", "marksman_a", "medic_a"]) {
+          for (const facing of [6, 0]) {
+            const tile = idleTile(source, unit, facing);
+            pair.push(tile === null ? null : trimTile(tile));
+          }
+        }
+      }
+      const thinTall = plate(pair, 6, 4, 5);
+      writeFileSync(join(shotsDir, `thin-tall-ab-${config.key}.png`), PNG.sync.write(thinTall));
+      writeFileSync(join(shotsDir, `thin-tall-ab-${config.key}-gray.png`), PNG.sync.write(toGrayscale(thinTall)));
+    }
+
+    const measured = Object.entries(atlas.sheet.meta.units)
+      .filter(([id]) => id.endsWith("_a"))
       .map(([id, meta]) => `${id}=${String(meta.standingArtPx)}/${String(meta.maxArtPx)}px`)
       .join(" ");
     process.stdout.write(`  ${config.key}: ${measured}\n`);
   }
+
+  // The whole ladder on one plate: four archetypes across five registers, all
+  // standing on one ground line. This is the plate the round-6 resolution
+  // question is actually about.
+  writeFileSync(
+    join(shotsDir, "registers-sidebyside-1x.png"),
+    PNG.sync.write(plate(ladderByRegister, LADDER.length, 4, 1)),
+  );
+  const ladderPlate = plate(ladderByRegister, LADDER.length, 4, 3);
+  writeFileSync(join(shotsDir, "registers-sidebyside.png"), PNG.sync.write(ladderPlate));
+  writeFileSync(join(shotsDir, "registers-sidebyside-gray.png"), PNG.sync.write(toGrayscale(ladderPlate)));
+  const mstPlate = plate(mstByRegister, CROWD_CONFIGS.length, 4, 4);
+  writeFileSync(join(shotsDir, "mst-hero-registers.png"), PNG.sync.write(mstPlate));
+  writeFileSync(join(shotsDir, "mst-hero-registers-gray.png"), PNG.sync.write(toGrayscale(mstPlate)));
+  writeFileSync(
+    join(shotsDir, "gap-plate-index.json"),
+    `${JSON.stringify({
+      legend: {
+        gapMarker: GAP_HEX,
+        note: "teal = interior background that survived quantization, consolidation and the contour",
+      },
+      perFacing: summary,
+    }, null, 2)}\n`,
+  );
+  process.stdout.write("  wrote the round-6 plates\n");
 }
 
 main();

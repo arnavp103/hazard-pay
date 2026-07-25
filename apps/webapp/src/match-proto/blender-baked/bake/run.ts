@@ -35,8 +35,12 @@ import {
   buildRoster,
   crowdMotionStats,
   crowdPixelIdentity,
+  type CrowdUnit,
   FACING_NOTE,
+  formationCapacity,
+  formationFootprint,
   lockFacings,
+  minimumHeroSeparation,
   TREATMENTS,
 } from "../crowd.ts";
 import {
@@ -47,13 +51,16 @@ import {
   CROWD_CONFIGS,
   type CrowdConfig,
   HERO_MARK_HEX,
+  STAGE_PRESETS,
 } from "../framing.ts";
+import { measureGaps, type SpriteGaps, summariseFacings } from "../negative-space.ts";
 import { consolidate } from "../consolidate.ts";
 import { DIRECTION_B_PALETTE, FACTION_B_LIVERY, quantizeToPalette } from "../palette.ts";
 import { compile, compileAtlas, type CompileInput } from "./compile.ts";
 import { CROWD_INK, DEFAULT_INK, inkSprite, RIM_HEX } from "./ink.ts";
 import {
   assertManifestMatchesSpec,
+  assertRigHeight,
   type BakeManifest,
   bakeManifestSchema,
   type BakeSpec,
@@ -66,7 +73,21 @@ const laneDir = dirname(here);
 const webappDir = join(laneDir, "..", "..", "..");
 const workDir = join(webappDir, ".bake");
 const publicDir = join(webappDir, "public", ATLAS_PUBLIC_DIR);
-const shotsDir = join(webappDir, "screenshots", "blender-baked-lane");
+const shotsDir = join(webappDir, "screenshots", "blender-baked-lane", "round-6");
+
+/**
+ * Bake a subset of the register ladder. Round 6 runs five registers with four
+ * rigs each; that is a twenty-minute round trip on a loaded machine, and tuning
+ * geometry against it one register at a time is the difference between four
+ * iterations in an afternoon and one. `HP_BAKE_ONLY=xl pnpm bake` is not a
+ * shipping feature — it is why the rigs below could be tuned against measured
+ * gap widths rather than against a guess.
+ */
+const only = (process.env.HP_BAKE_ONLY ?? "").split(",").map((k) => k.trim()).filter(Boolean);
+const configs = only.length === 0
+  ? CROWD_CONFIGS
+  : CROWD_CONFIGS.filter((config) => only.includes(config.key));
+const skipPortrait = process.env.HP_BAKE_SKIP_PORTRAIT === "1";
 const scriptPath = join(here, "unit_bake.py");
 
 /** The comparison crop, relative to the cell anchor. */
@@ -87,6 +108,11 @@ async function runBlender(spec: BakeSpec, specPath: string): Promise<BakeManifes
 
   const manifest = bakeManifestSchema.parse(JSON.parse(readFileSync(spec.manifestPath, "utf8")));
   assertManifestMatchesSpec(manifest, spec);
+  // Every tier size on the ladder is derived from the rig's authored height.
+  // Round 5 shipped a 1.08x "1.28x boost" because that constant was wrong for
+  // two rigs out of three, so it is now checked against the geometry Blender
+  // built on every single bake rather than reviewed once.
+  assertRigHeight(manifest);
   process.stdout.write(
     `  ${manifest.unit} @${manifest.unitScale.toFixed(3)}x · ${String(manifest.partCount)} parts `
     + `(${String(manifest.droppedDetails)} details below the readable floor) · `
@@ -267,6 +293,148 @@ function secondIdleCost(result: ReturnType<typeof compileAtlas>): unknown {
     // What the rest of the atlas would cost on its own — i.e. the growth a
     // decision is actually being asked to approve.
     growthOverOneIdle: Number((share / Math.max(1e-9, 1 - share)).toFixed(4)),
+  };
+}
+
+interface SheetJson {
+  frames: Record<string, {
+    frame: { x: number; y: number; w: number; h: number };
+    spriteSourceSize: { x: number; y: number; w: number; h: number };
+    sourceSize: { w: number; h: number };
+  }>;
+  animations: Record<string, string[]>;
+}
+
+/** Rebuild one full cell out of the packed atlas on disk — trim undone. */
+function cellFromAtlas(atlas: PNG, sheet: SheetJson, frameName: string): {
+  data: Uint8Array;
+  width: number;
+  height: number;
+} {
+  const entry = sheet.frames[frameName];
+  if (entry === undefined) { throw new Error(`no frame ${frameName}`); }
+  const width = entry.sourceSize.w;
+  const height = entry.sourceSize.h;
+  const data = new Uint8Array(width * height * 4);
+  for (let y = 0; y < entry.frame.h; y += 1) {
+    for (let x = 0; x < entry.frame.w; x += 1) {
+      const from = ((entry.frame.y + y) * atlas.width + entry.frame.x + x) * 4;
+      const to = ((entry.spriteSourceSize.y + y) * width + entry.spriteSourceSize.x + x) * 4;
+      data[to] = atlas.data[from] ?? 0;
+      data[to + 1] = atlas.data[from + 1] ?? 0;
+      data[to + 2] = atlas.data[from + 2] ?? 0;
+      data[to + 3] = atlas.data[from + 3] ?? 0;
+    }
+  }
+  return { data, height, width };
+}
+
+/**
+ * The round-6 headline, measured at three stages of the same pipeline.
+ *
+ * `render` is Blender's alpha before anything is drawn on it. `quantized` is
+ * after the palette lock and the cluster consolidation. `shipped` is decoded
+ * back out of the atlas PNG that the browser loads — not the in-memory cell that
+ * produced it, because this lane has published a mid-pipeline number as the
+ * artifact once already and the whole point of the exercise is whether the gaps
+ * are still there at the end.
+ *
+ * The three-stage shape is not decoration. The contour pass dilates the
+ * silhouette one pixel outward on eight neighbours, which closes an interior gap
+ * from BOTH sides: the arithmetic is `shipped = render - 2`, and the difference
+ * between `render` and `shipped` is precisely the budget the direction has to
+ * clear before a gap is real.
+ */
+function measureNegativeSpace(
+  baked: BakedConfig,
+  config: CrowdConfig,
+  atlasPath: string,
+  sheetPath: string,
+): unknown {
+  const atlas = PNG.sync.read(readFileSync(atlasPath));
+  const sheet = JSON.parse(readFileSync(sheetPath, "utf8")) as SheetJson;
+  const out: Record<string, unknown> = {};
+
+  for (const unit of config.units) {
+    const idleFrames = baked.result.frames.filter(
+      (frame) => frame.unit === `${unit.id}_a` && frame.clip === "idle" && frame.frame === 0,
+    ).sort((a, b) => a.facing - b.facing);
+    const render: SpriteGaps[] = [];
+    const quantized: SpriteGaps[] = [];
+    const shipped: SpriteGaps[] = [];
+    const marked: SpriteGaps[] = [];
+    for (const frame of idleFrames) {
+      render.push(measureGaps(frame.raw, frame.cell.width, frame.cell.height));
+      quantized.push(measureGaps(frame.quantized, frame.cell.width, frame.cell.height));
+      const cell = cellFromAtlas(atlas, sheet, frame.name);
+      shipped.push(measureGaps(cell.data, cell.width, cell.height));
+      if (unit.tier !== "hero") { continue; }
+      const markedName = `${unit.id}_a_marked_idle_00_${String(frame.facing)}`;
+      const markedFrame = sheet.frames[markedName] === undefined ? null : markedName;
+      if (markedFrame === null) { continue; }
+      const ringed = cellFromAtlas(atlas, sheet, markedFrame);
+      marked.push(measureGaps(ringed.data, ringed.width, ringed.height));
+    }
+    out[unit.id] = {
+      tier: unit.tier,
+      targetBodyArtPx: unit.bodyArtPx,
+      scale: Number(unit.scale.toFixed(4)),
+      render: summariseFacings(render),
+      quantized: summariseFacings(quantized),
+      shipped: summariseFacings(shipped),
+      ...(marked.length > 0 ? { shippedWithOutwardMark: summariseFacings(marked) } : {}),
+    };
+  }
+  return out;
+}
+
+/**
+ * Units per board, and what the army covers, at this register on each aperture.
+ *
+ * The extents come from the frames that were just compiled — the widest and
+ * tallest a unit gets across its whole idle ring, relative to its own anchor —
+ * so this counts the sprites that exist rather than the cells they were
+ * authored into.
+ */
+function measureBoardCapacity(baked: BakedConfig, config: CrowdConfig): unknown {
+  const extents = new Map<string, { left: number; right: number; up: number; down: number }>();
+  for (const unit of config.units) {
+    const anchor = unit.anchor;
+    let left = 0;
+    let right = 0;
+    let up = 0;
+    let down = 0;
+    for (const frame of baked.result.frames) {
+      if (frame.unit !== `${unit.id}_a`) { continue; }
+      left = Math.max(left, anchor.x - frame.trim.x);
+      right = Math.max(right, frame.trim.x + frame.trim.width - anchor.x);
+      up = Math.max(up, anchor.y - frame.trim.y);
+      down = Math.max(down, frame.trim.y + frame.trim.height - anchor.y);
+    }
+    extents.set(unit.id, { down, left, right, up });
+  }
+  const extentFor = (unit: CrowdUnit): { left: number; right: number; up: number; down: number } =>
+    extents.get(unit.rig) ?? { down: 0, left: 0, right: 0, up: 0 };
+
+  const perStage: Record<string, unknown> = {};
+  for (const preset of STAGE_PRESETS) {
+    const aperture = { artHeight: preset.artHeight, artWidth: preset.artWidth };
+    const roster = buildRoster(config, 0x5a17, aperture);
+    perStage[preset.key] = {
+      label: preset.label,
+      stagePx: `${String(preset.width)}x${String(preset.height)}`,
+      artPx: `${String(preset.artWidth)}x${String(preset.artHeight)}`,
+      publishedRoster: {
+        units: roster.length,
+        footprint: formationFootprint(roster, extentFor, aperture),
+        minimumHeroSeparationArtPx: minimumHeroSeparation(roster),
+      },
+      capacity: formationCapacity(config, extentFor, aperture),
+    };
+  }
+  return {
+    spriteExtentsArtPx: Object.fromEntries(extents),
+    stages: perStage,
   };
 }
 
@@ -483,12 +651,20 @@ async function main(): Promise<void> {
     + `  bake wall clock ${wallClockSeconds.toFixed(2)}s\n`,
   );
 
-  const configs: Record<string, unknown> = {};
+  const configReports: Record<string, unknown> = {};
+  const negativeSpace: Record<string, unknown> = {};
+  const boardCapacity: Record<string, unknown> = {};
   let crowdWallClock = 0;
-  for (const config of CROWD_CONFIGS) {
+  for (const config of configs) {
     const baked = await bakeCrowdConfig(config);
     crowdWallClock += baked.wallClockSeconds;
     const audit = measureShippedAtlas(join(publicDir, `${config.atlas}.png`));
+    negativeSpace[config.key] = measureNegativeSpace(
+      baked, config,
+      join(publicDir, `${config.atlas}.png`),
+      join(publicDir, `${config.atlas}.json`),
+    );
+    boardCapacity[config.key] = measureBoardCapacity(baked, config);
     const roster = buildRoster(config);
     // Cell name -> a hash of the pixels that cell actually contains, so the
     // repertoire question can be asked of images rather than of identifiers.
@@ -505,7 +681,7 @@ async function main(): Promise<void> {
       if (found === undefined) { throw new Error(`no bake spec for ${unit.rig}`); }
       return found.clips;
     };
-    configs[config.key] = {
+    configReports[config.key] = {
       label: config.label,
       note: config.note,
       units: config.units.map((unit) => ({
@@ -602,12 +778,46 @@ async function main(): Promise<void> {
         bakeWallClockSeconds: Number(wallClockSeconds.toFixed(2)),
       },
       crowdWallClockSeconds: Number(crowdWallClock.toFixed(2)),
-      configs,
+      configs: configReports,
     }, null, 2)}\n`,
   );
-  process.stdout.write(`  wrote crowd-cost.json (${CROWD_CONFIGS.length} configs)\n`);
+  writeFileSync(
+    join(shotsDir, "negative-space.json"),
+    `${JSON.stringify({
+      generatedBy: "pnpm --filter @hazard-pay/webapp bake",
+      what: "interior background runs per archetype per register, at three pipeline stages",
+      method: {
+        gap: "a run of transparent pixels with opaque pixels on both sides of it in the same row",
+        bands: "upper 60% of drawn height is arms/torso, lower 40% is legs",
+        stages: "render = Blender alpha; quantized = palette + consolidation; shipped = decoded "
+          + "back out of the atlas PNG the browser loads",
+        contour: "the ink pass dilates the silhouette 1 px on all eight neighbours, so it closes "
+          + "an interior gap from both sides: a 3 px render gap ships as 1 px, a 2 px gap ships "
+          + "as nothing",
+        facings: "all eight idle facings; every figure is reported as a count of facings that "
+          + "keep the gap, never as the best one",
+      },
+      registers: negativeSpace,
+    }, null, 2)}\n`,
+  );
+  writeFileSync(
+    join(shotsDir, "board-capacity.json"),
+    `${JSON.stringify({
+      generatedBy: "pnpm --filter @hazard-pay/webapp bake",
+      what: "how many units fit before the board is full, per register and per aperture",
+      method: {
+        full: "the army's painted bounding box no longer fits inside the aperture; sprite "
+          + "extents are measured off the compiled frames, not off the authored cells",
+        block: "the published 5-file block, grown, so the archetype mix stays the same",
+        caveat: "a board counted as usable to the frame edge — no projectiles, no HUD, no "
+          + "camera slack. Every number here is an upper bound.",
+      },
+      registers: boardCapacity,
+    }, null, 2)}\n`,
+  );
+  process.stdout.write(`  wrote crowd-cost.json + negative-space.json + board-capacity.json (${String(configs.length)} configs)\n`);
 
-  await buildQuantizationComparison();
+  if (!skipPortrait) { await buildQuantizationComparison(); }
 }
 
 await main();

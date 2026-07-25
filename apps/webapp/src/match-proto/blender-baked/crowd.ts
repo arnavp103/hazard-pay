@@ -21,7 +21,14 @@
  *  - `full`  — variants, plus staggered attack scheduling, which is free.
  */
 
-import { type ClipSpec, type CrowdConfig, type TierKey, type UnitId } from "./framing.ts";
+import {
+  ART_HEIGHT,
+  ART_WIDTH,
+  type ClipSpec,
+  type CrowdConfig,
+  type TierKey,
+  type UnitId,
+} from "./framing.ts";
 
 export type Treatment = "full" | "phase" | "sync" | "variants";
 
@@ -92,51 +99,85 @@ export const FACING_NOTE = "8 facings kept; 4 would halve fodder cells";
 const RANKS = 4;
 const FILES = 5;
 /**
- * Melee ranks first, then ranged, with the two heroes deliberately NOT
- * adjacent. Standing them side by side merges their marking rings into one
- * shape, which measures the ring rather than the tier separation it is there
- * to test.
+ * Melee ranks first, then ranged, with the two heroes as far apart as an 18-slot
+ * block allows — one rank apart and four FILES apart.
+ *
+ * Round 5 said the heroes were "deliberately NOT adjacent" and then put them at
+ * slots 13 and 17, which is one rank and one file apart: the closest two heroes
+ * can be without sharing a slot. The consequence was measured and published as a
+ * defect rather than found — the outward marking ring resolved to three
+ * connected components for four heroes at EVERY register, because on each side
+ * the two rings touched and fused into one blob. That is not a defect of the
+ * ring; a 1 px ring cannot help two sprites that are eight pixels apart. It is a
+ * defect of the formation, and this is where it is fixed.
+ *
+ * Round 6 also swaps one medic per side for the metal-slug-tactics `ranger`, so
+ * the two hero silhouettes can be read against each other in the same crowd
+ * rather than in separate captures.
  */
 const SIDE_COMPOSITION: readonly UnitId[] = [
-  ...Array.from({ length: 10 }, () => "brute" as const),
-  "marksman", "marksman", "marksman", "medic", "marksman",
-  "marksman", "marksman", "medic",
+  "brute", "brute", "brute", "brute", "brute",
+  "medic", "brute", "brute", "brute", "brute",
+  "brute", "marksman", "marksman", "marksman", "ranger",
+  "marksman", "marksman", "marksman",
 ];
 
 /**
- * The battle is centred in the aperture and scales with the units, so the two
+ * The battle is centred in the aperture and scales with the units, so the
  * configs differ in RESOLUTION rather than in crowding — which is the only way
  * the side-by-side answers the #69 fork instead of confounding it.
+ *
+ * Round 6 makes the aperture a parameter. It was `{ x: 120, y: 100 }` — half of
+ * a 240-art-pixel width and 0.74 of a 135-art-pixel height — and it stays
+ * exactly that for the standard stage, but the 960x540 question cannot be asked
+ * of a hard-coded centre.
  */
-const CENTRE = { gapSteps: 2.4, x: 120, y: 100 };
+const CENTRE = { gapSteps: 2.4, xShare: 0.5, yShare: 0.7407 };
+
+export interface Aperture { readonly artWidth: number; readonly artHeight: number }
+
+export const STANDARD_APERTURE: Aperture = { artHeight: ART_HEIGHT, artWidth: ART_WIDTH };
 
 /**
  * Build both armies. Fodder count per side matches the director's capture
  * default (16 fodder, 2 heroes); positions, facings, idle variant and phase
  * are all drawn from one seeded stream so every capture is reproducible.
+ *
+ * `ranks`/`files` default to the 18-slot block every previous round used. They
+ * are parameters so `formationCapacity` below can ask how many units the board
+ * actually holds without a second copy of this arithmetic drifting away from it.
  */
-export function buildRoster(config: CrowdConfig, seed = 0x5a17): CrowdUnit[] {
+export function buildRoster(
+  config: CrowdConfig,
+  seed = 0x5a17,
+  aperture: Aperture = STANDARD_APERTURE,
+  ranks = RANKS,
+  files = FILES,
+  composition: readonly UnitId[] = SIDE_COMPOSITION,
+): CrowdUnit[] {
   const random = mulberry32(seed);
   const step = config.spacing;
   const dx = step.along[0];
   const dy = step.rank[1] * 1.72;
   const units: CrowdUnit[] = [];
+  const centreX = aperture.artWidth * CENTRE.xShare;
+  const centreY = aperture.artHeight * CENTRE.yShare;
 
   for (const side of [0, 1] as const) {
     const dir = side === 0 ? -1 : 1;
     const gap = step.along[0] * CENTRE.gapSteps * 0.5;
-    const originX = CENTRE.x + dir * gap;
+    const originX = centreX + dir * gap;
     const baseFacing = side === 0 ? FACING_A : FACING_B;
-    SIDE_COMPOSITION.forEach((rig, slot) => {
-      const rank = Math.min(RANKS - 1, Math.floor(slot / FILES));
-      const file = slot % FILES;
+    composition.forEach((rig, slot) => {
+      const rank = Math.min(ranks - 1, Math.floor(slot / files));
+      const file = slot % files;
       // A rank recedes away from the contact line; files skew with the 2:1
       // projection so a block reads as ground, not as a spreadsheet.
       const jitterX = (random() - 0.5) * dx * 0.3;
       const jitterY = (random() - 0.5) * dy * 0.35;
       const x = originX + dir * rank * dx * 0.86
-        + (file - (FILES - 1) / 2) * dx * 0.22 + jitterX;
-      const y = CENTRE.y + (file - (FILES - 1) / 2) * dy + jitterY;
+        + (file - (files - 1) / 2) * dx * 0.22 + jitterX;
+      const y = centreY + (file - (files - 1) / 2) * dy + jitterY;
       const facingJitter = random() < 0.34 ? (random() < 0.5 ? -1 : 1) : 0;
       units.push({
         attackOffsetMs: Math.round(random() * 2600),
@@ -147,7 +188,7 @@ export function buildRoster(config: CrowdConfig, seed = 0x5a17): CrowdUnit[] {
         phaseMs: Math.round(random() * 1000),
         rig,
         side,
-        tier: rig === "medic" ? "hero" : "fodder",
+        tier: rig === "medic" || rig === "ranger" ? "hero" : "fodder",
         unit: `${rig}_${side === 0 ? "a" : "b"}`,
         x,
         y,
@@ -341,6 +382,115 @@ export function crowdPixelIdentity(
     meanIdenticalMultiplicity: Number((multiplicitySum / samples).toFixed(2)),
     peakIdenticalUnits: peak,
   };
+}
+
+/** How far a sprite reaches from its stand point, in art pixels. */
+export interface FootprintExtent {
+  left: number;
+  right: number;
+  up: number;
+  down: number;
+}
+
+export interface Footprint {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  /** Share of the aperture the army's bounding box covers. */
+  coverage: number;
+}
+
+/** The bounding box a roster actually paints, sprite extents included. */
+export function formationFootprint(
+  roster: readonly CrowdUnit[],
+  extentFor: (unit: CrowdUnit) => FootprintExtent,
+  aperture: Aperture = STANDARD_APERTURE,
+): Footprint {
+  let minX = Number.POSITIVE_INFINITY;
+  let maxX = Number.NEGATIVE_INFINITY;
+  let minY = Number.POSITIVE_INFINITY;
+  let maxY = Number.NEGATIVE_INFINITY;
+  for (const unit of roster) {
+    const extent = extentFor(unit);
+    minX = Math.min(minX, unit.x - extent.left);
+    maxX = Math.max(maxX, unit.x + extent.right);
+    minY = Math.min(minY, unit.y - extent.up);
+    maxY = Math.max(maxY, unit.y + extent.down);
+  }
+  if (!Number.isFinite(minX)) {
+    return { coverage: 0, height: 0, width: 0, x: 0, y: 0 };
+  }
+  const width = maxX - minX;
+  const height = maxY - minY;
+  return {
+    coverage: Number(((width * height) / (aperture.artWidth * aperture.artHeight)).toFixed(4)),
+    height: Number(height.toFixed(1)),
+    width: Number(width.toFixed(1)),
+    x: Number(minX.toFixed(1)),
+    y: Number(minY.toFixed(1)),
+  };
+}
+
+/**
+ * How many units this register fits on this board before the board is full.
+ *
+ * "Full" is defined as: the army's painted bounding box no longer sits inside
+ * the aperture with a one-unit-wide margin. That is the honest reading of the
+ * question the cofounder's direction raises — taller, thinner, higher-resolution
+ * units mean fewer units on the board, and the premise of the game is large
+ * battles — and it is deliberately generous, because it counts a board as usable
+ * right up to the frame edge with no room for projectiles, HUD or camera slack.
+ *
+ * The block keeps the roster's own 5:4 file:rank proportion so the formation
+ * that gets counted is the formation the captures show, grown, rather than a
+ * different shape that happens to tile better.
+ */
+export function formationCapacity(
+  config: CrowdConfig,
+  extentFor: (unit: CrowdUnit) => FootprintExtent,
+  aperture: Aperture = STANDARD_APERTURE,
+): { units: number; ranks: number; files: number; coverage: number } {
+  let best = { coverage: 0, files: 0, ranks: 0, units: 0 };
+  for (let files = 2; files <= 32; files += 1) {
+    for (let ranks = 2; ranks <= 32; ranks += 1) {
+      const slots = ranks * files;
+      // Grow the published composition by repeating it, so the mix of
+      // archetypes — and therefore the mix of sprite widths — stays the same.
+      const composition = Array.from(
+        { length: slots },
+        (_unused, index) => SIDE_COMPOSITION[index % SIDE_COMPOSITION.length] as UnitId,
+      );
+      const roster = buildRoster(config, 0x5a17, aperture, ranks, files, composition);
+      const box = formationFootprint(roster, extentFor, aperture);
+      const fits = box.x >= 0 && box.y >= 0
+        && box.x + box.width <= aperture.artWidth
+        && box.y + box.height <= aperture.artHeight;
+      if (!fits) { continue; }
+      if (roster.length <= best.units) { continue; }
+      best = { coverage: box.coverage, files, ranks, units: roster.length };
+    }
+  }
+  return best;
+}
+
+/**
+ * The closest two heroes stand, in art pixels. Round 5's outward marking ring
+ * fused four heroes into three marks; this is the number that was actually
+ * wrong, and a test holds it above the diameter two rings can reach across.
+ */
+export function minimumHeroSeparation(roster: readonly CrowdUnit[]): number {
+  const heroes = roster.filter((unit) => unit.tier === "hero");
+  let best = Number.POSITIVE_INFINITY;
+  for (let i = 0; i < heroes.length; i += 1) {
+    for (let j = i + 1; j < heroes.length; j += 1) {
+      const a = heroes[i];
+      const b = heroes[j];
+      if (a === undefined || b === undefined) { continue; }
+      best = Math.min(best, Math.hypot(a.x - b.x, a.y - b.y));
+    }
+  }
+  return Number.isFinite(best) ? Number(best.toFixed(2)) : 0;
 }
 
 /**

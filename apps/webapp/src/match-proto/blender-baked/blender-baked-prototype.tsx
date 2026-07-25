@@ -9,7 +9,8 @@
  * `?mode=idle|attack|turn` · `?facing=0..7` · `?zoom=` · `?capture=1` hides
  * dev chrome · `?freeze=<ms>` renders one deterministic frame ·
  * `?view=quant` swaps in the quantization comparison ·
- * `?view=crowd&config=small|mid|large&treatment=sync|phase|variants|full`
+ * `?view=crowd&config=small|mid|large|xl|xxl&treatment=sync|phase|variants|full`
+ * `&stage=standard|wide` — 480x270 or the round-6 960x540 large-battle aperture
  * `&layers=board` draws the board with no roster — the control capture the
  * round-5 contour measurement subtracts
  * `&mark=outward|inset`
@@ -22,7 +23,7 @@ import { StatusChip } from "@hazard-pay/ui";
 
 import { mountCrowdStage } from "./crowd-stage.ts";
 import type { MarkMode, Treatment } from "./crowd.ts";
-import { configByKey, FACINGS } from "./framing.ts";
+import { configByKey, FACINGS, stageByKey } from "./framing.ts";
 import {
   type BakedStageHandle,
   COMPARISON_STRIPS,
@@ -111,6 +112,7 @@ function CrowdSurface() {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const config = configByKey(params().get("config"));
   const treatment = readTreatment();
+  const stage = stageByKey(params().get("stage"));
 
   useEffect(() => {
     const host = hostRef.current;
@@ -121,6 +123,7 @@ function CrowdSurface() {
       freezeMs: readFreezeMs(),
       layers: readLayers(),
       marking: readMarking(),
+      stage: stageByKey(params().get("stage")),
       treatment: readTreatment(),
     });
     void handle.ready;
@@ -130,7 +133,7 @@ function CrowdSurface() {
   return (
     <main className="flex min-h-screen flex-col bg-shell">
       <div className="grid flex-1 place-items-center px-5 py-4">
-        <div className="flex flex-col gap-3" style={{ width: STAGE_WIDTH }}>
+        <div className="flex flex-col gap-3" style={{ width: stage.width }}>
           {!readFlag("capture") && (
             <div className="flex items-end justify-between font-data uppercase">
               <div>
@@ -148,7 +151,7 @@ function CrowdSurface() {
           <div
             className="relative overflow-hidden border-2 border-line bg-shell"
             data-prototype-stage
-            style={{ height: STAGE_HEIGHT, width: STAGE_WIDTH }}
+            style={{ height: stage.height, width: stage.width }}
           >
             <div ref={hostRef} data-testid="crowd-stage-host" className="absolute inset-0" />
           </div>
