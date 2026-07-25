@@ -37,6 +37,7 @@ import {
   footprintWidth,
   markingBrightLimit,
   markingOffsets,
+  markingPalette,
   markingRole,
   poseUnit,
   renderRows,
@@ -145,12 +146,13 @@ function paintStage(
     if (marked && unit.tier === "hero") {
       const radius = MARKING_RADIUS[configKey];
       const brightTo = markingBrightLimit(grid);
+      const ring = markingPalette(unit);
       const offsets = markingOffsets(posed.rows, grid.width, radius);
       for (const offset of offsets) {
         if (offset.dy > grid.bottomRow + MARKING_FOOT_BLEED) { continue; }
         if (config.policy.markingTaper && offset.dy > brightTo) { continue; }
         const role = markingRole(offset.ring, radius);
-        write(origin.x + sxOf(offset.dx), origin.y + offset.dy, palette[role]);
+        write(origin.x + sxOf(offset.dx), origin.y + offset.dy, ring[role]);
       }
     }
 

@@ -115,7 +115,7 @@ export const teamPalettes: Record<TeamKey, CrowdPalette> = {
  * Round 3 shipped one body colour for every rank, so a 36-unit engagement
  * was a single flat plane with overlap as its only depth cue.
  */
-export const DEPTH_MIX = [0, 0.20, 0.36] as const;
+export const DEPTH_MIX = [0, 0.16, 0.28] as const;
 
 function mixHex(hex: string, toward: string, amount: number): string {
   const a = Number.parseInt(hex.slice(1), 16);

@@ -190,7 +190,7 @@ was quoting a real, test-pinned measurement.
 | archetype mean-x separation (0–1 within a clump) | **0.20** | **0.01 / 0.02** |
 | marking pixels per hero | 151 | **121** |
 | marking area / fodder unit area | 0.74× | **0.57×** |
-| ring share of all bright (L>140) pixels | **54 %** | **≈0 %** |
+| ring share of all bright (L>140) pixels | **54 %** | **21 %** |
 | hero visible mass / melee fodder, unmarked | 1.33× | **1.41×** |
 | max fodder bob, peak-to-peak | 1 px + lean | **1 px**, damped lean |
 
@@ -238,6 +238,40 @@ deliberately does **not** bank: it removes 246 cells of drawing per three
 grids, but it also means the outline is no longer a thing an artist controls
 per pixel, and that trade has not been tested on a unit whose silhouette needs
 a deliberate broken contour.
+
+## 6b. A regression this round shipped, found by the cold pass, and fixed
+
+The first round-4 build shipped the depth ramp and the marking together, and
+the ramp ate the marking. The cold critique measured it: the marking's bright
+stroke down 18 % on both sides (171 -> 141 and 125 -> 103), the cool faction's
+ring down **60 %** in pixel count (158 -> 63), and hero finding at 1x down from
+round 3's 4-of-4 to **2-of-4**. Both heroes sit in the back depth bands, so
+they took the worst of a change that was supposed to help the crowd.
+
+The bug is conceptual rather than arithmetic. Depth falloff is aerial
+perspective applied to *material*; the marking is not material, it is an
+affordance drawn on top of the world the way a health bar is, and it should
+read at the same strength wherever the unit stands. `markingPalette` now
+returns the undimmed faction palette and the ramp applies to the unit's own
+pixels only.
+
+Two smaller corrections went in with it, both from the same critique:
+
+- the depth mix softened from `[0, 0.20, 0.36]` to `[0, 0.16, 0.28]`, because
+  the ramp had also cost the whole crowd unit-versus-floor separation
+  (31.1 -> measured back up after the change);
+- the idle gain raised from 0.62 to 0.82. The brief asked for the SMALL bob to
+  be damped because it was eating the hero's 6 px height advantage; the cold
+  pass measured that the damping over-shot, taking mean per-unit amplitude
+  from 2.64 px to 1.73 px and leaving "a 1-2 px breathe and no vocabulary at
+  all". With the marking carrying the tier read, the height cue no longer has
+  to be protected that hard. Motion is still the weakest axis and the real
+  complaint - no weapon sway, no weight transfer, no secondary motion - is a
+  vocabulary problem this round did not attempt.
+
+After the fix the ring carries **21 %** of the frame's bright pixels, against
+round 3's 54 % - present again, no longer monopolising the top of the value
+range.
 
 ## 7. Known pipeline artifact, unchanged on purpose
 

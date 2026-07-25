@@ -108,7 +108,7 @@ export const crowdConfigs: Record<ConfigKey, CrowdConfig> = {
       contour: "selective",
       depth: true,
       halo: false,
-      idleGain: 0.62,
+      idleGain: 0.82,
       markingTaper: true,
       staging: "interleaved",
     },
@@ -578,7 +578,25 @@ export function contouredRows(
   return out.map((row) => row.join(""));
 }
 
-/** The palette a unit renders with, after depth falloff. */
+/**
+ * The palette the hero marking renders with - **never** depth-shaded.
+ *
+ * Round 4 shipped the depth ramp and the marking together and the ramp ate
+ * the marking: a cold pass measured the bright stroke down 18 % on both sides
+ * (171->141 and 125->103) and the cool faction's ring down 60 % in pixel
+ * count, dropping hero finding from 4-of-4 to 2-of-4 at 1x. Both heroes sit
+ * in the back depth bands, so they took the worst of it.
+ *
+ * The bug is conceptual, not arithmetic: depth falloff is aerial perspective
+ * applied to *material*, and the marking is not material - it is an
+ * affordance drawn on top of the world, the way a health bar is. It reads at
+ * the same strength wherever the unit stands.
+ */
+export function markingPalette(unit: PlacedUnit): CrowdPalette {
+  return teamPalettes[unit.team];
+}
+
+/** The palette a unit's own pixels render with, after depth falloff. */
 export function unitPalette(unit: PlacedUnit, config: CrowdConfig): CrowdPalette {
   if (!config.policy.depth) { return teamPalettes[unit.team]; }
   const ramp = depthPalettes[unit.team];

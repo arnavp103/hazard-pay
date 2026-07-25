@@ -208,7 +208,7 @@ describe("round-4 control repairs", () => {
       for (let step = 1; step < ramp.length; step += 1) {
         const near = ramp[step - 1]?.c ?? "";
         const far = ramp[step]?.c ?? "";
-        expect(luma(far)).toBeLessThan(luma(near) - 8);
+        expect(luma(far)).toBeLessThan(luma(near) - 6);
       }
       // the ink anchor is the thing everything mixes toward, so it never moves
       expect(ramp.every((step) => step.k === teamPalettes[team].k)).toBe(true);
