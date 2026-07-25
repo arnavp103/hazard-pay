@@ -110,8 +110,13 @@ grayscale, which the detail-density lever did not.
 
 Runtime cost is one multi-source dilation per hero per frame over the
 sprite's own bounding box plus the ring radius — 2 px at SMALL, 3 px at
-LARGE. With 1–2 heroes a side that is nothing; it would matter if every
-unit were marked, which is exactly why only heroes are.
+LARGE, the outermost ring always plum-black so the border carries its own
+contour. It stops at the contact row rather than closing under the feet:
+a closed capsule reads as a screen-space cartouche pasted over the board,
+an open one reads as the unit's own outline.
+
+With 1–2 heroes a side the runtime cost is nothing; it would matter if
+every unit were marked, which is exactly why only heroes are.
 
 ## 4. What this round actually cost to author
 

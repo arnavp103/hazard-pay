@@ -28,6 +28,7 @@ import {
   CROWD_CYCLE_MS,
   STAGE_H,
   STAGE_W,
+  MARKING_FOOT_BLEED,
   MARKING_RADIUS,
   blitOrigin,
   buildLineup,
@@ -129,10 +130,12 @@ function paintStage(
     // The marking goes down first so the sprite always sits on top of its
     // own border - the border thickens the unit, it never eats into it.
     if (marked && unit.tier === "hero") {
-      const offsets = markingOffsets(posed.rows, grid.width, MARKING_RADIUS[configKey]);
+      const radius = MARKING_RADIUS[configKey];
+      const offsets = markingOffsets(posed.rows, grid.width, radius);
       for (const offset of offsets) {
+        if (offset.dy > grid.bottomRow + MARKING_FOOT_BLEED) { continue; }
         const sx = unit.mirrored ? grid.width - 1 - offset.dx : offset.dx;
-        write(origin.x + sx, origin.y + offset.dy, palette[markingRole(offset.ring)]);
+        write(origin.x + sx, origin.y + offset.dy, palette[markingRole(offset.ring, radius)]);
       }
     }
 

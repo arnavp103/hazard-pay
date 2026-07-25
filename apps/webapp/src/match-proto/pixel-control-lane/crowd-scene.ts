@@ -290,13 +290,25 @@ export function markingOffsets(
   return out;
 }
 
-/** Palette role painted at each ring: two bright bands seated on ink. */
-export function markingRole(ring: number): string {
-  return ring <= 2 ? "i" : "k";
+/**
+ * Palette role painted at each ring: bright bands seated on one ink ring.
+ * The OUTERMOST ring is always ink — without it the border floats on the
+ * board with no contour of its own, which is exactly how a sticker reads.
+ */
+export function markingRole(ring: number, radius: number): string {
+  return ring >= radius ? "k" : "i";
 }
 
 /** How thick the hero border is, per config - it must scale with the unit. */
 export const MARKING_RADIUS: Record<ConfigKey, number> = { small: 2, large: 3 };
+
+/**
+ * Rows below the figure's contact row that the marking may occupy. Zero:
+ * the border hugs the unit and stops at the ground, instead of closing
+ * under the feet into a flat-bottomed capsule that reads as a screen-space
+ * cartouche pasted over the board.
+ */
+export const MARKING_FOOT_BLEED = 0;
 
 // --- generic grid transforms (any width/height) -----------------------
 
@@ -382,7 +394,10 @@ export function poseFodder(
   const wave = Math.sin(t * Math.PI * 2) * flip;
   const pivot = Math.round(grid.bottomRow - (grid.bottomRow - grid.topRow) * 0.35);
   const kneeY = Math.round(grid.bottomRow - (grid.bottomRow - grid.topRow) * 0.18);
-  let rows = leanRows(grid.rows, pivot, 0.11 * amplitude * wave);
+  // Scale the sway to the figure, or a 22px fodder unit swings as far as a
+  // 34px one and the crowd's motion drowns the tier's height difference.
+  const reach = (grid.bottomRow - grid.topRow) / 34;
+  let rows = leanRows(grid.rows, pivot, 0.11 * reach * amplitude * wave);
   if (wave < -0.45 * amplitude) { rows = crouchRows(rows, kneeY, 1); }
   return { rows, bob: wave > 0.55 / amplitude ? -1 : 0 };
 }
@@ -404,7 +419,8 @@ export function poseHero(
   const wave = Math.sin(t * Math.PI * 2) * flip * amplitude;
   const kneeY = Math.round(grid.bottomRow - (grid.bottomRow - grid.topRow) * 0.22);
   const pivot = Math.round(grid.bottomRow - (grid.bottomRow - grid.topRow) * 0.45);
-  let rows = leanRows(grid.rows, pivot, 0.05 * wave);
+  const reach = (grid.bottomRow - grid.topRow) / 44;
+  let rows = leanRows(grid.rows, pivot, 0.06 * reach * wave);
   if (wave < -0.3) { rows = crouchRows(rows, kneeY, 1); }
   return { rows, bob: wave > 0.6 ? -1 : 0 };
 }

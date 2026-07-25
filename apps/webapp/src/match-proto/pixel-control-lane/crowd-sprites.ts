@@ -67,11 +67,23 @@ export type TeamKey = "rust" | "slate";
  * (no default magenta/chartreuse per #68) and both sit in the 25% band of
  * the 70/25/5 budget. Heroes use their side's livery unchanged - colour is
  * a team read, never a tier read.
+ *
+ * The two ramps are deliberately split in VALUE as well as hue: the first
+ * round-3 pass had them at the same luma, so the crowd's faction read
+ * collapsed completely in grayscale, which the canon forbids. Rust is now
+ * the warm/light side and slate the cool/dark one at every step of the
+ * ramp; a test pins the gap.
  */
 export const teamPalettes: Record<TeamKey, CrowdPalette> = {
-  rust: { ...sharedRoles, l: "#a6533f", L: "#62352f", i: "#d1845d" },
-  slate: { ...sharedRoles, l: "#4d6076", L: "#2b374a", i: "#8399b4" },
+  rust: { ...sharedRoles, l: "#ad5638", L: "#63332a", i: "#e0a06f" },
+  slate: { ...sharedRoles, l: "#3f5268", L: "#232f3f", i: "#5c7ea8" },
 };
+
+/** Rec. 709 luma - the grayscale-legibility law is a value law. */
+export function luma(hex: string): number {
+  const n = Number.parseInt(hex.slice(1), 16);
+  return 0.2126 * ((n >> 16) & 0xff) + 0.7152 * ((n >> 8) & 0xff) + 0.0722 * (n & 0xff);
+}
 
 export interface CrowdGrid {
   /** Stable id used by the roster and the tests. */

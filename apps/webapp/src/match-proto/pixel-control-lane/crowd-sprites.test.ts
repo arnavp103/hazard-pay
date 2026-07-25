@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   type CrowdGrid,
   crowdGrids,
+  luma,
   crowdRowsToRgba,
   distinctRoles,
   figureHeight,
@@ -141,6 +142,22 @@ describe("palette law", () => {
     const slate = teamPalettes.slate;
     const differing = Object.keys(rust).filter((role) => rust[role] !== slate[role]);
     expect(differing.sort()).toEqual(["L", "i", "l"]);
+  });
+
+  /**
+   * The canon requires silhouettes and important equipment to read in
+   * grayscale. The first round-3 pass put both faction ramps at the same
+   * luma, so the crowd's faction read vanished without colour. Pin a real
+   * value gap at every step of the ramp.
+   */
+  it("splits the two factions in VALUE, not only in hue", () => {
+    for (const role of ["l", "L", "i"] as const) {
+      const rust = teamPalettes.rust[role];
+      const slate = teamPalettes.slate[role];
+      expect(rust).toBeDefined();
+      expect(slate).toBeDefined();
+      expect(luma(rust as string) - luma(slate as string)).toBeGreaterThan(14);
+    }
   });
 
   it("uses no magenta or chartreuse and anchors on plum-black", () => {
