@@ -521,6 +521,11 @@ export function mountFlatScene(host: HTMLElement, options: MountOptions = {}): F
     }
   };
 
+  // Pose everything once at t=0. Without this the first rendered frame shows
+  // the bind rigs still stacked at the world origin, which is invisible in a
+  // one-unit view and unmistakable in a lineup or a crowd.
+  stepOnce(0, STEP);
+
   const syncShadows = (): void => {
     for (let i = 0; i < drives.length; i += 1) {
       const drive = drives[i];
