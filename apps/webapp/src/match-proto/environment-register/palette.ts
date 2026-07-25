@@ -45,8 +45,11 @@ const rampTable = {
   steel: { band: "body", shadow: "#31313a", base: "#4a4a54", light: "#66666f", spec: "#9a9aa2" },
   wood: { band: "identity", shadow: "#43301f", base: "#63482e", light: "#82633f" },
   rust: { band: "identity", shadow: "#4a2c1c", base: "#6f4224", light: "#8f5a30" },
-  canvasWarm: { band: "identity", shadow: "#6d3d2c", base: "#96593a", light: "#b4744c" },
-  canvasCool: { band: "identity", shadow: "#1e3a3a", base: "#2c5a56", light: "#3d7f76" },
+  canvasWarm: { band: "identity", shadow: "#57312a", base: "#77462f", light: "#90593b" },
+  canvasCool: { band: "identity", shadow: "#1a302f", base: "#254946", light: "#33635d" },
+  // Team cloth stays where the canopies used to sit, so unit identity is
+  // the most saturated thing on screen rather than the awnings.
+  teamCloth: { band: "identity", shadow: "#1e3a3a", base: "#2c5a56", light: "#3d7f76" },
   plum: { band: "body", shadow: "#241a24", base: "#382a38", light: "#4a3849" },
   mat: { band: "body", shadow: "#2f3130", base: "#414341", light: "#535551" },
 } as const satisfies Record<string, Ramp>;

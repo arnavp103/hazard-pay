@@ -130,8 +130,9 @@ function groundDetail(surface: Surface, cx: number, cy: number): void {
 
   for (const pixel of polygonPixels(groundDiamond(cx, cy), surface.width, surface.height)) {
     const { x, y } = pixel;
-    const grime = clusterField(x, y, 11, 2);
-    const fine = clusterField(x, y, 4, 7);
+    // Floor wear is smeared along the traffic direction, not a round blob.
+    const grime = clusterField(x * 0.45, y * 1.7, 11, 2);
+    const fine = clusterField(x * 0.6, y * 1.4, 4, 7);
 
     if (material === "grate") {
       // Drain slats: the strongest read on the floor, so they stay hard.
@@ -174,15 +175,29 @@ function groundDetail(surface: Surface, cx: number, cy: number): void {
       }
       continue;
     }
-    // Asphalt: gravel clusters, tyre scuffs along the aisle direction.
-    if (fine > 0.82) {
+    // Asphalt is the walkable lane, so it is held to the quietest
+    // discipline on the board: sparse gravel, sparse smear, nothing that
+    // can compete with a unit's drop shadow.
+    if (fine > 0.88) {
       setPixel(surface, x, y, ramp.light);
-    } else if (grime < 0.26) {
+    } else if (grime < 0.16) {
       setPixel(surface, x, y, ramp.shadow);
     } else if (Math.abs(x - centre.x) < 9 && (x + 2 * y) % 24 === 0) {
       setPixel(surface, x, y, ramp.shadow);
     }
   }
+  tileSeam(surface, cx, cy, ramp.shadow);
+}
+
+/**
+ * The tile grid has to survive the wear pass everywhere — tactical reading
+ * of the walkable plane is non-negotiable, so the seam is drawn last.
+ */
+function tileSeam(surface: Surface, cx: number, cy: number, hex: string): void {
+  const [north, east, south, west] = groundDiamond(cx, cy);
+  if (north === undefined || east === undefined || south === undefined || west === undefined) { return; }
+  drawLine(surface, north, east, hex);
+  drawLine(surface, north, west, hex);
 }
 
 function drawGround(surface: Surface, detail: boolean): void {
@@ -242,12 +257,12 @@ const detailByRamp: Partial<Record<RampName, (surface: Surface, pixel: { x: numb
       setPixel(surface, x, y, ramp.shadow);
       return;
     }
-    const bleed = clusterField(x, y, 8, 17);
+    const bleed = clusterField(x * 2.2, y * 0.4, 8, 17);
     if (bleed > 0.8) { setPixel(surface, x, y, ramps.rust.shadow); }
   },
   rust: (surface, pixel, _piece, ramp) => {
     const { x, y } = pixel;
-    const blotch = clusterField(x, y, 7, 23);
+    const blotch = clusterField(x * 1.8, y * 0.5, 7, 23);
     if (blotch > 0.72) {
       setPixel(surface, x, y, ramp.shadow);
     } else if (blotch < 0.2) {
@@ -272,7 +287,8 @@ const detailByRamp: Partial<Record<RampName, (surface: Surface, pixel: { x: numb
       setPixel(surface, x, y, lit > 0.72 ? emissions.amber.housing : INK);
       return;
     }
-    const stain = clusterField(x, y, 10, 37);
+    // Wall stains are drip runs: stretched down, not round.
+    const stain = clusterField(x * 2.4, y * 0.35, 10, 37);
     if (stain > 0.8) { setPixel(surface, x, y, ramp.shadow); }
   },
   canvasWarm: (surface, pixel, piece, ramp) => {
@@ -346,9 +362,10 @@ function stampsForProp(surface: Surface, prop: Prop): void {
     stampGrid(surface, bundleTop.rows, stampPalette, foot.x + 3, foot.y - 62);
     return;
   }
-  if (prop.kind === "blockWall") {
-    const face = project(prop.cx + 0.4, prop.cy + 1.7);
-    stampGrid(surface, junctionBox.rows, stampPalette, face.x, face.y - 46);
+  if (prop.kind === "pipeRack") {
+    // Ground level: on a building face this grid read as a small figure and
+    // broke the scale contract.
+    stampGrid(surface, junctionBox.rows, stampPalette, foot.x - 26, foot.y + 4);
     return;
   }
   if (prop.kind === "rubble") {

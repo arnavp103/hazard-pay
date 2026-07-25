@@ -181,8 +181,8 @@ function awningStall(prop: Prop): Piece[] {
     // Back shelving.
     ...isoBox({ cx: cx + 1.5, cy, sx: 0.5, sy: 1.6, height: 76, ramp: "steel", tag: `${prop.id}-shelf` }),
     // Corner posts.
-    ...isoBox({ cx: cx - 0.35, cy: cy - 0.35, sx: 0.22, sy: 0.22, height: 88, ramp: "steel", tag: `${prop.id}-post` }),
-    ...isoBox({ cx: cx + 1.7, cy: cy + 1.3, sx: 0.22, sy: 0.22, height: 88, ramp: "steel", tag: `${prop.id}-post` }),
+    ...isoBox({ cx: cx - 0.35, cy: cy - 0.35, sx: 0.14, sy: 0.14, height: 88, ramp: "grate", tag: `${prop.id}-post` }),
+    ...isoBox({ cx: cx + 1.7, cy: cy + 1.3, sx: 0.14, sy: 0.14, height: 88, ramp: "grate", tag: `${prop.id}-post` }),
     // Awning slab, lifted clear of the counter, with a hanging valance so
     // the canopy reads as fabric rather than as a floating shelf.
     ...isoBox({ cx: cx - 0.4, cy: cy - 0.4, sx: 2.5, sy: 2.3, height: 9, lift: 84, ramp: canopy, tag: `${prop.id}-awning` }),

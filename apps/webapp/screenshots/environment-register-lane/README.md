@@ -89,8 +89,8 @@ was explicitly deferred.
 Left: shared geometry only. Middle: plus the generated surface passes.
 Right: plus the five hand-authored stamps.
 
-The middle step touches **124,218** pixels. The right step touches
-**5,200**. Generated passes produce *surface*; only the authored grids
+The middle step touches **123,699** pixels. The right step touches
+**4,702**. Generated passes produce *surface*; only the authored grids
 produce *objects*.
 
 ### Authored vs generated, same prop
@@ -127,6 +127,27 @@ inside the environment lane.
 ## Cost report
 
 `cost-report.json`, with the measured numbers behind everything above.
+
+## Round 2 — cold-critique response
+
+A provenance-cold critic saw only these images and the reference board.
+Its verdict: **treatment B's register should govern, conditional on the
+walkable plane being held to treatment A's contrast discipline.** The
+images above are post-fix; `cold-critique.md` is the critique verbatim.
+What changed:
+
+- tile seams are drawn last, so the dimetric grid survives the wear pass
+  across the whole fighting area
+- wear became directional — floor smears run along the traffic axis, wall
+  stains run downward as drip runs — instead of one round blob at every
+  scale
+- canopy ramps were desaturated below team-identity colour, and unit cloth
+  moved to its own ramp, so the awnings stop being the most saturated
+  objects on the board
+- stall posts were thinned and darkened so they stop cutting unit
+  silhouettes
+- the junction-box stamp moved off building faces, where it read as a
+  figure at building scale, down to ground level beside the pipe racks
 
 ## Not production art
 

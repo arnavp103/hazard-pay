@@ -41,7 +41,7 @@ export interface Sprite {
  */
 const fodderPalette = {
   armor: ramps.steel,
-  cloth: { crew: ramps.rust, rival: ramps.canvasCool },
+  cloth: { crew: ramps.rust, rival: ramps.teamCloth },
   pants: ramps.plum,
   boot: { shadow: INK, base: INK_SOFT, light: ramps.plum.shadow },
   skin: { shadow: "#70483a", base: "#a96e51", light: "#d9a078" },
