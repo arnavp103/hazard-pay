@@ -43,7 +43,7 @@ import {
   applyAmbient,
   backdropPieces,
   groundDiamond,
-  groundFill,
+  groundPieces,
   piecesForProp,
   steamPieces,
 } from "./prop-geometry.ts";
@@ -97,21 +97,24 @@ function drawBackdrop(surface: Surface, detail: boolean): void {
 
   // Window grids on the far towers: repeating architecture is the one
   // motif a generated pass can carry convincingly.
-  for (let y = 4; y < 46; y += 4) {
-    for (let x = 3; x < BOARD_WIDTH; x += 5) {
+  for (let y = 8; y < 92; y += 8) {
+    for (let x = 6; x < BOARD_WIDTH; x += 10) {
       const here = clusterField(x, y, 9, 3);
       if (here < 0.42) { continue; }
       const lit = clusterField(x, y, 5, 11);
       const color = lit > 0.86 ? emissions.amber.idle : lit > 0.8 ? emissions.teal.housing : INK;
-      setPixel(surface, x, y, color);
-      setPixel(surface, x + 1, y, color);
+      for (let dy = 0; dy < 3; dy += 1) {
+        for (let dx = 0; dx < 4; dx += 1) {
+          setPixel(surface, x + dx, y + dy, color);
+        }
+      }
     }
   }
   // Haze band: clustered, not a gradient — the register has no gradients.
-  for (let y = 40; y < 56; y += 1) {
+  for (let y = 80; y < 112; y += 1) {
     for (let x = 0; x < BOARD_WIDTH; x += 1) {
       if (clusterField(x, y, 6, 5) > 0.55) { continue; }
-      setPixel(surface, x, y, y > 49 ? INK : backdrop.hazeWarm);
+      setPixel(surface, x, y, y > 99 ? INK : backdrop.hazeWarm);
     }
   }
 }
@@ -183,15 +186,19 @@ function groundDetail(surface: Surface, cx: number, cy: number): void {
 }
 
 function drawGround(surface: Surface, detail: boolean): void {
+  // The apron rings come from the shared geometry, so treatment A and
+  // treatment B fade into the surrounding district identically.
+  for (const piece of groundPieces()) {
+    fillPolygon(surface, piece.points, piece.fill);
+  }
+  if (!detail) { return; }
   for (let sum = 0; sum <= (GRID - 1) * 2; sum += 1) {
     for (let cx = 0; cx < GRID; cx += 1) {
       const cy = sum - cx;
       if (cy < 0 || cy >= GRID) { continue; }
-      fillPolygon(surface, groundDiamond(cx, cy), groundFill(cx, cy));
-      if (detail) { groundDetail(surface, cx, cy); }
+      groundDetail(surface, cx, cy);
     }
   }
-  if (!detail) { return; }
 
   // Material seams, 1px and soft — the floor must not out-contrast units.
   for (let cx = 0; cx < GRID; cx += 1) {
@@ -251,9 +258,9 @@ const detailByRamp: Partial<Record<RampName, (surface: Surface, pixel: { x: numb
   concrete: (surface, pixel, _piece, ramp) => {
     const { x, y } = pixel;
     const patch = clusterField(x, y, 9, 29);
-    if (patch > 0.78) {
+    if (patch > 0.87) {
       setPixel(surface, x, y, ramp.light);
-    } else if (patch < 0.2) {
+    } else if (patch < 0.13) {
       setPixel(surface, x, y, ramp.shadow);
     }
   },
@@ -314,26 +321,39 @@ function inkSilhouette(surface: Surface, mask: Set<number>): void {
   for (const edge of edges) { setPixel(surface, edge.x, edge.y, INK); }
 }
 
+/**
+ * Where the authored grids go.
+ *
+ * Note the repetition: the stamps were authored at roughly half the size
+ * the rescaled board wanted, so the goods rack and the counter clutter are
+ * tiled across the stall front instead of being redrawn at the right size.
+ * Re-authoring them is straight hand-pixelling time; tiling is free. The
+ * seam between "free" and "hand-pixelled" is exactly the wall this lane
+ * was asked to find, and it is visible in the capture as repeated wares.
+ */
 function stampsForProp(surface: Surface, prop: Prop): void {
   const foot = project(prop.cx, prop.cy);
   if (prop.kind === "awningStall") {
-    const goods = project(prop.cx + 0.5, prop.cy + 0.4);
-    stampGrid(surface, stallGoods.rows, stampPalette, goods.x, goods.y - 20);
-    const counter = project(prop.cx + 0.5, prop.cy + 0.9);
-    stampGrid(surface, counterClutter.rows, stampPalette, counter.x, counter.y - 12);
+    const goods = project(prop.cx + 0.5, prop.cy + 0.35);
+    stampGrid(surface, stallGoods.rows, stampPalette, goods.x - 26, goods.y - 58);
+    stampGrid(surface, stallGoods.rows, stampPalette, goods.x + 26, goods.y - 52);
+    const counter = project(prop.cx + 0.5, prop.cy + 0.35);
+    stampGrid(surface, counterClutter.rows, stampPalette, counter.x - 24, counter.y - 30);
+    stampGrid(surface, counterClutter.rows, stampPalette, counter.x + 22, counter.y - 24);
     return;
   }
   if (prop.kind === "crateStack") {
-    stampGrid(surface, bundleTop.rows, stampPalette, foot.x + 2, foot.y - 32);
+    stampGrid(surface, bundleTop.rows, stampPalette, foot.x + 3, foot.y - 62);
     return;
   }
   if (prop.kind === "blockWall") {
-    const face = project(prop.cx + 0.6, prop.cy + 1.6);
-    stampGrid(surface, junctionBox.rows, stampPalette, face.x, face.y - 22);
+    const face = project(prop.cx + 0.4, prop.cy + 1.7);
+    stampGrid(surface, junctionBox.rows, stampPalette, face.x, face.y - 46);
     return;
   }
   if (prop.kind === "rubble") {
-    stampGrid(surface, groundJunk.rows, stampPalette, foot.x + 6, foot.y + 5);
+    stampGrid(surface, groundJunk.rows, stampPalette, foot.x + 10, foot.y + 8);
+    stampGrid(surface, groundJunk.rows, stampPalette, foot.x - 22, foot.y + 2);
   }
 }
 
@@ -416,7 +436,7 @@ export function renderBoardPixels(options: PixelOptions = {}): Surface {
  */
 export function renderPropSwatch(propId: string, options: PixelOptions = {}): Surface {
   const prop = sortedProps().find((entry) => entry.id === propId);
-  const surface = createSurface(TILE_W * 5, TILE_H * 8);
+  const surface = createSurface(TILE_W * 4, TILE_H * 7);
   if (prop === undefined) { return surface; }
 
   for (let y = 0; y < surface.height; y += 1) {
@@ -427,7 +447,7 @@ export function renderPropSwatch(propId: string, options: PixelOptions = {}): Su
 
   const foot = project(prop.cx, prop.cy);
   const offsetX = surface.width / 2 - foot.x;
-  const offsetY = surface.height - 24 - foot.y;
+  const offsetY = surface.height - 34 - foot.y;
   const scratch = createSurface(BOARD_WIDTH, BOARD_HEIGHT);
   drawProp(scratch, prop, ambientAt(options.frame ?? 0), options.detail ?? true, options.stamps ?? true);
 

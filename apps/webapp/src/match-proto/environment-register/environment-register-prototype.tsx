@@ -55,6 +55,7 @@ type ViewKey = "single" | "split" | "stamp";
 
 interface Options {
   capture: boolean;
+  crisp: boolean;
   detail: boolean;
   frame: number;
   stamps: boolean;
@@ -72,11 +73,12 @@ function readParams(): Options {
   const viewParam = params.get("view");
   const view: ViewKey = viewParam === "split" || viewParam === "stamp" ? viewParam : "single";
   const zoomParam = params.get("zoom");
-  const zoom: CameraKey = zoomParam === "crowd" ? "crowd" : zoomParam === "split" ? "split" : "combat";
+  const zoom: CameraKey = zoomParam !== null && zoomParam in cameras ? zoomParam as CameraKey : "combat";
   const tierParam = params.get("tier");
   const tier = tierParam === "hero" || tierParam === "fodder" ? tierParam : "all";
   return {
     capture: params.get("capture") === "1",
+    crisp: params.get("crisp") === "1",
     detail: params.get("detail") !== "0",
     frame: Number.parseInt(params.get("frame") ?? "0", 10) % AMBIENT_FRAMES,
     stamps: params.get("stamps") !== "0",
@@ -104,25 +106,25 @@ function surfaceToCanvas(width: number, height: number, data: Uint8ClampedArray)
  * the rasterizer (sharp/resvg would be the build-time equivalent — this
  * lane deliberately adds no dependency to prove the register).
  */
-function useTreatmentACanvas(frame: number): HTMLCanvasElement | null {
+function useTreatmentACanvas(frame: number, superScale: number): HTMLCanvasElement | null {
   const [canvas, setCanvas] = useState<HTMLCanvasElement | null>(null);
   useEffect(() => {
     let cancelled = false;
     const target = document.createElement("canvas");
-    target.width = BOARD_WIDTH;
-    target.height = BOARD_HEIGHT;
+    target.width = BOARD_WIDTH * superScale;
+    target.height = BOARD_HEIGHT * superScale;
     const context = target.getContext("2d");
     if (context === null) { return; }
     const image = new Image();
     image.addEventListener("load", () => {
       if (cancelled) { return; }
       context.imageSmoothingEnabled = false;
-      context.drawImage(image, 0, 0, BOARD_WIDTH, BOARD_HEIGHT);
+      context.drawImage(image, 0, 0, BOARD_WIDTH * superScale, BOARD_HEIGHT * superScale);
       setCanvas(target);
     });
     image.src = svgDataUrl(renderBoardSvg({ frame }));
     return () => { cancelled = true; };
-  }, [frame]);
+  }, [frame, superScale]);
   return canvas;
 }
 
@@ -146,11 +148,13 @@ interface PanelProps {
   board: HTMLCanvasElement | null;
   label: string;
   panelId: string;
+  /** Board-pixels-per-source-pixel; >1 when treatment A rasterizes crisp. */
+  sourceScale?: number;
   units: HTMLCanvasElement | null;
   zoom: CameraKey;
 }
 
-function BoardPanel({ board, label, panelId, units, zoom }: PanelProps) {
+function BoardPanel({ board, label, panelId, sourceScale = 1, units, zoom }: PanelProps) {
   const ref = useRef<HTMLCanvasElement | null>(null);
   const camera = cameras[zoom];
   const width = camera.width * camera.scale;
@@ -163,12 +167,22 @@ function BoardPanel({ board, label, panelId, units, zoom }: PanelProps) {
     if (context === null) { return; }
     context.imageSmoothingEnabled = false;
     context.clearRect(0, 0, width, height);
-    context.drawImage(board, camera.x, camera.y, camera.width, camera.height, 0, 0, width, height);
+    context.drawImage(
+      board,
+      camera.x * sourceScale,
+      camera.y * sourceScale,
+      camera.width * sourceScale,
+      camera.height * sourceScale,
+      0,
+      0,
+      width,
+      height,
+    );
     if (units !== null) {
       context.drawImage(units, camera.x, camera.y, camera.width, camera.height, 0, 0, width, height);
     }
     canvas.dataset["ready"] = "1";
-  }, [board, units, camera, width, height]);
+  }, [board, units, camera, width, height, sourceScale]);
 
   return (
     <figure className="m-0" data-panel={panelId}>
@@ -203,7 +217,7 @@ interface SwatchProps {
 function PropSwatch({ caption, detail, propId, stamps }: SwatchProps) {
   const ref = useRef<HTMLCanvasElement | null>(null);
   const surface = useMemo(() => renderPropSwatch(propId, { detail, stamps }), [propId, detail, stamps]);
-  const scale = 3;
+  const scale = 2;
 
   useEffect(() => {
     const canvas = ref.current;
@@ -238,7 +252,8 @@ function PropSwatch({ caption, detail, propId, stamps }: SwatchProps) {
 
 export function EnvironmentRegisterPrototype() {
   const [options] = useState<Options>(readParams);
-  const boardA = useTreatmentACanvas(options.frame);
+  const superScale = options.crisp ? cameras[options.zoom].scale : 1;
+  const boardA = useTreatmentACanvas(options.frame, superScale);
   const boardB = useTreatmentBCanvas(options.frame, options.detail, options.stamps);
   const unitCanvas = useUnitCanvas(options.units, options.tier);
   const active = treatments.find((entry) => entry.key === options.treatment) ?? treatments[0];
@@ -255,7 +270,7 @@ export function EnvironmentRegisterPrototype() {
     : options.view === "split"
       ? (
           <div className="flex items-start gap-3" data-panel="split">
-            <BoardPanel board={boardA} label="Treatment A" panelId="panel-a" units={unitCanvas} zoom="split" />
+            <BoardPanel board={boardA} label="Treatment A" panelId="panel-a" sourceScale={superScale} units={unitCanvas} zoom="split" />
             <BoardPanel board={boardB} label="Treatment B" panelId="panel-b" units={unitCanvas} zoom="split" />
           </div>
         )
@@ -264,6 +279,7 @@ export function EnvironmentRegisterPrototype() {
             board={options.treatment === "a" ? boardA : boardB}
             label={active.name}
             panelId="panel-single"
+            sourceScale={options.treatment === "a" ? superScale : 1}
             units={unitCanvas}
             zoom={options.zoom}
           />

@@ -39,9 +39,9 @@ import {
 import { INK } from "./palette.ts";
 
 /** Outer contour weight, in board pixels. */
-export const INK_OUTER = 3.2;
+export const INK_OUTER = 5;
 /** Internal separation weight. */
-export const INK_INNER = 1;
+export const INK_INNER = 1.6;
 
 function round(value: number): string {
   return (Math.round(value * 100) / 100).toString();
@@ -84,7 +84,7 @@ function seamMarkup(): string {
   const seams = groundSeams()
     .map((seam) => `M${round(seam.from.x)} ${round(seam.from.y)}L${round(seam.to.x)} ${round(seam.to.y)}`)
     .join("");
-  return `<path d="${seams}" fill="none" stroke="${INK}" stroke-width="1.4" stroke-linecap="square" opacity="0.85"/>`;
+  return `<path d="${seams}" fill="none" stroke="${INK}" stroke-width="2" stroke-linecap="square" opacity="0.85"/>`;
 }
 
 export interface SvgOptions {
@@ -100,9 +100,9 @@ export function renderBoardSvg(options: SvgOptions = {}): string {
   const halftone = options.halftone ?? true;
 
   const defs = `<defs>`
-    + `<pattern id="hp-halftone" width="4" height="4" patternUnits="userSpaceOnUse">`
-    + `<rect width="4" height="4" fill="none"/>`
-    + `<circle cx="1" cy="1" r="0.9" fill="${INK}"/>`
+    + `<pattern id="hp-halftone" width="7" height="7" patternUnits="userSpaceOnUse">`
+    + `<rect width="7" height="7" fill="none"/>`
+    + `<circle cx="2" cy="2" r="1.6" fill="${INK}"/>`
     + `</pattern>`
     + `</defs>`;
 
@@ -114,7 +114,7 @@ export function renderBoardSvg(options: SvgOptions = {}): string {
       .map((prop) => inkedGroup(applyAmbient(piecesForProp(prop), ambient)))
       .join(""),
     flat(applyAmbient(steamPieces(ambient), ambient)),
-    halftone ? `<rect x="0" y="0" width="${String(BOARD_WIDTH)}" height="34" fill="url(#hp-halftone)" opacity="0.5"/>` : "",
+    halftone ? `<rect x="0" y="0" width="${String(BOARD_WIDTH)}" height="66" fill="url(#hp-halftone)" opacity="0.5"/>` : "",
   ].join("");
 
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${String(BOARD_WIDTH)}" height="${String(BOARD_HEIGHT)}" `

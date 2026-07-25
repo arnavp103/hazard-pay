@@ -18,17 +18,17 @@
  * treatment B and the `viewBox` of treatment A.
  */
 
-export const BOARD_WIDTH = 640;
-export const BOARD_HEIGHT = 360;
+export const BOARD_WIDTH = 1280;
+export const BOARD_HEIGHT = 720;
 
 /** 2:1 dimetric tile. */
-export const TILE_W = 32;
-export const TILE_H = 16;
+export const TILE_W = 64;
+export const TILE_H = 32;
 
 export const GRID = 20;
 
-const ORIGIN_X = 320;
-const ORIGIN_Y = 40;
+const ORIGIN_X = 640;
+const ORIGIN_Y = 60;
 
 export interface Point { x: number; y: number }
 
@@ -74,9 +74,9 @@ export function groundAt(cx: number, cy: number): Ground {
   // Drain cluster under the north-east stalls.
   if (cx >= 13 && cx <= 15 && cy >= 4 && cy <= 6) { return "grate"; }
 
-  // Trodden dirt directly around the stall footprints, mats further in.
+  // Trodden dirt where feet leave the aisle, stall matting further in.
   const quadrantDepth = Math.min(Math.abs(cx - cy) - 2, Math.abs(cx + cy - 19) - 2);
-  return quadrantDepth <= 1 ? "dirt" : "mat";
+  return quadrantDepth <= 2 ? "dirt" : "mat";
 }
 
 export type PropKind
@@ -150,6 +150,14 @@ export const props: readonly Prop[] = [
   { id: "spool-se", kind: "cableSpool", cx: 16.6, cy: 14.2, tone: "cool" },
   { id: "pipe-se", kind: "pipeRack", cx: 17, cy: 12, tone: "warm" },
 
+  // Southern quadrants: the market's back end.
+  { id: "stall-s-1", kind: "awningStall", cx: 11, cy: 16, tone: "cool", signal: "teal" },
+  { id: "crate-s", kind: "crateStack", cx: 10.4, cy: 13.6, tone: "warm" },
+  { id: "barrel-s", kind: "barrelPair", cx: 9.2, cy: 17.4, tone: "cool" },
+  { id: "rubble-s", kind: "rubble", cx: 14.4, cy: 16.6, tone: "warm" },
+  { id: "vent-s", kind: "vent", cx: 4.4, cy: 16.6, tone: "cool", signal: "teal" },
+  { id: "dumpster-s", kind: "dumpster", cx: 12.4, cy: 17.6, tone: "warm" },
+
   // Aisle furniture — the two lamps and the plaza sign are the only
   // things allowed to stand in the walkable lane.
   { id: "lamp-n", kind: "lampPost", cx: 9, cy: 7, tone: "warm", signal: "amber" },
@@ -195,8 +203,8 @@ function formation(
         tier: "fodder",
         side,
         archetype,
-        cx: originX + column * 1.1 + row * 0.45,
-        cy: originY + row * 1.1 - column * 0.35,
+        cx: originX + column * 1.5 + row * 0.6,
+        cy: originY + row * 1.5 - column * 0.5,
         mirrored,
       });
     }
@@ -211,12 +219,12 @@ function formation(
  * hero:fodder ratio from the #69 tier-separation ruling (≈1.28×).
  */
 export const units: readonly UnitPlacement[] = [
-  { id: "hero-crew", tier: "hero", side: "crew", archetype: "medic", cx: 8.4, cy: 11.2, mirrored: false },
-  { id: "hero-rival", tier: "hero", side: "rival", archetype: "medic", cx: 12.2, cy: 8.4, mirrored: true },
-  ...formation("crew", "melee", 6.2, 12.6, 4, 2, false),
-  ...formation("crew", "ranged", 4.6, 14.4, 4, 2, false),
-  ...formation("rival", "melee", 12.4, 6.4, 4, 2, true),
-  ...formation("rival", "ranged", 14.2, 4.6, 4, 2, true),
+  { id: "hero-crew", tier: "hero", side: "crew", archetype: "medic", cx: 9.4, cy: 12.2, mirrored: false },
+  { id: "hero-rival", tier: "hero", side: "rival", archetype: "medic", cx: 11, cy: 8.6, mirrored: true },
+  ...formation("crew", "melee", 7.6, 12, 4, 2, false),
+  ...formation("crew", "ranged", 6.2, 14, 4, 2, false),
+  ...formation("rival", "melee", 11.6, 7.4, 4, 2, true),
+  ...formation("rival", "ranged", 13, 5.6, 4, 2, true),
 ];
 
 export interface Camera {
@@ -239,30 +247,39 @@ export interface Camera {
 export const cameras = {
   combat: {
     key: "combat",
-    label: "combat zoom (4× of a 320×180 aperture)",
-    x: 160,
-    y: 120,
-    width: 320,
-    height: 180,
-    scale: 4,
+    label: "combat zoom (2× of a 640×360 aperture)",
+    x: 320,
+    y: 200,
+    width: 640,
+    height: 360,
+    scale: 2,
   },
   crowd: {
     key: "crowd",
-    label: "crowd scale (2× of the full 640×360 board)",
+    label: "crowd scale (1× of the full 1280×720 board)",
     x: 0,
     y: 0,
     width: BOARD_WIDTH,
     height: BOARD_HEIGHT,
-    scale: 2,
+    scale: 1,
   },
-  split: {
-    key: "split",
-    label: "side-by-side combat zoom (3× of a 320×180 aperture)",
-    x: 160,
-    y: 120,
+  ambient: {
+    key: "ambient",
+    label: "ambient loop (3× of a 320×180 aperture on the drain-side vent)",
+    x: 880,
+    y: 260,
     width: 320,
     height: 180,
     scale: 3,
+  },
+  split: {
+    key: "split",
+    label: "side-by-side combat zoom (2× of a 480×270 aperture)",
+    x: 400,
+    y: 240,
+    width: 480,
+    height: 270,
+    scale: 2,
   },
 } as const satisfies Record<string, Camera>;
 
@@ -294,7 +311,7 @@ export function ambientAt(frame: number): Ambient {
   return {
     amber: amberSchedule[phase] ?? 1,
     teal: tealSchedule[phase] ?? 1,
-    steamRise: phase * 2,
+    steamRise: phase * 4,
     steamAlive: [phase < 4, phase >= 1 && phase < 5, phase >= 2],
   };
 }
