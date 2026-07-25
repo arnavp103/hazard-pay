@@ -1,193 +1,322 @@
 /**
- * THROWAWAY PROTOTYPE (#91) — placeholder units, held constant.
+ * THROWAWAY PROTOTYPE (#91) — the unit layer, shared by both treatments.
  *
- * Characters are explicitly NOT this lane's variable, so the same sprites
- * are composited over both treatments by the same code path. Two tiers,
- * per the #69 tier-separation ruling:
+ * Characters are explicitly NOT this lane's variable, so the sprites are
+ * borrowed wholesale from the pixel control lane's round 4 (see
+ * `borrowed-crowd-small.ts`) and composited over treatment A and treatment B
+ * by exactly this code. If the two captures differ in how the characters sit,
+ * the difference is the board's doing — which is the whole point of the lane.
  *
- * - HERO — the borrowed 48×64 medic from the pixel control lane (#74).
- *   Not re-authored here.
- * - FODDER — two archetypes (melee, ranged) generated at 38×50, which is
- *   the "slight size boost" ratio the ruling settled on (48/38 ≈ 1.26)
- *   rather than the retracted half-footprint default. Detail density does
- *   the rest of the separation; marking (rim light, banner, decal) is
- *   deferred by that same ruling and is deliberately not used.
+ * What this module owns is everything about a unit that the *environment*
+ * decides:
  *
- * Fodder sprites are generated from a rect DSL on purpose: they are
- * placeholders, and generating them keeps the lane's authoring budget
- * where the experiment is — the board.
+ * - **Aerial perspective.** Three discrete palette steps by board depth, so a
+ *   unit at the back of the plaza is mixed toward the world anchor. Discrete,
+ *   not continuous, so the render stays palette-indexed.
+ * - **Shade.** A unit whose foot tile is under a roof, or inside a roof's cast
+ *   shadow, renders one further step down. This is half of round 2's answer to
+ *   "the characters have no depth under the ceiling": round 1 drew a canopy
+ *   and then lit the units beneath it exactly as brightly as the ones standing
+ *   in the open, so nothing in the pixels said a ceiling was there.
+ * - **Contour.** The pixel lane's round-4 policy, ported: the grids are
+ *   authored as *material only* and the silhouette is inked at blit time only
+ *   where the unit meets a similar-value background. Because the sampler reads
+ *   the composited board, this lane can measure its own figure/ground dissolve
+ *   rate off its own pipeline rather than inheriting a sibling lane's number.
+ * - **Hero marking.** A two-ring border, tapered above hip height, drawn from
+ *   the *unshaded* team palette — a marking is an affordance drawn on top of
+ *   the world, so neither the depth ramp nor the cover shade may touch it.
  */
 
-import { type Archetype, type Side, type Tier, type UnitPlacement } from "./board-model.ts";
-import { INK, INK_SOFT, emissions, ramps } from "./palette.ts";
-import { type Surface, setPixel } from "./pixel-canvas.ts";
-import { MEDIC_HEIGHT, MEDIC_WIDTH, medicPalette, medicSide } from "./borrowed-medic-48.ts";
+import {
+  type CrowdGrid,
+  type CrowdPalette,
+  type TeamKey,
+  DEPTH_MIX,
+  getGrid,
+  sharedRoles,
+  teamPalettes,
+} from "./borrowed-crowd-small.ts";
+import { type Archetype, type Side, type UnitPlacement } from "./board-model.ts";
+import { registerUnitColor } from "./palette.ts";
 
-export const FODDER_WIDTH = 38;
-export const FODDER_HEIGHT = 50;
+const TRANSPARENT = ".";
 
-export type ColorGrid = (string | undefined)[][];
+/** How far under-cover units are mixed toward the world anchor. */
+export const SHADE_MIX = 0.3;
 
-export interface Sprite {
-  width: number;
-  height: number;
-  grid: ColorGrid;
+/** Anchor colour every falloff mixes toward — the plum-black world anchor. */
+const ANCHOR = "#120b10";
+
+function mixHex(hex: string, toward: string, amount: number): string {
+  const a = Number.parseInt(hex.slice(1), 16);
+  const b = Number.parseInt(toward.slice(1), 16);
+  const out: number[] = [];
+  for (let shift = 16; shift >= 0; shift -= 8) {
+    const from = (a >> shift) & 0xff;
+    const to = (b >> shift) & 0xff;
+    out.push(Math.round(from + (to - from) * amount));
+  }
+  return `#${out.map((value) => value.toString(16).padStart(2, "0")).join("")}`;
+}
+
+function mixPalette(base: CrowdPalette, amount: number): CrowdPalette {
+  const out: CrowdPalette = {};
+  for (const [role, hex] of Object.entries(base)) {
+    out[role] = amount === 0 ? hex : mixHex(hex, ANCHOR, amount);
+  }
+  return out;
+}
+
+export const teamOf: Record<Side, TeamKey> = { crew: "rust", rival: "slate" };
+
+/**
+ * Every palette variant a unit can render with: team × depth step × shade.
+ * Enumerated rather than computed on the fly so the set of colours the unit
+ * layer can emit is finite and declarable, which is what makes the palette
+ * conformance gate mean something once units share the buffer with the board.
+ */
+const variants = new Map<string, CrowdPalette>();
+function variantKey(team: TeamKey, depthStep: number, shaded: boolean): string {
+  return `${team}:${String(depthStep)}:${shaded ? "s" : "l"}`;
+}
+for (const team of ["rust", "slate"] as const) {
+  DEPTH_MIX.forEach((depthAmount, depthStep) => {
+    for (const shaded of [false, true]) {
+      const amount = shaded ? depthAmount + (1 - depthAmount) * SHADE_MIX : depthAmount;
+      variants.set(variantKey(team, depthStep, shaded), mixPalette(teamPalettes[team], amount));
+    }
+  });
+}
+
+/** Which budget band a unit role spends against. */
+const roleBand = (role: string): "body" | "emission" | "identity" => {
+  if (role === "t" || role === "u") { return "emission"; }
+  if (role === "l" || role === "L" || role === "i") { return "identity"; }
+  return "body";
+};
+
+/** Every colour the unit layer can emit, registered with the budget model. */
+export const UNIT_COLORS: readonly string[] = (() => {
+  const seen = new Set<string>();
+  for (const palette of variants.values()) {
+    for (const [role, hex] of Object.entries(palette)) {
+      seen.add(hex);
+      registerUnitColor(hex, roleBand(role));
+    }
+  }
+  for (const [role, hex] of Object.entries(sharedRoles)) {
+    seen.add(hex);
+    registerUnitColor(hex, roleBand(role));
+  }
+  return [...seen];
+})();
+
+const gridKey: Record<Archetype, string> = { hero: "mara", melee: "breaker", ranged: "stinger" };
+
+export function gridFor(unit: UnitPlacement): CrowdGrid {
+  return getGrid(gridKey[unit.archetype]);
 }
 
 /**
- * Unit-local palette. Body/armour colours are pulled from the shared
- * environment ramps so the tiers sit in the same world; only skin has no
- * environment equivalent and is declared locally.
+ * Three discrete aerial-perspective bands across the plaza's depth. Step 0 is
+ * the near rank and renders at full strength; step 2 is the far rank.
  */
-const fodderPalette = {
-  armor: ramps.steel,
-  cloth: { crew: ramps.rust, rival: ramps.teamCloth },
-  pants: ramps.plum,
-  boot: { shadow: INK, base: INK_SOFT, light: ramps.plum.shadow },
-  skin: { shadow: "#70483a", base: "#a96e51", light: "#d9a078" },
-  signal: { crew: emissions.amber, rival: emissions.teal },
-} as const;
-
-function emptyGrid(width: number, height: number): ColorGrid {
-  return Array.from({ length: height }, () => Array.from<string | undefined>({ length: width }).fill(undefined));
+export function depthStepFor(cx: number, cy: number): number {
+  const sum = cx + cy;
+  if (sum >= 22) { return 0; }
+  if (sum >= 15) { return 1; }
+  return 2;
 }
 
-function paint(grid: ColorGrid, color: string, x: number, y: number, width: number, height: number): void {
-  for (let py = y; py < y + height; py += 1) {
-    const row = grid[py];
-    if (row === undefined) { continue; }
-    for (let px = x; px < x + width; px += 1) {
-      if (px < 0 || px >= row.length) { continue; }
-      row[px] = color;
-    }
-  }
+export function paletteFor(unit: UnitPlacement, shaded: boolean): CrowdPalette {
+  const key = variantKey(teamOf[unit.side], depthStepFor(unit.cx, unit.cy), shaded);
+  return variants.get(key) ?? teamPalettes[teamOf[unit.side]];
 }
 
-/** Plum-black silhouette ink, matching the board's contour law. */
-function inkOutline(grid: ColorGrid): void {
-  const height = grid.length;
-  const width = grid[0]?.length ?? 0;
-  const edges: [number, number][] = [];
+/** The unshaded, undepthed palette the hero marking renders from. */
+export function markingPaletteFor(unit: UnitPlacement): CrowdPalette {
+  return teamPalettes[teamOf[unit.side]];
+}
+
+/* ------------------------------------------------------------------ */
+/* Selective contour (ported policy)                                   */
+/* ------------------------------------------------------------------ */
+
+/** Roles a contour pass must never overwrite. */
+const FOCAL_ROLES = new Set(["n", "u", "t", "w"]);
+
+/** Rim-light promotion, lit edge only. */
+const RIM_LIGHT: Record<string, string> = { c: "e", C: "c", L: "l" };
+
+/**
+ * How much luma separation counts as "this edge already reads". Below it the
+ * edge is inside the background's own value band and needs a contour.
+ */
+export const CONTOUR_MIN_CONTRAST = 22;
+
+function hexLuma(hex: string): number {
+  const value = Number.parseInt(hex.slice(1), 16);
+  return 0.2126 * ((value >> 16) & 0xff) + 0.7152 * ((value >> 8) & 0xff) + 0.0722 * (value & 0xff);
+}
+
+export interface EdgePixel {
+  x: number;
+  y: number;
+  role: string;
+  up: boolean;
+  down: boolean;
+  left: boolean;
+  right: boolean;
+}
+
+/** Every filled cell with at least one transparent four-neighbour. */
+export function silhouetteEdges(rows: readonly string[], width: number): EdgePixel[] {
+  const height = rows.length;
+  const at = (x: number, y: number): string => {
+    if (x < 0 || y < 0 || x >= width || y >= height) { return TRANSPARENT; }
+    return rows[y]?.[x] ?? TRANSPARENT;
+  };
+  const out: EdgePixel[] = [];
   for (let y = 0; y < height; y += 1) {
     for (let x = 0; x < width; x += 1) {
-      if (grid[y]?.[x] === undefined) { continue; }
-      const open = grid[y]?.[x - 1] === undefined
-        || grid[y]?.[x + 1] === undefined
-        || grid[y - 1]?.[x] === undefined
-        || grid[y + 1]?.[x] === undefined;
-      if (open) { edges.push([x, y]); }
+      const role = at(x, y);
+      if (role === TRANSPARENT) { continue; }
+      const up = at(x, y - 1) === TRANSPARENT;
+      const down = at(x, y + 1) === TRANSPARENT;
+      const left = at(x - 1, y) === TRANSPARENT;
+      const right = at(x + 1, y) === TRANSPARENT;
+      if (up || down || left || right) { out.push({ x, y, role, up, down, left, right }); }
     }
   }
-  for (const [x, y] of edges) {
-    const row = grid[y];
-    if (row !== undefined) { row[x] = INK; }
-  }
+  return out;
 }
 
-/** Light from upper-left: the right third of every mass drops a band. */
-function shadeRight(grid: ColorGrid, ramp: { base: string; light: string; shadow: string }): void {
-  for (const row of grid) {
-    for (let x = 0; x < row.length; x += 1) {
-      if (row[x] !== ramp.base) { continue; }
-      const runEnd = row.findIndex((value, index) => index > x && value !== ramp.base);
-      const end = runEnd === -1 ? row.length : runEnd;
-      const width = end - x;
-      for (let index = x; index < end; index += 1) {
-        row[index] = index >= end - Math.max(1, Math.round(width / 3)) ? ramp.shadow : ramp.base;
-      }
-      const first = row[x];
-      if (first !== undefined && width > 3) { row[x] = ramp.light; }
-      x = end;
+/**
+ * Background-aware contour. Ink only where the unit meets a similar-value
+ * background; rim-light the lit edge where the unit is the lighter of the two;
+ * always ink the contact zone, because that edge is grounding rather than
+ * separation.
+ */
+export function contouredRows(
+  rows: readonly string[],
+  width: number,
+  palette: CrowdPalette,
+  sampleLuma: (x: number, y: number) => number | null,
+): string[] {
+  let top = -1;
+  let bottom = -1;
+  rows.forEach((row, y) => {
+    if ([...row].some((char) => char !== TRANSPARENT)) {
+      if (top === -1) { top = y; }
+      bottom = y;
     }
+  });
+  if (top === -1) { return rows.map((row) => row); }
+  const contactY = bottom - Math.max(1, Math.round((bottom - top + 1) * 0.18));
+
+  const out = rows.map((row) => [...row]);
+  for (const edge of silhouetteEdges(rows, width)) {
+    if (FOCAL_ROLES.has(edge.role)) { continue; }
+    const outRow = out[edge.y];
+    if (outRow === undefined) { continue; }
+    if (edge.y >= contactY) {
+      outRow[edge.x] = "k";
+      continue;
+    }
+    const material = palette[edge.role];
+    if (material === undefined) { continue; }
+    const mine = hexLuma(material);
+
+    let worst: number | null = null;
+    const probe = (dx: number, dy: number) => {
+      const value = sampleLuma(edge.x + dx, edge.y + dy);
+      if (value === null) { return; }
+      if (worst === null || Math.abs(mine - value) < Math.abs(mine - worst)) { worst = value; }
+    };
+    if (edge.up) { probe(0, -1); }
+    if (edge.down) { probe(0, 1); }
+    if (edge.left) { probe(-1, 0); }
+    if (edge.right) { probe(1, 0); }
+    if (worst === null) { continue; }
+
+    const behind: number = worst;
+    if (Math.abs(mine - behind) >= CONTOUR_MIN_CONTRAST) { continue; }
+    const lit = RIM_LIGHT[edge.role];
+    if (mine >= behind && lit !== undefined && (edge.up || edge.left)) {
+      outRow[edge.x] = lit;
+      continue;
+    }
+    outRow[edge.x] = "k";
   }
+  return out.map((row) => row.join(""));
 }
 
-function buildFodder(archetype: Archetype, side: Side): Sprite {
-  const grid = emptyGrid(FODDER_WIDTH, FODDER_HEIGHT);
-  const cloth = fodderPalette.cloth[side === "crew" ? "crew" : "rival"];
-  const signal = fodderPalette.signal[side === "crew" ? "crew" : "rival"];
-  const armor = fodderPalette.armor;
-  const heavy = archetype === "melee";
+/* ------------------------------------------------------------------ */
+/* Hero marking                                                        */
+/* ------------------------------------------------------------------ */
 
-  // Head + helmet.
-  paint(grid, armor.base, heavy ? 13 : 14, 3, heavy ? 12 : 10, 7);
-  paint(grid, fodderPalette.skin.base, heavy ? 15 : 16, 8, heavy ? 8 : 7, 5);
-  paint(grid, INK_SOFT, heavy ? 15 : 16, 9, heavy ? 8 : 7, 2);
+/** Ring thickness around a hero silhouette, in pixels. */
+export const MARKING_RADIUS = 2;
 
-  // Torso.
-  const torsoX = heavy ? 10 : 12;
-  const torsoW = heavy ? 18 : 14;
-  paint(grid, cloth.base, torsoX, 13, torsoW, 16);
-  paint(grid, armor.base, torsoX + 2, 14, torsoW - 4, 7);
-  paint(grid, signal.active, torsoX + torsoW - 6, 16, 3, 2);
-
-  // Arms.
-  paint(grid, cloth.base, torsoX - 3, 15, 4, 12);
-  paint(grid, cloth.base, torsoX + torsoW - 1, 15, 4, 12);
-
-  // Legs + boots.
-  paint(grid, fodderPalette.pants.base, torsoX + 2, 29, 5, 13);
-  paint(grid, fodderPalette.pants.base, torsoX + torsoW - 8, 29, 5, 13);
-  paint(grid, fodderPalette.boot.base, torsoX + 1, 42, 7, 5);
-  paint(grid, fodderPalette.boot.base, torsoX + torsoW - 9, 42, 7, 5);
-
-  if (heavy) {
-    // Riot slab on the leading arm — the silhouette cue for melee fodder.
-    paint(grid, armor.base, 4, 16, 7, 22);
-    paint(grid, armor.shadow, 5, 18, 5, 18);
-    paint(grid, signal.idle, 6, 21, 3, 3);
-  } else {
-    // Long arm across the body — the silhouette cue for ranged fodder.
-    paint(grid, armor.shadow, 6, 22, 24, 3);
-    paint(grid, armor.base, 24, 20, 6, 5);
-    paint(grid, signal.active, 28, 21, 2, 2);
-    // Pack.
-    paint(grid, cloth.shadow, 8, 15, 5, 11);
-  }
-
-  shadeRight(grid, armor);
-  shadeRight(grid, cloth);
-  shadeRight(grid, fodderPalette.pants);
-  inkOutline(grid);
-  return { width: FODDER_WIDTH, height: FODDER_HEIGHT, grid };
+/** Bright band dies at hip height; the arch does the finding work. */
+export function markingBrightLimit(grid: CrowdGrid): number {
+  return grid.topRow + Math.round((grid.bottomRow - grid.topRow + 1) * 0.55);
 }
 
-function medicSprite(): Sprite {
-  const grid = emptyGrid(MEDIC_WIDTH, MEDIC_HEIGHT);
-  medicSide.forEach((row, y) => {
+export interface MarkingPixel { dx: number; dy: number; ring: number }
+
+/** Dilation rings around the silhouette, as offsets from the blit origin. */
+export function markingOffsets(rows: readonly string[], width: number, radius: number): MarkingPixel[] {
+  const height = rows.length;
+  const pad = radius;
+  const w = width + pad * 2;
+  const h = height + pad * 2;
+  const filled = new Uint8Array(w * h);
+  rows.forEach((row, y) => {
     [...row].forEach((char, x) => {
-      if (char === ".") { return; }
-      const hex = medicPalette[char];
-      const target = grid[y];
-      if (hex === undefined || target === undefined) { return; }
-      target[x] = hex;
+      if (char !== TRANSPARENT && x < width) { filled[(y + pad) * w + (x + pad)] = 1; }
     });
   });
-  return { width: MEDIC_WIDTH, height: MEDIC_HEIGHT, grid };
-}
 
-const cache = new Map<string, Sprite>();
-
-export function spriteFor(tier: Tier, archetype: Archetype, side: Side): Sprite {
-  const id = `${tier}-${archetype}-${side}`;
-  const hit = cache.get(id);
-  if (hit !== undefined) { return hit; }
-  const sprite = tier === "hero" ? medicSprite() : buildFodder(archetype, side);
-  cache.set(id, sprite);
-  return sprite;
-}
-
-/** Composite one placeholder unit, feet on the projected cell centre. */
-export function drawUnit(surface: Surface, unit: UnitPlacement, anchorX: number, anchorY: number): void {
-  const sprite = spriteFor(unit.tier, unit.archetype, unit.side);
-  const originX = Math.round(anchorX - sprite.width / 2);
-  const originY = Math.round(anchorY - sprite.height);
-  for (let y = 0; y < sprite.height; y += 1) {
-    for (let x = 0; x < sprite.width; x += 1) {
-      const sourceX = unit.mirrored ? sprite.width - 1 - x : x;
-      const color = sprite.grid[y]?.[sourceX];
-      if (color === undefined) { continue; }
-      setPixel(surface, originX + x, originY + y, color);
+  const distance = new Int16Array(w * h).fill(-1);
+  let front: number[] = [];
+  for (let index = 0; index < filled.length; index += 1) {
+    if (filled[index] === 1) {
+      distance[index] = 0;
+      front.push(index);
     }
   }
+  for (let ring = 1; ring <= radius; ring += 1) {
+    const next: number[] = [];
+    for (const index of front) {
+      const cy = Math.floor(index / w);
+      const cx = index % w;
+      for (let oy = -1; oy <= 1; oy += 1) {
+        for (let ox = -1; ox <= 1; ox += 1) {
+          const ny = cy + oy;
+          const nx = cx + ox;
+          if (ny < 0 || ny >= h || nx < 0 || nx >= w) { continue; }
+          const at = ny * w + nx;
+          if (distance[at] !== -1) { continue; }
+          distance[at] = ring;
+          next.push(at);
+        }
+      }
+    }
+    front = next;
+  }
+
+  const out: MarkingPixel[] = [];
+  for (let index = 0; index < distance.length; index += 1) {
+    const ring = distance[index] ?? -1;
+    if (ring <= 0) { continue; }
+    out.push({ dx: (index % w) - pad, dy: Math.floor(index / w) - pad, ring });
+  }
+  return out;
+}
+
+/** Outermost ring is always ink; inside it, the faction highlight. */
+export function markingRole(ring: number, radius: number): string {
+  return ring >= radius ? "k" : "i";
 }
