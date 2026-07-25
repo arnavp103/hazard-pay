@@ -73,6 +73,38 @@ function cellOf(atlas: PNG, sheet: SheetJson, frameName: string): {
 
 interface Tile { data: Uint8Array; width: number; height: number }
 
+/** Crop a cell to its opaque bbox so a plate is figures, not empty margin. */
+function trimTile(tile: Tile): Tile {
+  let minX = tile.width;
+  let minY = tile.height;
+  let maxX = -1;
+  let maxY = -1;
+  for (let y = 0; y < tile.height; y += 1) {
+    for (let x = 0; x < tile.width; x += 1) {
+      if ((tile.data[(y * tile.width + x) * 4 + 3] ?? 0) === 0) { continue; }
+      if (x < minX) { minX = x; }
+      if (x > maxX) { maxX = x; }
+      if (y < minY) { minY = y; }
+      if (y > maxY) { maxY = y; }
+    }
+  }
+  if (maxX < 0) { return tile; }
+  const width = maxX - minX + 1;
+  const height = maxY - minY + 1;
+  const data = new Uint8Array(width * height * 4);
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const from = ((minY + y) * tile.width + minX + x) * 4;
+      const to = (y * width + x) * 4;
+      data[to] = tile.data[from] ?? 0;
+      data[to + 1] = tile.data[from + 1] ?? 0;
+      data[to + 2] = tile.data[from + 2] ?? 0;
+      data[to + 3] = tile.data[from + 3] ?? 0;
+    }
+  }
+  return { data, height, width };
+}
+
 function plate(tiles: readonly (Tile | null)[], columns: number, gap: number, zoom: number): PNG {
   const cellW = tiles.reduce((max, tile) => Math.max(max, tile?.width ?? 0), 0);
   const cellH = tiles.reduce((max, tile) => Math.max(max, tile?.height ?? 0), 0);
@@ -136,7 +168,7 @@ function main(): void {
       for (let facing = 0; facing < 8; facing += 1) {
         const track = sheet.animations[`${unit}_idle_${String(facing)}`];
         const name = track?.[0];
-        rows.push(name === undefined ? null : cellOf(atlas, sheet, name));
+        rows.push(name === undefined ? null : trimTile(cellOf(atlas, sheet, name)));
       }
     }
     const archetypes = plate(rows, 8, 3, 4);
@@ -148,7 +180,7 @@ function main(): void {
     for (const unit of ["brute_a", "marksman_a", "medic_a", "brute_b", "marksman_b", "medic_b"]) {
       const name = sheet.animations[`${unit}_idle_0`]?.[0];
       if (name === undefined) { throw new Error(`no idle for ${unit}`); }
-      ladder.push(cellOf(atlas, sheet, name));
+      ladder.push(trimTile(cellOf(atlas, sheet, name)));
     }
     writeFileSync(join(shotsDir, `tier-ladder-${config.key}-1x.png`), PNG.sync.write(plate(ladder, 6, 4, 1)));
     const zoomed = plate(ladder, 6, 4, 4);

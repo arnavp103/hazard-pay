@@ -11,7 +11,8 @@
     "lint:fix": "eslint --cache --fix .",
     "test": "vitest run",
     "clean": "rm -rf .eslintcache dist .tanstack node_modules/.vite",
-    "bake": "tsx src/match-proto/blender-baked/bake/run.ts"
+    "bake": "tsx src/match-proto/blender-baked/bake/run.ts",
+    "gallery": "tsx src/match-proto/blender-baked/bake/gallery.ts"
   },
   "dependencies": {
     "@hazard-pay/api": "workspace:*",

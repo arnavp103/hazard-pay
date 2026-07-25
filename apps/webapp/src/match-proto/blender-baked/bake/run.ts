@@ -232,17 +232,16 @@ function measureShippedAtlas(pngPath: string): {
   };
 }
 
-async function bakeCrowdConfig(config: CrowdConfig): Promise<{
+async function bakeCrowdConfig(config: CrowdConfig): Promise<BakedConfig & {
   wallClockSeconds: number;
   renderSeconds: number;
   renders: number;
-  result: ReturnType<typeof compileAtlas>;
-  manifests: BakeManifest[];
 }> {
   process.stdout.write(`baking the ${config.key} crowd (${config.note})…\n`);
   const started = Date.now();
   const inputs: CompileInput[] = [];
   const manifests: BakeManifest[] = [];
+  const perUnitWallClock: Record<string, number> = {};
   let renderSeconds = 0;
   let renders = 0;
 
@@ -251,7 +250,9 @@ async function bakeCrowdConfig(config: CrowdConfig): Promise<{
     rmSync(dir, { force: true, recursive: true });
     mkdirSync(dir, { recursive: true });
     const spec = buildUnitSpec(dir, join(dir, "manifest.json"), unit);
+    const unitStarted = Date.now();
     const manifest = await runBlender(spec, join(dir, "spec.json"));
+    perUnitWallClock[unit.id] = Number(((Date.now() - unitStarted) / 1000).toFixed(2));
     manifests.push(manifest);
     renderSeconds += manifest.timing.renderSeconds;
     renders += manifest.timing.renderCount;
@@ -279,7 +280,62 @@ async function bakeCrowdConfig(config: CrowdConfig): Promise<{
     + `(${(cost.rgbaPngBytes / 1024).toFixed(1)} KiB truecolour) · round-trip exact\n`
     + `  bake wall clock ${wallClockSeconds.toFixed(2)}s\n`,
   );
-  return { manifests, renderSeconds, renders, result, wallClockSeconds };
+  return { manifests, perUnitWallClock, renderSeconds, renders, result, wallClockSeconds };
+}
+
+interface BakedConfig {
+  result: ReturnType<typeof compileAtlas>;
+  manifests: BakeManifest[];
+  perUnitWallClock: Record<string, number>;
+}
+
+/**
+ * Project a roster from measured numbers. Nothing here is estimated from
+ * documentation or from a previous round's figures: bytes per trimmed pixel
+ * and seconds per rig both come out of the bake that just ran.
+ */
+function projectRoster(baked: BakedConfig, config: CrowdConfig): unknown {
+  const { cost } = baked.result;
+  const totalTrimmed = Object.values(cost.units)
+    .reduce((sum, unit) => sum + unit.trimmedPixels, 0);
+  const bytesPerTrimmedPixel = cost.indexedPngBytes / Math.max(1, totalTrimmed);
+  const fodderIds = config.units.filter((unit) => unit.tier === "fodder").map((unit) => unit.id);
+  const heroIds = config.units.filter((unit) => unit.tier === "hero").map((unit) => unit.id);
+  const meanTrimmed = (ids: readonly string[]): number => {
+    const values = ids.map((id) => cost.units[`${id}_a`]?.trimmedPixels ?? 0);
+    return values.reduce((sum, value) => sum + value, 0) / Math.max(1, values.length);
+  };
+  const meanSeconds = (ids: readonly string[]): number => {
+    const values = ids.map((id) => baked.perUnitWallClock[id] ?? 0);
+    return values.reduce((sum, value) => sum + value, 0) / Math.max(1, values.length);
+  };
+  const fodderPx = meanTrimmed(fodderIds);
+  const heroPx = meanTrimmed(heroIds);
+  const fodderSeconds = meanSeconds(fodderIds);
+  const heroSeconds = meanSeconds(heroIds);
+
+  const shape = (fodder: number, hero: number): unknown => ({
+    archetypes: fodder + hero,
+    fodderArchetypes: fodder,
+    heroArchetypes: hero,
+    factions: 2,
+    cells: (fodder * 112 + hero * 160) * 2,
+    indexedBytes: Math.round((fodder * fodderPx + hero * heroPx) * 2 * bytesPerTrimmedPixel),
+    blenderSeconds: Number((fodder * fodderSeconds + hero * heroSeconds).toFixed(1)),
+  });
+
+  return {
+    basis: {
+      bytesPerTrimmedPixel: Number(bytesPerTrimmedPixel.toFixed(4)),
+      meanFodderTrimmedPixels: Math.round(fodderPx),
+      meanHeroTrimmedPixels: Math.round(heroPx),
+      meanFodderBakeSeconds: Number(fodderSeconds.toFixed(2)),
+      meanHeroBakeSeconds: Number(heroSeconds.toFixed(2)),
+      note: "faction B is a palette remap of faction A — it costs bytes, never renders",
+    },
+    allFodder: shape(20, 0),
+    sixteenFodderFourHeroes: shape(16, 4),
+  };
 }
 
 async function main(): Promise<void> {
@@ -389,6 +445,11 @@ async function main(): Promise<void> {
         measuredOn: `public/${ATLAS_PUBLIC_DIR}/${config.atlas}.png`,
         ...audit,
       },
+      // A 20-unit roster, projected from THIS bake's measured per-archetype
+      // numbers rather than from a guess. Bytes scale with trimmed sprite area
+      // (the atlas is indexed and shelf-packed, so packed area tracks content
+      // almost exactly); bake seconds scale with per-rig wall clock.
+      rosterProjection: projectRoster(baked, config),
       crowd: {
         units: roster.length,
         fodderPerSide: roster.filter((unit) => unit.side === 0 && unit.tier === "fodder").length,

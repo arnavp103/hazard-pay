@@ -3,9 +3,9 @@
   "heroPortraitAtlas": {
     "cells": 208,
     "indexedPngBytes": 29306,
-    "bakeWallClockSeconds": 8
+    "bakeWallClockSeconds": 8.2
   },
-  "crowdWallClockSeconds": 26.2,
+  "crowdWallClockSeconds": 25.88,
   "configs": {
     "small": {
       "label": "Small — Hero's Hour register",
@@ -184,8 +184,8 @@
         }
       },
       "blenderRenders": 768,
-      "blenderRenderSeconds": 9.16,
-      "bakeWallClockSeconds": 12.52,
+      "blenderRenderSeconds": 7.96,
+      "bakeWallClockSeconds": 11.28,
       "atlasRoundTripMismatchedPixels": 0,
       "clusterDensityAudit": {
         "measuredOn": "public/blender-baked/crowd-small.png",
@@ -193,6 +193,34 @@
         "pixels": 59854,
         "ratio": 0.117,
         "singletonShare": 0.0451
+      },
+      "rosterProjection": {
+        "basis": {
+          "bytesPerTrimmedPixel": 0.1879,
+          "meanFodderTrimmedPixels": 8886,
+          "meanHeroTrimmedPixels": 21411,
+          "meanFodderBakeSeconds": 2.33,
+          "meanHeroBakeSeconds": 5.9,
+          "note": "faction B is a palette remap of faction A — it costs bytes, never renders"
+        },
+        "allFodder": {
+          "archetypes": 20,
+          "fodderArchetypes": 20,
+          "heroArchetypes": 0,
+          "factions": 2,
+          "cells": 4480,
+          "indexedBytes": 66778,
+          "blenderSeconds": 46.7
+        },
+        "sixteenFodderFourHeroes": {
+          "archetypes": 20,
+          "fodderArchetypes": 16,
+          "heroArchetypes": 4,
+          "factions": 2,
+          "cells": 4864,
+          "indexedBytes": 85603,
+          "blenderSeconds": 61
+        }
       },
       "crowd": {
         "units": 36,
@@ -430,8 +458,8 @@
         }
       },
       "blenderRenders": 768,
-      "blenderRenderSeconds": 9.1,
-      "bakeWallClockSeconds": 13.68,
+      "blenderRenderSeconds": 10.14,
+      "bakeWallClockSeconds": 14.61,
       "atlasRoundTripMismatchedPixels": 0,
       "clusterDensityAudit": {
         "measuredOn": "public/blender-baked/crowd-large.png",
@@ -439,6 +467,34 @@
         "pixels": 142552,
         "ratio": 0.1298,
         "singletonShare": 0.0218
+      },
+      "rosterProjection": {
+        "basis": {
+          "bytesPerTrimmedPixel": 0.1869,
+          "meanFodderTrimmedPixels": 23669,
+          "meanHeroTrimmedPixels": 56189,
+          "meanFodderBakeSeconds": 2.89,
+          "meanHeroBakeSeconds": 7.02,
+          "note": "faction B is a palette remap of faction A — it costs bytes, never renders"
+        },
+        "allFodder": {
+          "archetypes": 20,
+          "fodderArchetypes": 20,
+          "heroArchetypes": 0,
+          "factions": 2,
+          "cells": 4480,
+          "indexedBytes": 176973,
+          "blenderSeconds": 57.8
+        },
+        "sixteenFodderFourHeroes": {
+          "archetypes": 20,
+          "fodderArchetypes": 16,
+          "heroArchetypes": 4,
+          "factions": 2,
+          "cells": 4864,
+          "indexedBytes": 225605,
+          "blenderSeconds": 74.3
+        }
       },
       "crowd": {
         "units": 36,
