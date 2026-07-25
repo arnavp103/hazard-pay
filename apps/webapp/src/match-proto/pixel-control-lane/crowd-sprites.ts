@@ -34,6 +34,33 @@
  * no ground decal, no hero-only hue: heroes and fodder of one side share
  * the same three livery entries, so the only levers under test are how
  * many pixels the figure gets and how densely they are used.
+ *
+ * ROUND 4 (SMALL only; LARGE is the untouched control).
+ *
+ * The round-3 cold critique failed SMALL on archetype separation and grit,
+ * and its argument was an ink budget: at 22 px a uniform 1 px contour ate
+ * most of the sprite. Round 4 answers it in two places, and only one of
+ * them is the drawing:
+ *
+ * 1. **Shape language.** Both SMALL fodder archetypes are redrawn to a
+ *    silhouette contract rather than a kit list. Breaker is a WIDE, compact,
+ *    top-heavy trapezoid whose round-3 shield SLAB is demoted to a 3 px
+ *    buckler boss -- that slab was inflating fodder mass to 182 px and
+ *    eating the hero's height advantage. Stinger is a NARROW column with a
+ *    rifle that BREAKS THE OUTLINE horizontally. In pure black the two are
+ *    a wide trapezoid and a thin cross.
+ * 2. **Rendering policy.** The SMALL grids are authored as *material only*.
+ *    The contour is applied at blit time by `applyContour` in
+ *    `./crowd-scene.ts`, which inks the contact edge and undersides, rim
+ *    lights the lit edge, and leaves the shadow edge to value contrast.
+ *    A separate 1 px halo fires only where one unit actually overlaps
+ *    another. Measured on the composited stage, only 4-7 % of this lane's
+ *    background-facing silhouette edges were low-contrast against the
+ *    board, so a uniform contour was spending most of its pixels on a
+ *    figure/ground problem this lane does not have.
+ *
+ * Depth falloff is expressed as three *discrete* palette steps mixed toward
+ * the plum-black world anchor, so the render stays palette-indexed.
  */
 
 export type CrowdPalette = Record<string, string>;
@@ -79,6 +106,46 @@ export const teamPalettes: Record<TeamKey, CrowdPalette> = {
   slate: { ...sharedRoles, l: "#3f5268", L: "#232f3f", i: "#5c7ea8" },
 };
 
+/**
+ * Depth falloff, round 4 (SMALL only). Back ranks are mixed toward the
+ * plum-black world anchor rather than toward pure black, so they lose value
+ * AND chroma together the way aerial perspective actually behaves, and the
+ * frame stays palette-indexed: three discrete steps, not a continuous ramp.
+ *
+ * Round 3 shipped one body colour for every rank, so a 36-unit engagement
+ * was a single flat plane with overlap as its only depth cue.
+ */
+export const DEPTH_MIX = [0, 0.20, 0.36] as const;
+
+function mixHex(hex: string, toward: string, amount: number): string {
+  const a = Number.parseInt(hex.slice(1), 16);
+  const b = Number.parseInt(toward.slice(1), 16);
+  const out: number[] = [];
+  for (let shift = 16; shift >= 0; shift -= 8) {
+    const from = (a >> shift) & 0xff;
+    const to = (b >> shift) & 0xff;
+    out.push(Math.round(from + (to - from) * amount));
+  }
+  return `#${out.map((v) => v.toString(16).padStart(2, "0")).join("")}`;
+}
+
+/** `depthPalettes[team][step]` - step 0 is the front rank, 2 the rear. */
+export const depthPalettes: Record<TeamKey, CrowdPalette[]> = {
+  rust: [],
+  slate: [],
+};
+
+for (const team of ["rust", "slate"] as const) {
+  depthPalettes[team] = DEPTH_MIX.map((amount) => {
+    const base = teamPalettes[team];
+    const out: CrowdPalette = {};
+    for (const [role, hex] of Object.entries(base)) {
+      out[role] = amount === 0 ? hex : mixHex(hex, base.k ?? "#120b10", amount);
+    }
+    return out;
+  });
+}
+
 /** Rec. 709 luma - the grayscale-legibility law is a value law. */
 export function luma(hex: string): number {
   const n = Number.parseInt(hex.slice(1), 16);
@@ -107,67 +174,76 @@ export interface CrowdGrid {
 // ---------------------------------------------------------------------
 
 /**
- * Fodder melee - "breaker". Silhouette contract: WIDE. Bucket helm, heavy
- * shoulders, a slab shield held forward as a solid rectangle, a cleaver
- * raised above the head line, planted wide stance. Reads as a mass.
+ * Fodder melee - "breaker" (round-4 redraw). Silhouette contract: WIDE,
+ * COMPACT, TOP-HEAVY. Shoulder span 14 px against a 8 px hip, the helm sunk
+ * between the pauldrons so there is no neck to read, a stubby cleaver adding
+ * WIDTH at shoulder height rather than height above the crown, and a 3 px
+ * buckler boss where round 3 carried a full shield slab.
+ *
+ * Authored as material only - `applyContour` inks it at blit time.
  */
 const breakerSmallRows: string[] = [
-  "................",
-  "................",
-  "..kk............",
-  ".kmnk...........",
-  ".kmmk..kkkk.....",
-  ".kMmk.kLllLk....",
-  "..kmk.klLLlk....",
-  "..kMk.kllllk....",
-  "...k..kLllLk....",
-  "..kCkkCCLLCk....",
-  ".kcccccccccCkkkk",
-  ".kcccccccccLllik",
-  ".kccCccccccLlllk",
-  ".kccCccccccLlllk",
-  "..kCCcccccCLlllk",
-  "..kCCccccCkLllik",
-  "...kCccccCkLllik",
-  "...kppppCkkkkkkk",
-  "...kppppk.......",
-  "..kppPkppk......",
-  "..kppk.kppk.....",
-  ".kbbbk.kbbbk....",
-  ".kbbbk.kbbbk....",
-  ".kBBBk.kBBBk....",
+  "..................",
+  "..................",
+  ".......CCCC.......",
+  "......CCCCCC......",
+  "......llllll......",
+  "......MMMMMM......",
+  "....lllcccccClll..",
+  "...lllicccccCCilll",
+  "..llliccccccCCilll",
+  ".mmmccccccccCCmnnn",
+  ".mMmccccccccCCmmnn",
+  "..mmcccccccccCmmn.",
+  "...cccwccccccC....",
+  "...cLllllllLC.....",
+  "....cccccCwcC.....",
+  "....ppPppppP......",
+  "....pppp.pppp.....",
+  "....pppp.pppp.....",
+  "....ppp...ppp.....",
+  "...bbbb...bbbb....",
+  "...bbbb...bbbb....",
+  "..bbbbb...bbbbb...",
+  "..BBBBB...BBBBB...",
+  "..BBBBB...BBBBB...",
 ];
 
 /**
- * Fodder ranged - "stinger". Silhouette contract: NARROW, with a long
- * straight diagonal (the rifle) and a thin comms spike above the head.
- * Nothing about it can be confused with the breaker in pure black.
+ * Fodder ranged - "stinger" (round-4 redraw). Silhouette contract: NARROW
+ * COLUMN plus a hard HORIZONTAL weapon line that BREAKS THE OUTLINE. Body
+ * mass is 7 px wide against the breaker's 14, and the rifle runs 14 px
+ * across chest height, clear of the body on both sides. The archetype read
+ * is therefore global (aspect ratio + one protrusion) rather than internal
+ * kit, which is the only channel that survives 22 px inside a clump.
+ *
+ * Authored as material only - `applyContour` inks it at blit time.
  */
 const stingerSmallRows: string[] = [
   "................",
   "................",
-  "....k...........",
-  "....k...........",
-  "....k..kkkkk....",
-  "....k.kLllllk...",
-  "....k.klttllk...",
-  "....kkkLLLllk...",
-  ".....kCCLLLLk...",
-  "...kklccccck....",
-  "...klieccccCkkk.",
-  "...kliecccCMmmnk",
-  "...kLLcccCMmnkk.",
-  "....kLccCMmkk...",
-  "....kppppPk.....",
-  "...kppppppk.....",
-  "...kpppppppk....",
-  "...kppkkpppk....",
-  "...kpk..kppk....",
-  "..kbpk...kppk...",
-  "..kbbk...kppk...",
-  "..kbbk...kbbbk..",
-  ".kbbbk...kbbbbk.",
-  ".kBBBk...kBBBBk.",
+  ".....CCC........",
+  "....CCCCC.......",
+  "....lltll.......",
+  "....ccccc.......",
+  "..llccccc.......",
+  "..lliccccc......",
+  "..llicccc.......",
+  "...lcccccc......",
+  ".MmmnmmmmmmnnmM.",
+  "...ccwcccc.mm...",
+  "...cLlllLc......",
+  "...cccccCc......",
+  "...pPppppp......",
+  "...ppppppp......",
+  "...ppp..ppp.....",
+  "..ppp....ppp....",
+  "..ppp....ppp....",
+  ".bbb......bbb...",
+  ".bbb......bbb...",
+  ".bbbb.....bbbb..",
+  "bbbb......bbbbb.",
+  "BBBB......BBBBB.",
 ];
 
 /**
@@ -175,6 +251,17 @@ const stingerSmallRows: string[] = [
  * Every hero-tier cue the 48x64 canon sprite carries is attempted here:
  * hood, respirator, back-slung med case with a pale cross, cybernetic
  * forearm with a teal pip, injector, staggered stance, hem wear.
+ *
+ * ROUND 4, control repair (not a redesign - the hero sprite is a throwaway
+ * placeholder pending the parallel design exploration). The round-3 cold
+ * critique found this unit's "unmarked" control was not unmarked: it carried
+ * a warm tan skin/visor entry and a near-white cyan specular that **no**
+ * fodder unit had, four occurrences per render, one per hero. Those were
+ * doing the tier separation the experiment claimed size and density were
+ * doing. Both are retired here - the visor takes the unit's own faction
+ * highlight `i` and the specular takes the teal `t` that stinger fodder also
+ * carry - so the hero's palette is a strict subset of its faction's fodder
+ * palette, which is what the critique asked for.
  */
 const maraSmallRows: string[] = [
   "....................",
@@ -182,7 +269,7 @@ const maraSmallRows: string[] = [
   "........kkkkk.......",
   "......kkcccccck.....",
   ".....keccccccck.....",
-  ".....kecccccCssk....",
+  ".....kecccccCiik....",
   ".....keccccCCmmMk...",
   ".....keccccccCtMk...",
   "......kccccccCkk....",
@@ -192,7 +279,7 @@ const maraSmallRows: string[] = [
   "..klnnlkCcccccCk....",
   "..klnnlkCcccccCkkmmk",
   "..kllnlkCcccccCktmnk",
-  "..kLLLLkCcccccCkkuMk",
+  "..kLLLLkCcccccCkktMk",
   "...kkkkkCccccccCk...",
   ".......kbbbbbbbk....",
   ".......kBBBBBBBk....",
@@ -377,7 +464,7 @@ function makeGrid(
 }
 
 export const crowdGrids: CrowdGrid[] = [
-  makeGrid("breaker-small", "Breaker (melee fodder)", "fodder", "small", 16, breakerSmallRows),
+  makeGrid("breaker-small", "Breaker (melee fodder)", "fodder", "small", 18, breakerSmallRows),
   makeGrid("stinger-small", "Stinger (ranged fodder)", "fodder", "small", 16, stingerSmallRows),
   makeGrid("mara-small", "Mara Voss (hero)", "hero", "small", 20, maraSmallRows),
   makeGrid("breaker-large", "Breaker (melee fodder)", "fodder", "large", 24, breakerLargeRows),

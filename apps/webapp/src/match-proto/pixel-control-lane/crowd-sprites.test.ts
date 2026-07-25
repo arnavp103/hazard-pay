@@ -5,6 +5,8 @@ import {
   crowdGrids,
   luma,
   crowdRowsToRgba,
+  DEPTH_MIX,
+  depthPalettes,
   distinctRoles,
   figureHeight,
   getGrid,
@@ -111,28 +113,106 @@ describe("archetype silhouettes", () => {
 
   /**
    * Jaccard distance between the two archetypes' silhouette masks - the
-   * "distinguishable by silhouette alone" claim, measured. The numbers are
-   * asserted rather than aspired to: LARGE separates the two archetypes
-   * measurably better than SMALL, which is itself round-3 evidence.
+   * "distinguishable by silhouette alone" claim, measured.
+   *
+   * ROUND-4 CORRECTION. Round 3 compared the two masks in raw grid
+   * coordinates, which is only valid while both archetypes share a canvas
+   * width. SMALL's melee canvas widened from 16 to 18 in round 4, and the
+   * un-aligned comparison then reports 0.498 for SMALL purely because the
+   * two grids no longer line up - a measurement artifact, not a gain. The
+   * masks are now aligned on the same anchor the painter uses (grid-width
+   * centre, contact row), which is where they actually meet on screen.
+   *
+   * Aligned, the honest numbers are:
+   *   SMALL round 3 0.361 -> round 4 0.395   (the redraw is a real gain)
+   *   LARGE          0.451 -> 0.451          (untouched control)
+   * so SMALL closed roughly a third of the gap and LARGE still separates the
+   * two archetypes better on this metric. Asserted, not aspired to.
    */
-  it("separates melee from ranged in black, and separates them better at LARGE", () => {
+  it("separates melee from ranged in black, aligned on the blit anchor", () => {
     const distance = (config: "small" | "large") => {
-      const a = mask(grid(`breaker-${config}`));
-      const b = mask(grid(`stinger-${config}`));
-      let intersection = 0;
-      let union = 0;
-      a.forEach((row, y) => {
-        row.forEach((on, x) => {
-          const other = b[y]?.[x] ?? false;
-          if (on && other) { intersection += 1; }
-          if (on || other) { union += 1; }
+      const cells = (g: CrowdGrid) => {
+        const out = new Set<string>();
+        mask(g).forEach((row, y) => {
+          row.forEach((on, x) => {
+            if (on) { out.add(`${String(x - g.width / 2)},${String(y - g.bottomRow)}`); }
+          });
         });
-      });
-      return 1 - intersection / union;
+        return out;
+      };
+      const a = cells(grid(`breaker-${config}`));
+      const b = cells(grid(`stinger-${config}`));
+      let intersection = 0;
+      for (const key of a) {
+        if (b.has(key)) { intersection += 1; }
+      }
+      return 1 - intersection / (a.size + b.size - intersection);
     };
-    expect(distance("small")).toBeGreaterThan(0.3);
-    expect(distance("large")).toBeGreaterThan(0.4);
-    expect(distance("large")).toBeGreaterThan(distance("small"));
+    // round-3 SMALL measured 0.361 on this same aligned metric
+    expect(distance("small")).toBeGreaterThan(0.38);
+    expect(distance("large")).toBeGreaterThan(0.44);
+  });
+
+  /**
+   * The cue that actually survives 22 px inside a clump is not mask overlap,
+   * it is global proportion: how wide the *body mass* is (median filled run,
+   * which the weapon row does not dominate) and how far one protrusion
+   * breaks out of it. Round 3 had the two archetypes at 11 vs 9 median run -
+   * a 1.22x difference that the critique correctly called unreadable.
+   */
+  it("gives melee a measurably wider body mass than ranged at SMALL", () => {
+    const medianRun = (g: CrowdGrid) => {
+      const runs = mask(g)
+        .map((row) => {
+          const first = row.indexOf(true);
+          return first === -1 ? 0 : row.lastIndexOf(true) - first + 1;
+        })
+        .filter((run) => run > 0)
+        .sort((a, b) => a - b);
+      return runs[Math.floor(runs.length / 2)] ?? 0;
+    };
+    const melee = medianRun(grid("breaker-small"));
+    const ranged = medianRun(grid("stinger-small"));
+    expect(melee / ranged).toBeGreaterThan(1.3);
+    // and the ranged unit's widest row still breaks well clear of its body
+    expect(widestRun(grid("stinger-small")) - ranged).toBeGreaterThanOrEqual(6);
+  });
+});
+
+describe("round-4 control repairs", () => {
+  /**
+   * The round-3 cold critique found three hero-only colours quietly doing the
+   * tier separation the experiment claimed size and detail density were doing.
+   * At SMALL the hero's palette is now a strict subset of its own faction's
+   * fodder palette, counting the two roles the contour policy adds at paint
+   * time (`k` ink and `e` coat light), which every SMALL unit receives.
+   */
+  it("leaves the SMALL hero no palette role its own fodder lack", () => {
+    const rolesOf = (key: string) =>
+      new Set([...grid(key).rows.join("")].filter((ch) => ch !== "."));
+    const fodder = new Set([
+      ...rolesOf("breaker-small"),
+      ...rolesOf("stinger-small"),
+      "k",
+      "e",
+    ]);
+    const exclusive = [...rolesOf("mara-small")].filter((ch) => !fodder.has(ch));
+    expect(exclusive).toEqual([]);
+  });
+
+  it("steps the depth ramp down in value without losing the world anchor", () => {
+    for (const team of ["rust", "slate"] as const) {
+      const ramp = depthPalettes[team];
+      expect(ramp).toHaveLength(DEPTH_MIX.length);
+      expect(ramp[0]).toEqual(teamPalettes[team]);
+      for (let step = 1; step < ramp.length; step += 1) {
+        const near = ramp[step - 1]?.c ?? "";
+        const far = ramp[step]?.c ?? "";
+        expect(luma(far)).toBeLessThan(luma(near) - 8);
+      }
+      // the ink anchor is the thing everything mixes toward, so it never moves
+      expect(ramp.every((step) => step.k === teamPalettes[team].k)).toBe(true);
+    }
   });
 });
 

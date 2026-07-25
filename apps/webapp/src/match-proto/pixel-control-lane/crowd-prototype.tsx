@@ -35,15 +35,17 @@ import {
   buildRoster,
   crowdConfigs,
   footprintWidth,
+  markingBrightLimit,
   markingOffsets,
   markingRole,
   poseUnit,
+  renderRows,
+  unitPalette,
 } from "./crowd-scene.ts";
 import {
   crowdRowsToRgba,
   figureHeight,
   getGrid,
-  teamPalettes,
 } from "./crowd-sprites.ts";
 import boardUrl from "../style-cohesion-assets/grime-market-board.prototype.png";
 
@@ -96,7 +98,6 @@ function paintStage(
 
   const config = crowdConfigs[configKey];
   const roster = lineup ? buildLineup(config) : buildRoster(config);
-
   // Contact shadows first, identical treatment for every unit regardless
   // of tier - grounding must not smuggle in the marking that was deferred.
   context.fillStyle = "rgb(18 11 16 / 0.42)";
@@ -120,22 +121,36 @@ function paintStage(
     frame.data[to + 3] = 255;
   };
 
+  /** Luma of what is already composited at a stage pixel, null off-stage. */
+  const stageLuma = (px: number, py: number): number | null => {
+    if (px < 0 || px >= STAGE_W || py < 0 || py >= STAGE_H) { return null; }
+    const at = (py * STAGE_W + px) * 4;
+    return 0.2126 * (frame.data[at] ?? 0)
+      + 0.7152 * (frame.data[at + 1] ?? 0)
+      + 0.0722 * (frame.data[at + 2] ?? 0);
+  };
+
   for (const unit of roster) {
     const grid = getGrid(unit.gridKey);
-    const posed = poseUnit(unit, clockMs);
-    const rgba = crowdRowsToRgba(posed.rows, grid.width, teamPalettes[unit.team]);
-    const origin = blitOrigin(unit, grid, posed.bob);
-    const palette = teamPalettes[unit.team];
+    const palette = unitPalette(unit, config);
+    const bob = poseUnit(unit, clockMs).bob;
+    const origin = blitOrigin(unit, grid, bob);
+    const sxOf = (x: number) => (unit.mirrored ? grid.width - 1 - x : x);
+    const posed = renderRows(unit, config, clockMs, palette,
+      (dx, dy) => stageLuma(origin.x + sxOf(dx), origin.y + dy));
+    const rgba = crowdRowsToRgba(posed.rows, grid.width, palette);
 
     // The marking goes down first so the sprite always sits on top of its
     // own border - the border thickens the unit, it never eats into it.
     if (marked && unit.tier === "hero") {
       const radius = MARKING_RADIUS[configKey];
+      const brightTo = markingBrightLimit(grid);
       const offsets = markingOffsets(posed.rows, grid.width, radius);
       for (const offset of offsets) {
         if (offset.dy > grid.bottomRow + MARKING_FOOT_BLEED) { continue; }
-        const sx = unit.mirrored ? grid.width - 1 - offset.dx : offset.dx;
-        write(origin.x + sx, origin.y + offset.dy, palette[markingRole(offset.ring, radius)]);
+        if (config.policy.markingTaper && offset.dy > brightTo) { continue; }
+        const role = markingRole(offset.ring, radius);
+        write(origin.x + sxOf(offset.dx), origin.y + offset.dy, palette[role]);
       }
     }
 
@@ -143,8 +158,7 @@ function paintStage(
       for (let x = 0; x < grid.width; x += 1) {
         const at = (y * grid.width + x) * 4;
         if (rgba[at + 3] === 0) { continue; }
-        const sx = unit.mirrored ? grid.width - 1 - x : x;
-        const px = origin.x + sx;
+        const px = origin.x + sxOf(x);
         const py = origin.y + y;
         if (px < 0 || px >= STAGE_W || py < 0 || py >= STAGE_H) { continue; }
         const to = (py * STAGE_W + px) * 4;
@@ -211,7 +225,7 @@ export function CrowdPrototype() {
             <span className="text-accent"> crowd</span>
           </h1>
           <span className="font-data text-[10px] tracking-[0.1em] text-ink-dim uppercase">
-            /// pixel control lane · round 3 · resolution fork
+            /// pixel control lane · round 4 · small recovery
           </span>
         </div>
         <div className="flex items-center gap-3">
