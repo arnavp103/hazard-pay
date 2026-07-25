@@ -1,129 +1,86 @@
 {
-  "note": "Captured from the live rAF loop in Chromium (no freeze), pixelRatio 1, MSAA on. frameMs is renderer.render() wall time only; fps is its reciprocal, not a vsync-limited display rate.",
-  "runs": {
-    "crowd-40-480x270": {
-      "authoredKeysPerClip": 4,
-      "authoredKeysTotal": 12,
-      "base": "quad",
-      "boardMeshes": 2,
-      "boardTriangles": 1148,
-      "drawCalls": 489,
-      "fodder": 36,
-      "fps": 386,
-      "frameMs": {
-        "max": 4.4,
-        "mean": 2.591,
-        "p95": 3.7,
-        "samples": 180
-      },
-      "heroes": 4,
-      "meshesPerFodder": 12,
-      "meshesPerHero": 14,
-      "programs": 3,
-      "stage": {
-        "height": 270,
-        "pixelRatio": 1,
-        "width": 480,
-        "zoom": 0.55
-      },
-      "trianglesPerFodder": 376,
-      "trianglesPerHero": 628,
-      "triangles": 17296,
+  "lane": "flat low-poly + procedural animation (#89, PR #90)",
+  "round": 2,
+  "note": "Round 2 rebuilds the base rig for head visibility and adds the approved hero marking. Timings were taken on a busier machine than round 1's, so compare marked-vs-unmarked within this file rather than against round 1's absolute numbers.",
+  "rig": {
+    "headCount": 3.774,
+    "headCountRound1": 4.4,
+    "neckRiseFractionOfHeight": 0.14,
+    "neckRiseRound1": -0.005,
+    "heroHeightWorld": 1.85,
+    "fodderHeightWorld": 1.48,
+    "tierScale": 1.25
+  },
+  "authored": {
+    "keysPerClip": 4,
+    "keysTotalWholeLane": 12,
+    "boundary": "two keys per clip; unchanged by the rig fix"
+  },
+  "scenes": {
+    "crowd40Marked": {
       "units": 40,
-      "view": "crowd"
-    },
-    "crowd-40-960x540": {
-      "authoredKeysPerClip": 4,
-      "authoredKeysTotal": 12,
-      "base": "quad",
-      "boardMeshes": 2,
-      "boardTriangles": 1148,
+      "heroes": 4,
       "drawCalls": 489,
-      "fodder": 36,
-      "fps": 311,
-      "frameMs": {
-        "max": 66.9,
-        "mean": 3.214,
-        "p95": 4.8,
-        "samples": 144
-      },
-      "heroes": 4,
-      "meshesPerFodder": 12,
-      "meshesPerHero": 14,
-      "programs": 3,
-      "stage": {
-        "height": 540,
-        "pixelRatio": 1,
-        "width": 960,
-        "zoom": 0.55
-      },
-      "trianglesPerFodder": 376,
-      "trianglesPerHero": 628,
-      "triangles": 17296,
-      "units": 40,
-      "view": "crowd"
+      "markDrawCalls": 49,
+      "triangles": 20128,
+      "frameMsMean": 7.477,
+      "frameMsP95": 9.3,
+      "programs": 6
     },
-    "crowd-60-480x270": {
-      "authoredKeysPerClip": 4,
-      "authoredKeysTotal": 12,
-      "base": "quad",
-      "boardMeshes": 2,
-      "boardTriangles": 1148,
-      "drawCalls": 729,
-      "fodder": 56,
-      "fps": 266,
-      "frameMs": {
-        "max": 6.9,
-        "mean": 3.761,
-        "p95": 5.1,
-        "samples": 180
-      },
+    "crowd40Unmarked": {
+      "units": 40,
       "heroes": 4,
-      "meshesPerFodder": 12,
-      "meshesPerHero": 14,
-      "programs": 3,
-      "stage": {
-        "height": 270,
-        "pixelRatio": 1,
-        "width": 480,
-        "zoom": 0.55
-      },
-      "trianglesPerFodder": 368,
-      "trianglesPerHero": 628,
-      "triangles": 24840,
+      "drawCalls": 489,
+      "markDrawCalls": 0,
+      "triangles": 20128,
+      "frameMsMean": 5.022,
+      "frameMsP95": 7.0,
+      "programs": 3
+    },
+    "crowd60Marked": {
       "units": 60,
-      "view": "crowd"
+      "heroes": 4,
+      "drawCalls": 729,
+      "markDrawCalls": 49,
+      "triangles": 29112,
+      "frameMsMean": 11.378,
+      "frameMsP95": 16.6,
+      "programs": 6
     },
-    "hero-1-480x270": {
-      "authoredKeysPerClip": 4,
-      "authoredKeysTotal": 12,
-      "base": "quad",
-      "boardMeshes": 2,
-      "boardTriangles": 1148,
-      "drawCalls": 17,
-      "fodder": 0,
-      "fps": 2736,
-      "frameMs": {
-        "max": 1.1,
-        "mean": 0.366,
-        "p95": 0.6,
-        "samples": 180
-      },
-      "heroes": 1,
-      "meshesPerFodder": 0,
-      "meshesPerHero": 14,
-      "programs": 3,
-      "stage": {
-        "height": 270,
-        "pixelRatio": 1,
-        "width": 480,
-        "zoom": 0.82
-      },
-      "trianglesPerFodder": 0,
-      "trianglesPerHero": 608,
-      "triangles": 1770,
+    "heroCombatZoom": {
       "units": 1,
-      "view": "hero"
+      "heroes": 1,
+      "drawCalls": 17,
+      "markDrawCalls": 13,
+      "triangles": 1830,
+      "frameMsMean": 1.629,
+      "frameMsP95": 2.0,
+      "programs": 5
     }
+  },
+  "perUnit": {
+    "meshesPerHero": 14,
+    "meshesPerFodder": 12,
+    "trianglesPerHero": 688,
+    "trianglesPerFodder": 448,
+    "markMeshesPerHero": 12
+  },
+  "marking": {
+    "implementation": "screen-space silhouette: hero-only mask layer rendered to an offscreen target, dilated over three 12-tap rings, composited as the ring outside the unit",
+    "borderHalfWidthPx": 2.2,
+    "costMs40Units": 2.455,
+    "costDrawCalls": 49,
+    "unspentLevers": [
+      "separable two-pass max dilate (~36 taps down to ~10)",
+      "half-resolution mask target",
+      "GPU skinning + InstancedMesh collapses the 489 scene calls to ~one per archetype"
+    ]
+  },
+  "stage": {
+    "width": 480,
+    "height": 270,
+    "pixelRatio": 1,
+    "combatZoom": 0.82,
+    "crowdZoom": 0.55
   }
 }
