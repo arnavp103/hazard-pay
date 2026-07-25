@@ -125,8 +125,13 @@ export function createMarkPass(width: number, height: number): MarkPass {
     minFilter: THREE.LinearFilter,
   });
 
-  // Flat, unlit, depth-tested so a hero behind a wall does not get a ring.
-  const maskMaterial = new THREE.MeshBasicMaterial({ color: "#ff0000" });
+  const maskMaterial = new THREE.MeshBasicMaterial({ color: "#ff0000", depthWrite: false });
+  // Depth-only prepass material. Without it the mask target's depth buffer is
+  // empty — the pass renders heroes ALONE, so there is nothing for a hero to
+  // be occluded by, and a hero standing behind a building still stamped a
+  // ring across the wall with no unit inside it. Priming depth from the full
+  // scene first costs one extra scene pass and makes the ring obey the world.
+  const depthMaterial = new THREE.MeshBasicMaterial({ colorWrite: false });
 
   const quadScene = new THREE.Scene();
   const quadCamera = new THREE.Camera();
@@ -159,6 +164,7 @@ export function createMarkPass(width: number, height: number): MarkPass {
       quad.geometry.dispose();
       (quad.material as THREE.Material).dispose();
       maskMaterial.dispose();
+      depthMaterial.dispose();
     },
     lastCost: () => cost,
     render: (renderer, scene, camera) => {
@@ -173,12 +179,16 @@ export function createMarkPass(width: number, height: number): MarkPass {
       const savedTarget = renderer.getRenderTarget();
       const savedAutoClear = renderer.autoClear;
 
-      scene.overrideMaterial = maskMaterial;
       renderer.setRenderTarget(target);
       renderer.setClearColor("#000000", 0);
       renderer.clear();
       renderer.autoClear = false;
 
+      scene.overrideMaterial = depthMaterial;
+      camera.layers.set(0);
+      renderer.render(scene, camera);
+
+      scene.overrideMaterial = maskMaterial;
       maskMaterial.color.setRGB(1, 0, 0);
       camera.layers.set(MARK_LAYER_CREW);
       renderer.render(scene, camera);

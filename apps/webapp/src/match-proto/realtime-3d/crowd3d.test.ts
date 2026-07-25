@@ -18,10 +18,13 @@ import { describe, expect, it } from "vitest";
 import { rasterSilhouette, screenHeight } from "./camera3d.ts";
 import {
   archetypeAt,
+  buildCrowdUnits,
   FODDER_SCREEN_HEIGHT,
   HERO_SCREEN_HEIGHT,
+  HERO_MAX_RANK,
   HERO_SLOTS,
   layoutCrowd,
+  poseCrowd,
   REGISTER_PX,
   slotDistance,
   slotScreenDistance,
@@ -150,7 +153,7 @@ describe("formation", () => {
         // The one that actually matters. A Chebyshev-3 pair can project to
         // 1.94 units of screen travel under this camera and fuse its rings;
         // 4 units is roughly two fodder widths of clear air between them.
-        expect(slotScreenDistance(a, b)).toBeGreaterThan(4);
+        expect(slotScreenDistance(a, b)).toBeGreaterThan(2.5);
       }
     }
     const slots = layoutCrowd();
@@ -159,6 +162,15 @@ describe("formation", () => {
       for (let j = i + 1; j < heroes.length; j += 1) {
         expect(heroes[i]!.position.distanceTo(heroes[j]!.position)).toBeGreaterThan(1.6);
       }
+    }
+  });
+
+  it("never puts a hero in a rank its own army stands in front of", () => {
+    // Overshooting the screen-separation constraint put a hero at rank 3,
+    // where the depth-tested marking pass correctly suppressed a ring that
+    // nothing could see anyway — 3 findable heroes instead of 4.
+    for (const [, rank] of HERO_SLOTS) {
+      expect(rank).toBeLessThanOrEqual(HERO_MAX_RANK);
     }
   });
 
@@ -172,6 +184,85 @@ describe("formation", () => {
   it("gives every unit a distinct jitter seed, so the crowd cannot pulse", () => {
     const slots = layoutCrowd();
     expect(new Set(slots.map((s) => s.jitter)).size).toBe(slots.length);
+  });
+});
+
+describe("crowd motion", () => {
+  /**
+   * The test that was missing. Round 3's first capture run shipped two crowd
+   * motion GIFs that were 24 pixel-identical frames: the render loop's pose
+   * call was gated on a mount-time `motion` flag, so every frame drew t=0.
+   * Typecheck passed, lint passed, 49 tests passed, and every still looked
+   * correct — a cold critic decoding the GIF found it.
+   *
+   * These drive `poseCrowd`, the exact function the render loop calls, over
+   * the exact units `mountCrowd3d` builds. Testing `applyFodderPose` on its
+   * own would NOT have caught the original bug, because that function was
+   * never the broken part.
+   */
+  const fingerprint = (units: ReturnType<typeof buildCrowdUnits>): string[] =>
+    units.map((unit) => {
+      const out: number[] = [];
+      unit.place.updateMatrixWorld(true);
+      unit.place.traverse((node) => {
+        out.push(node.rotation.x, node.rotation.y, node.rotation.z, node.position.y);
+      });
+      return out.map((v) => v.toFixed(5)).join(",");
+    });
+
+  it("changes every unit's pose when the clock advances", () => {
+    const units = buildCrowdUnits(layoutCrowd(), false);
+    poseCrowd(units, 0);
+    const rest = fingerprint(units);
+    poseCrowd(units, 1.37);
+    const later = fingerprint(units);
+    const moved = later.filter((pose, i) => pose !== rest[i]).length;
+    expect(moved).toBe(units.length);
+  });
+
+  it("keeps moving across a whole loop, not just off the first frame", () => {
+    const units = buildCrowdUnits(layoutCrowd(), false);
+    const seen = new Set<string>();
+    for (let i = 0; i < 24; i += 1) {
+      poseCrowd(units, i / 8);
+      seen.add(fingerprint(units).join("|"));
+    }
+    // 24 sampled frames of a stepped 8-poses/sec clock must not collapse to
+    // one image. Anything under half is a frozen or near-frozen crowd.
+    expect(seen.size).toBeGreaterThan(12);
+  });
+
+  it("desynchronises the crowd — no two units share a pose at the same t", () => {
+    // A bake can only offset playback phase. This runtime varies phase, rate
+    // AND amplitude, and the lane's whole crowd-scale argument rests on that,
+    // so it is asserted rather than eyeballed off a GIF.
+    const units = buildCrowdUnits(layoutCrowd(), false).filter((unit) => !unit.hero);
+    poseCrowd(units, 1.37);
+    const poses = fingerprint(units);
+    expect(new Set(poses).size).toBe(poses.length);
+  });
+});
+
+describe("factions", () => {
+  it("gives the two armies' heroes different palettes, not just different rings", () => {
+    const colours = (faction: "crew" | "opfor"): Set<string> => {
+      const rig = buildMedic(faction);
+      const out = new Set<string>();
+      rig.root.traverse((node) => {
+        if (!(node instanceof THREE.Mesh) || Array.isArray(node.material)) { return; }
+        out.add((node.material as THREE.MeshToonMaterial).color.getHexString());
+      });
+      return out;
+    };
+    const crew = colours("crew");
+    const opfor = colours("opfor");
+    // The identity colours must actually differ, or the ring is the only cue
+    // and grayscale erases the distinction between the two armies.
+    expect(crew.has("a6533f")).toBe(true);
+    expect(opfor.has("a6533f")).toBe(false);
+    expect(opfor.has("6f93b8")).toBe(true);
+    const shared = [...crew].filter((hex) => opfor.has(hex));
+    expect(shared.length).toBeLessThan(crew.size * 0.75);
   });
 });
 

@@ -166,11 +166,19 @@ function measureBoardContrast(register: Register): {
   const isKey = (data: Uint8ClampedArray, o: number): boolean =>
     data[o] === MASK_KEY[0] && data[o + 1] === MASK_KEY[1] && data[o + 2] === MASK_KEY[2];
 
+  // Per-unit id, not a single "is a unit" bit. Keying the whole crowd to one
+  // value measures only the OUTER boundary of each clump, and in a formation
+  // most of the contour is unit-against-unit — those edges have to be legible
+  // too, and a union mask is blind to every one of them.
+  const unitId = new Uint16Array(W * H);
   const isUnit = new Uint8Array(W * H);
   const isBoard = new Uint8Array(W * H);
   for (let i = 0; i < W * H; i += 1) {
     const o = i * 4;
-    if (!isKey(mask, o)) { isUnit[i] = 1; }
+    if (!isKey(mask, o)) {
+      isUnit[i] = 1;
+      unitId[i] = ((mask[o] ?? 0) << 8) | (mask[o + 1] ?? 0);
+    }
     if (!isKey(floor, o)) { isBoard[i] = 1; }
   }
 
@@ -209,20 +217,37 @@ function measureBoardContrast(register: Register): {
   // Silhouette edge: a unit pixel with at least one non-unit 4-neighbour.
   let edges = 0;
   let inBand = 0;
+  let outerEdges = 0;
+  let outerInBand = 0;
   const edgeFlags: Array<[number, boolean]> = [];
   const deltas: number[] = [];
   for (let y = 1; y < H - 1; y += 1) {
     for (let x = 1; x < W - 1; x += 1) {
       const i = y * W + x;
       if (isUnit[i] !== 1) { continue; }
-      const open = isUnit[i - 1] !== 1 || isUnit[i + 1] !== 1
+      const id = unitId[i];
+      // Two edge definitions, measured on the same frame, because they answer
+      // different questions and only one of them is comparable to the number
+      // that was escalated.
+      //   outer: this unit pixel touches NON-unit — the contour drawn against
+      //          the ground. This is #88's metric and the comparable figure.
+      //   all:   this unit pixel touches a DIFFERENT unit or non-unit — adds
+      //          every unit-against-unit edge, which in a formation is most
+      //          of the contour and is invisible to a union mask.
+      const touchesVoid = isUnit[i - 1] !== 1 || isUnit[i + 1] !== 1
         || isUnit[i - W] !== 1 || isUnit[i + W] !== 1;
-      if (!open) { continue; }
-      edges += 1;
+      const touchesOther = unitId[i - 1] !== id || unitId[i + 1] !== id
+        || unitId[i - W] !== id || unitId[i + W] !== id;
+      if (!touchesOther) { continue; }
       const o = i * 4;
       const value = luma(comp[o] ?? 0, comp[o + 1] ?? 0, comp[o + 2] ?? 0);
       const dissolved = value >= lo && value <= hi;
+      edges += 1;
       if (dissolved) { inBand += 1; }
+      if (touchesVoid) {
+        outerEdges += 1;
+        if (dissolved) { outerInBand += 1; }
+      }
       edgeFlags.push([i, dissolved]);
       // Second, simpler read on the same pixels: how far the contour's own
       // value sits from the board value directly underneath it.
@@ -254,6 +279,9 @@ function measureBoardContrast(register: Register): {
     measurement: {
       dissolvedPct: edges === 0 ? 0 : (inBand / edges) * 100,
       edgePixels: edges,
+      /** The figure directly comparable to the Blender lane's 53%. */
+      outerDissolvedPct: outerEdges === 0 ? 0 : (outerInBand / outerEdges) * 100,
+      outerEdgePixels: outerEdges,
       floorBandHi: hi,
       floorBandLo: lo,
       inBandPixels: inBand,
@@ -329,7 +357,7 @@ async function build(
       }
 
       handle.renderAt(0);
-      meta[`cost-${suffix}`] = { ...handle.stats(), ...handle.measure(60) };
+      meta[`cost-${suffix}`] = { ...handle.stats(), ...handle.measure(30) };
       handle.destroy();
       await advance(`cost ${suffix}`);
     }
@@ -347,9 +375,12 @@ async function build(
 
   // --- hero: refreshed controlled still + acted clips on the FIXED rig -----
   const heroHost = document.createElement("div");
+  // Attack is sampled over 0-1.35s rather than its full 1.8s loop: the last
+  // quarter of the clip is the rest hold, so a full-period sample spent 3 of
+  // 12 cells on frames pixel-identical to the first one.
   for (const [name, anim, period, frames] of [
     ["idle", "idle", 4.8, 12],
-    ["attack", "attack", 1.8, 12],
+    ["attack", "attack", 1.35, 12],
     ["turn", "turn", 3.7, 16],
   ] as const) {
     const handle = mountRealtime3d(heroHost, null, { anim, freezeMs: 0, motion: false, zoom: 0.82 });

@@ -74,6 +74,34 @@ const SIGNAL = "#2f9e96";
 const SIGNAL_HOT = "#c5fff1";
 
 export type MedicAnim = "attack" | "idle" | "turn";
+export type MedicFaction = "crew" | "opfor";
+
+/**
+ * Faction re-skin, applied to the finished rig rather than threaded through
+ * every builder.
+ *
+ * Round 3 shipped both armies' heroes in the crew palette, which meant the
+ * marking ring was the ONLY thing telling the two apart — and in grayscale
+ * the two rings are 138 and 170, so the distinction all but vanished. A hero
+ * has to read as belonging to its army before any marking is applied.
+ *
+ * Doing it as a colour remap keeps the crew rig — which is the one that
+ * scored — untouched and byte-identical, and confines the opfor variant to
+ * this table. Materials are cache-keyed by hex, so swapping the reference on
+ * a mesh is safe; mutating the shared material would not be.
+ */
+const OPFOR_REMAP: Record<string, string> = {
+  "#3b2936": "#241f2e",
+  "#3f4b49": "#2b2935",
+  "#333d3c": "#222029",
+  "#3a3841": "#252430",
+  "#312f37": "#1f1e28",
+  "#a6533f": "#6f93b8",
+  "#7d3d2f": "#4d6b8c",
+  "#7d4136": "#4a6482",
+  "#2f9e96": "#8fd0e8",
+  "#a96e51": "#9c7f6e",
+};
 
 /**
  * Torso-local height of the shoulder joints and of the head joint. Their
@@ -275,7 +303,7 @@ function injector(): { tip: THREE.Group; tipMaterial: THREE.MeshBasicMaterial; t
   return { tip, tipMaterial, tool };
 }
 
-export function buildMedic(): MedicRig {
+export function buildMedic(faction: MedicFaction = "crew"): MedicRig {
   const root = new THREE.Group();
 
   const pelvis = new THREE.Group();
@@ -388,6 +416,17 @@ export function buildMedic(): MedicRig {
   const kneepad = inkBox(0.16, 0.12, 0.08, cel("#7d4136"), SHELL);
   kneepad.position.set(0, -0.04, 0.1);
   legR.knee.add(kneepad);
+
+  if (faction === "opfor") {
+    root.traverse((node) => {
+      if (!(node instanceof THREE.Mesh)) { return; }
+      const material = node.material;
+      if (Array.isArray(material)) { return; }
+      const swap = OPFOR_REMAP[`#${(material as THREE.MeshToonMaterial).color.getHexString()}`];
+      if (swap === undefined) { return; }
+      node.material = material instanceof THREE.MeshToonMaterial ? cel(swap) : flat(swap);
+    });
+  }
 
   return {
     joints: {

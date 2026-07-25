@@ -88,8 +88,19 @@ const SPACING_FILE = 1.02;
  *
  * Fused rings matter because the capture then measures the ring instead of
  * measuring tier separation.
+ *
+ * There is a SECOND constraint pulling the other way, learned by overshooting
+ * the first. Maximising screen separation alone put a hero at rank 3, and the
+ * back rank is the farthest thing from a camera that looks down the +X/+Z
+ * diagonal — so its own army stood in front of it, the depth-tested marking
+ * pass correctly suppressed the ring, and the hero vanished from the capture
+ * entirely. Heroes therefore stay in the front two ranks. 2.81 units of
+ * screen travel is 60 px at the near register and 38 px at the far one,
+ * against a 2.2 px ring on a ~16 px-wide unit: nowhere near fusing.
  */
-export const HERO_SLOTS: Array<[number, number]> = [[4, 0], [0, 3]];
+export const HERO_SLOTS: Array<[number, number]> = [[0, 0], [4, 1]];
+/** Heroes never stand behind their own army. */
+export const HERO_MAX_RANK = 1;
 
 /** Chebyshev distance between two slots. */
 export function slotDistance(a: [number, number], b: [number, number]): number {
@@ -137,9 +148,18 @@ interface SideSpec {
   yaw: number;
 }
 
+/**
+ * Both blocks are pulled off the world-X axis toward the screen centre. On
+ * the axis, each side's back ranks reached x = +/-5.7 and ran behind the
+ * market stalls: with the marking pass correctly depth-tested, an occluded
+ * hero's ring is suppressed, so a hero simply vanished from the capture and
+ * the hero-finding test had 3 findable heroes instead of 4. Sliding along
+ * -Z / +Z moves each block up-right / down-left on screen, out from behind
+ * its own building, without changing the confrontation.
+ */
 const SIDES: SideSpec[] = [
-  { center: [-2.6, 0], faction: "crew", yaw: Math.PI / 2 },
-  { center: [2.6, 0], faction: "opfor", yaw: -Math.PI / 2 },
+  { center: [-2.6, -1.15], faction: "crew", yaw: Math.PI / 2 },
+  { center: [2.6, 1.15], faction: "opfor", yaw: -Math.PI / 2 },
 ];
 
 /** Screen travel per world unit of formation spacing, for the cost report. */
@@ -237,11 +257,85 @@ export interface CrowdHandle {
   measure: (samples: number) => { meanMs: number; p95Ms: number };
 }
 
-interface Unit {
+export interface CrowdUnit {
   hero: boolean;
   medic?: MedicRig;
   fodder?: ReturnType<typeof buildFodder>;
   jitter: number;
+  /** Placement group: owns position and facing, so the rig root keeps pose. */
+  place: THREE.Group;
+}
+
+/**
+ * Build the units for a set of slots, with no renderer involved.
+ *
+ * Split out of `mountCrowd3d` on purpose. The frozen-crowd defect — two
+ * motion GIFs that were 24 identical frames — lived in the per-frame posing
+ * call inside the render loop, which no test could reach because reaching it
+ * needed a WebGL context. Everything except the actual draw call is pure
+ * three.js and runs fine in node, so it lives here where a test can drive it.
+ */
+export function buildCrowdUnits(slots: Slot[], markHeroes: boolean, maskIds = false): CrowdUnit[] {
+  const units: CrowdUnit[] = [];
+  for (const slot of slots) {
+    let root: THREE.Group;
+    let medic: MedicRig | undefined;
+    let fodder: ReturnType<typeof buildFodder> | undefined;
+    if (slot.hero) {
+      medic = buildMedic(slot.faction);
+      fitScreenHeight(medic.root, HERO_SCREEN_HEIGHT);
+      root = medic.root;
+    } else {
+      fodder = buildFodder(slot.archetype, slot.faction);
+      fitScreenHeight(fodder.root, FODDER_SCREEN_HEIGHT);
+      root = fodder.root;
+    }
+    // The rig's own root carries pose translation, so parent it into a
+    // placement group rather than fighting it for the transform.
+    const place = new THREE.Group();
+    place.position.copy(slot.position);
+    place.rotation.y = slot.yaw;
+    place.add(root);
+
+    if (slot.hero && markHeroes) { enableMark(root, slot.faction); }
+
+    // Mask mode paints each unit a unique flat id colour. Keying the whole
+    // crowd to one colour instead measures only the outer boundary of each
+    // clump — every interior unit-against-unit edge, which is most of the
+    // contour in a formation, is invisible to it.
+    if (maskIds) {
+      const id = units.length + 1;
+      const idMaterial = new THREE.MeshBasicMaterial({
+        color: new THREE.Color(
+          (((id * 37) % 251) + 4) / 255,
+          (((id * 91) % 251) + 4) / 255,
+          0.5,
+        ),
+      });
+      root.traverse((node) => {
+        if (node instanceof THREE.Mesh) { node.material = idMaterial; }
+      });
+    }
+
+    units.push({ fodder, hero: slot.hero, jitter: slot.jitter, medic, place });
+  }
+  return units;
+}
+
+/**
+ * Drive every unit's pose from one clock. `t` IS the clock: a still is
+ * `poseCrowd(units, 0)` and a loop is a sequence of t. There is deliberately
+ * no "should we animate" flag in here — the previous version had one, and it
+ * silently rendered every frame of both crowd motion GIFs at t=0.
+ */
+export function poseCrowd(units: CrowdUnit[], t: number): void {
+  for (const unit of units) {
+    if (unit.medic !== undefined) {
+      applyMedicPose(unit.medic, "idle", t + unit.jitter * 0.31);
+    } else if (unit.fodder !== undefined) {
+      applyFodderPose(unit.fodder, t, unit.jitter);
+    }
+  }
 }
 
 /**
@@ -308,34 +402,12 @@ export function mountCrowd3d(host: HTMLElement | null, options: CrowdOptions): C
   const slots = options.boardOnly === true
     ? []
     : (options.lineup === true ? lineupSlots() : layoutCrowd());
-  const units: Unit[] = [];
+  const units = buildCrowdUnits(slots, mark, options.maskMode === true);
+  for (const unit of units) { scene.add(unit.place); }
 
-  for (const slot of slots) {
-    let root: THREE.Group;
-    const unit: Unit = { hero: slot.hero, jitter: slot.jitter };
-    if (slot.hero) {
-      const medic = buildMedic();
-      fitScreenHeight(medic.root, HERO_SCREEN_HEIGHT);
-      unit.medic = medic;
-      root = medic.root;
-    } else {
-      const fodder = buildFodder(slot.archetype, slot.faction);
-      fitScreenHeight(fodder.root, FODDER_SCREEN_HEIGHT);
-      unit.fodder = fodder;
-      root = fodder.root;
-    }
-    // The rig's own root carries pose translation, so parent it into a
-    // placement group rather than fighting it for the transform.
-    const place = new THREE.Group();
-    place.position.copy(slot.position);
-    place.rotation.y = slot.yaw;
-    place.add(root);
-    scene.add(place);
-
-    if (slot.hero && mark) { enableMark(root, slot.faction); }
-
-    // Flat comic drop shadow, scaled with the tier so the crowd sits down.
-    if (options.lineup !== true && options.maskMode !== true) {
+  // Flat comic drop shadows, scaled with the tier so the crowd sits down.
+  if (options.lineup !== true && options.maskMode !== true) {
+    for (const slot of slots) {
       const r = slot.hero ? 0.42 : 0.34;
       const shadow = new THREE.Mesh(
         new THREE.CircleGeometry(1, 16),
@@ -346,7 +418,6 @@ export function mountCrowd3d(host: HTMLElement | null, options: CrowdOptions): C
       shadow.position.set(slot.position.x, 0.012, slot.position.z);
       scene.add(shadow);
     }
-    units.push(unit);
   }
 
   const zoom = options.lineup === true
@@ -373,14 +444,7 @@ export function mountCrowd3d(host: HTMLElement | null, options: CrowdOptions): C
   renderer.info.autoReset = false;
 
   const renderAt = (t: number): void => {
-    for (let i = 0; i < units.length; i += 1) {
-      const unit = units[i]!;
-      if (unit.medic !== undefined) {
-        applyMedicPose(unit.medic, "idle", options.motion ? t + unit.jitter * 0.31 : 0);
-      } else if (unit.fodder !== undefined) {
-        applyFodderPose(unit.fodder, options.motion ? t : 0, unit.jitter);
-      }
-    }
+    poseCrowd(units, t);
     renderer.info.reset();
     renderer.setRenderTarget(null);
     renderer.autoClear = true;
