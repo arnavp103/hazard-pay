@@ -69,7 +69,7 @@ const APPROACH_Z = Math.SQRT1_2;
 const RANK_X = Math.SQRT1_2;
 const RANK_Z = -Math.SQRT1_2;
 
-const ATTACK_DURATION = 1.15;
+const ATTACK_DURATION = 1.2;
 /** Fraction of the attack clip at which damage releases. */
 export const RELEASE_AT = 0.42;
 

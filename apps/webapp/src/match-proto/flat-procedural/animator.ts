@@ -43,7 +43,7 @@ import {
   type Pose,
   samplePose,
 } from "./authored.ts";
-import type { UnitRig } from "./figure.ts";
+import type { Archetype, UnitRig } from "./figure.ts";
 import {
   aimAt,
   clamp,
@@ -106,6 +106,32 @@ const BIND: Record<JointName, Triple> = {
   torso: [0.05, 0, 0],
 };
 
+/**
+ * Per-archetype posture, added to BIND. Each one puts the weapon forearm
+ * roughly where the weapon should point, because the weapon is rigged in
+ * line with the forearm — the arm pose *is* the weapon aim.
+ */
+const ARCHETYPE_BIND: Record<Archetype, Partial<Record<JointName, Triple>>> = {
+  medic: {
+    elbowL: [-0.5, 0, 0],
+    elbowR: [-0.58, 0, 0],
+    shoulderL: [0.02, 0, 0.12],
+    shoulderR: [-0.42, 0, -0.14],
+  },
+  melee: {
+    elbowL: [-0.45, 0, 0],
+    elbowR: [-0.5, 0, 0],
+    shoulderL: [0.05, 0, 0.14],
+    shoulderR: [-0.3, 0, -0.18],
+  },
+  ranged: {
+    elbowL: [-0.7, 0, 0],
+    elbowR: [-0.66, 0, 0],
+    shoulderL: [-0.22, 0, 0.4],
+    shoulderR: [-0.35, 0, -0.35],
+  },
+};
+
 const CYCLE_JOINTS: readonly JointName[] = [
   "hipL",
   "hipR",
@@ -118,6 +144,7 @@ const CYCLE_JOINTS: readonly JointName[] = [
   "head",
 ];
 
+const ZERO: Triple = [0, 0, 0];
 const HAND_TARGET = new THREE.Vector3();
 const STRIKE_TARGET = new THREE.Vector3();
 
@@ -291,14 +318,16 @@ export class UnitAnimator {
     this.accent = Math.max(0, this.accent - dt * 5.5);
 
     // --- 7. write the pose ---
+    const posture = ARCHETYPE_BIND[rig.spec.archetype];
     for (const name of JOINT_NAMES) {
       const bind = BIND[name];
-      const delta = this.deltas.get(name) ?? [0, 0, 0];
+      const stance = posture[name] ?? ZERO;
+      const delta = this.deltas.get(name) ?? ZERO;
       const bias = name === "torso" ? jitter.postureBias : 0;
       rig.joints[name].rotation.set(
-        bind[0] + delta[0] + bias * 0.4,
-        bind[1] + delta[1],
-        bind[2] + delta[2] + bias,
+        bind[0] + stance[0] + delta[0] + bias * 0.4,
+        bind[1] + stance[1] + delta[1],
+        bind[2] + stance[2] + delta[2] + bias,
       );
     }
 
@@ -342,6 +371,9 @@ export class UnitAnimator {
       }
     }
 
+    // Support-hand grip: two-handed weapons only. Forcing it on a one-handed
+    // injector or blade just drags the off arm across the chest.
+    if (rig.spec.archetype !== "ranged") { return; }
     rig.root.updateWorldMatrix(true, true);
     rig.foregrip.getWorldPosition(HAND_TARGET);
     rig.joints.torso.worldToLocal(HAND_TARGET);
@@ -349,7 +381,7 @@ export class UnitAnimator {
     // Out-of-reach grips blend out instead of leaving the arm stretched
     // short of a socket it can never touch.
     const distance = HAND_TARGET.length();
-    const weight = clamp((maxReach * 1.02 - distance) / (maxReach * 0.22), 0, 1);
+    const weight = clamp((maxReach * 1.15 - distance) / (maxReach * 0.17), 0, 1);
     if (weight > 0.02) { this.solveInto("L", HAND_TARGET, weight); }
   }
 
@@ -390,8 +422,8 @@ export class UnitAnimator {
   /** Procedural breath / weight shift — the whole idle at rung `none`. */
   private proceduralIdle(t: number, weight: number): void {
     if (weight <= 0) { return; }
-    const breath = Math.sin((t / 2.6) * TAU) * weight * this.jitter.amplitude;
-    const shift = Math.sin((t / 5.1) * TAU) * weight * this.jitter.amplitude;
+    const breath = Math.sin((t / 2) * TAU) * weight * this.jitter.amplitude;
+    const shift = Math.sin((t / 4) * TAU) * weight * this.jitter.amplitude;
     addTriple(this.deltas, "torso", [0.045 * breath, 0.035 * shift, 0.05 * shift]);
     addTriple(this.deltas, "head", [0.025 * breath, 0.06 * shift, 0.03 * shift]);
     addTriple(this.deltas, "shoulderL", [-0.05 * breath, 0, 0.03 * shift]);

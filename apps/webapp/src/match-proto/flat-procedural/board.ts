@@ -22,19 +22,23 @@ import * as THREE from "three";
 
 import { box, FlatBatch, INK, quad, taper, wedge } from "./flat.ts";
 
-const FLOOR = "#493b4c";
-const BAND_WARM = "#54455a";
-const BAND_COOL = "#403548";
-const BAND_DEEP = "#382e42";
-const WALL_A = "#5d4a5c";
-const WALL_B = "#544559";
-const WALL_C = "#4e4055";
-const ROOF_A = "#7a584a";
-const ROOF_B = "#6c4f46";
-const DECK = "#463a4e";
-const CRATE = "#6d5040";
-const CRATE_TOP = "#7d5c48";
-const AWNING = "#8a5a44";
+// The board keeps the quiet 70% of the value/saturation budget. Warm tones
+// are rationed hard, because the crew livery is warm and the environment
+// must not compete with it; the foundry block runs cool so the two masses
+// separate by temperature as well as position.
+const FLOOR = "#443848";
+const BAND_WARM = "#4d4053";
+const BAND_COOL = "#3a3a4c";
+const BAND_DEEP = "#2f2c40";
+const WALL_A = "#544a63";
+const WALL_B = "#4a4459";
+const WALL_C = "#414a5c";
+const ROOF_A = "#6e5560";
+const ROOF_B = "#57545f";
+const DECK = "#3a3c4d";
+const CRATE = "#5a4c4a";
+const CRATE_TOP = "#695955";
+const AWNING = "#6b4c52";
 const SIGN_WARM = "#c8874c";
 const SIGN_COOL = "#4aa79c";
 
@@ -82,7 +86,9 @@ function stack(batch: FlatBatch, spec: Stack): void {
 export function buildBoard(): BoardBuild {
   const batch = new FlatBatch();
 
-  batch.add(quad(34, 34), FLOOR, { at: [0, -0.002, 0] });
+  // Big enough that the ortho frustum never sees the floor's own edge, even
+  // pulled back to crowd zoom.
+  batch.add(quad(62, 62), FLOOR, { at: [0, -0.002, 0] });
 
   // Quiet floor bands — the same large low-contrast masses the SVG board
   // used to keep the playable lane from competing with the units.
@@ -103,8 +109,8 @@ export function buildBoard(): BoardBuild {
   }
 
   // Two painted floor marks, held below the units' saturation.
-  patch(batch, -4.31, -3.32, 2.6, 1.3, "#5b4148", layer);
-  patch(batch, -4.66, 4.7, 1.7, 1.15, "#39504f", layer + 0.002);
+  patch(batch, -4.31, -3.32, 2.6, 1.3, "#553f4b", layer);
+  patch(batch, -4.66, 4.7, 1.7, 1.15, "#354a4c", layer + 0.002);
   layer += 0.006;
 
   // Left market stack.
@@ -117,8 +123,11 @@ export function buildBoard(): BoardBuild {
   batch.add(box(0.1, 0.55, 1.8), INK, { at: [-4.61, 3.92, 3.45] });
   batch.add(box(2.0, 0.55, 0.08), INK, { at: [-6.9, 2.2, 5.8] });
   // Awnings: big clean colour blocks, the flat register's substitute for grime.
-  batch.add(box(0.9, 0.09, 2.9), AWNING, { at: [-4.1, 2.42, 3.5], rot: [0.32, 0, 0] });
-  batch.add(box(2.3, 0.09, 0.9), AWNING, { at: [-6.8, 2.42, 6.15], rot: [0, 0, 0.32] });
+  // Each tilts about the axis that drops its OUTER edge — a +X-face awning
+  // banks about Z, a +Z-face awning about X. Tilting the wrong axis is what
+  // makes them read as planks floating beside the wall instead of shade.
+  batch.add(box(0.8, 0.09, 2.4), AWNING, { at: [-4.16, 2.44, 3.5], rot: [0, 0, -0.3] });
+  batch.add(box(2.0, 0.09, 0.8), AWNING, { at: [-6.8, 2.44, 6.05], rot: [-0.3, 0, 0] });
   batch.addEmit(box(0.06, 0.09, 1.15), SIGN_WARM, { at: [-4.44, 3.7, 3.4] });
   batch.addEmit(box(1.3, 0.06, 0.06), SIGN_WARM, { at: [-7.0, 1.94, 5.75] });
 
@@ -130,7 +139,7 @@ export function buildBoard(): BoardBuild {
   });
   batch.add(box(1.9, 0.5, 0.08), INK, { at: [3.4, 2.1, -4.55] });
   batch.add(box(0.08, 0.5, 1.5), INK, { at: [5.83, 2.3, -6.2] });
-  batch.add(box(2.4, 0.09, 0.9), AWNING, { at: [3.5, 2.62, -4.2], rot: [0, 0, -0.3] });
+  batch.add(box(2.1, 0.09, 0.8), AWNING, { at: [3.5, 2.64, -4.25], rot: [0.3, 0, 0] });
   batch.addEmit(box(0.06, 0.07, 1.0), SIGN_COOL, { at: [5.87, 2.24, -6.2] });
   batch.addEmit(box(0.7, 0.08, 0.06), SIGN_WARM, { at: [2.95, 3.95, -5.0] });
 
@@ -138,14 +147,14 @@ export function buildBoard(): BoardBuild {
   batch.add(box(5.94, 0.14, 4.31), DECK, { at: [-5.92, 0.07, -6.28] });
   patch(batch, -8.41, -4.24, 5.27, 3.71, BAND_DEEP, 0.15);
   for (const [x, z] of [[-8.0, -4.6], [-6.6, -5.6], [-5.2, -6.4], [-4.4, -5.0]] as const) {
-    batch.add(taper(0.42, 0.5, 0.42, 6), "#5c4a59", { at: [x, 0.35, z] });
-    batch.add(taper(0.46, 0.46, 0.06, 6), "#3b3145", { at: [x, 0.57, z] });
+    batch.add(taper(0.42, 0.5, 0.42, 6), "#4f4859", { at: [x, 0.35, z] });
+    batch.add(taper(0.46, 0.46, 0.06, 6), "#33303f", { at: [x, 0.57, z] });
   }
 
   // Antenna masts — thin dark verticals that break the boxy roof line.
   for (const [x, y, z] of [[-6.7, 5.05, 2.6], [-5.3, 5.15, 3.9], [2.2, 5.1, -6.8], [3.9, 5.2, -5.6]] as const) {
     batch.add(box(0.07, 0.95, 0.07), INK, { at: [x, y, z] });
-    batch.add(box(0.28, 0.08, 0.05), ROOF_A, { at: [x + 0.16, y + 0.38, z] });
+    batch.add(box(0.24, 0.07, 0.05), ROOF_B, { at: [x + 0.14, y + 0.36, z] });
   }
 
   // Cable run across the lane, with hanging canopy panels.
@@ -157,7 +166,7 @@ export function buildBoard(): BoardBuild {
   batch.add(new THREE.TubeGeometry(curve, 40, 0.05, 5, false), INK);
   for (const t of [0.3, 0.5, 0.7]) {
     const at = curve.getPoint(t);
-    batch.add(box(1.0, 0.08, 0.78), "#3d3346", { at: [at.x, at.y - 1.4, at.z] });
+    batch.add(box(1.0, 0.08, 0.78), "#383246", { at: [at.x, at.y - 1.4, at.z] });
   }
 
   // Pallets and crates: clean solids, no spilled debris.
@@ -168,8 +177,8 @@ export function buildBoard(): BoardBuild {
   batch.add(box(0.7, 0.68, 0.7), CRATE, { at: [2.4, 0.34, -4.1] });
   batch.add(box(0.58, 0.05, 0.58), CRATE_TOP, { at: [2.4, 0.7, -4.1] });
   batch.add(box(0.46, 0.44, 0.48), CRATE, { at: [2.15, 0.9, -4.35], rot: [0, 0.3, 0] });
-  batch.add(taper(0.28, 0.28, 0.66, 8), "#57485a", { at: [-2.7, 0.33, 4.2] });
-  batch.add(taper(0.3, 0.3, 0.06, 8), "#3b3145", { at: [-2.7, 0.68, 4.2] });
+  batch.add(taper(0.28, 0.28, 0.66, 8), "#4e4a5e", { at: [-2.7, 0.33, 4.2] });
+  batch.add(taper(0.3, 0.3, 0.06, 8), "#33303f", { at: [-2.7, 0.68, 4.2] });
 
   const group = new THREE.Group();
   let meshes = 0;

@@ -317,7 +317,12 @@ const ATTACK_RECOVER: PoseKey = {
   t: 0.82,
 };
 
-const CLIP_DURATION: Record<ClipName, number> = { attack: 1.15, stand: 4.4, walk: 1 };
+/**
+ * Clip lengths are deliberately commensurate (4.0 / 2.0 / 1.0 seconds) so a
+ * capture window of exactly one clip loops seamlessly. A GIF that does not
+ * close its loop reads as a stutter and gets blamed on the animation.
+ */
+const CLIP_DURATION: Record<ClipName, number> = { attack: 1.2, stand: 4, walk: 1 };
 
 const LADDER: Record<ClipName, Record<BaseDensity, PoseKey[]>> = {
   attack: {

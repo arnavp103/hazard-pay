@@ -1,0 +1,129 @@
+{
+  "note": "Captured from the live rAF loop in Chromium (no freeze), pixelRatio 1, MSAA on. frameMs is renderer.render() wall time only; fps is its reciprocal, not a vsync-limited display rate.",
+  "runs": {
+    "crowd-40-480x270": {
+      "authoredKeysPerClip": 4,
+      "authoredKeysTotal": 12,
+      "base": "quad",
+      "boardMeshes": 2,
+      "boardTriangles": 1148,
+      "drawCalls": 489,
+      "fodder": 36,
+      "fps": 386,
+      "frameMs": {
+        "max": 4.4,
+        "mean": 2.591,
+        "p95": 3.7,
+        "samples": 180
+      },
+      "heroes": 4,
+      "meshesPerFodder": 12,
+      "meshesPerHero": 14,
+      "programs": 3,
+      "stage": {
+        "height": 270,
+        "pixelRatio": 1,
+        "width": 480,
+        "zoom": 0.55
+      },
+      "trianglesPerFodder": 376,
+      "trianglesPerHero": 628,
+      "triangles": 17296,
+      "units": 40,
+      "view": "crowd"
+    },
+    "crowd-40-960x540": {
+      "authoredKeysPerClip": 4,
+      "authoredKeysTotal": 12,
+      "base": "quad",
+      "boardMeshes": 2,
+      "boardTriangles": 1148,
+      "drawCalls": 489,
+      "fodder": 36,
+      "fps": 311,
+      "frameMs": {
+        "max": 66.9,
+        "mean": 3.214,
+        "p95": 4.8,
+        "samples": 144
+      },
+      "heroes": 4,
+      "meshesPerFodder": 12,
+      "meshesPerHero": 14,
+      "programs": 3,
+      "stage": {
+        "height": 540,
+        "pixelRatio": 1,
+        "width": 960,
+        "zoom": 0.55
+      },
+      "trianglesPerFodder": 376,
+      "trianglesPerHero": 628,
+      "triangles": 17296,
+      "units": 40,
+      "view": "crowd"
+    },
+    "crowd-60-480x270": {
+      "authoredKeysPerClip": 4,
+      "authoredKeysTotal": 12,
+      "base": "quad",
+      "boardMeshes": 2,
+      "boardTriangles": 1148,
+      "drawCalls": 729,
+      "fodder": 56,
+      "fps": 266,
+      "frameMs": {
+        "max": 6.9,
+        "mean": 3.761,
+        "p95": 5.1,
+        "samples": 180
+      },
+      "heroes": 4,
+      "meshesPerFodder": 12,
+      "meshesPerHero": 14,
+      "programs": 3,
+      "stage": {
+        "height": 270,
+        "pixelRatio": 1,
+        "width": 480,
+        "zoom": 0.55
+      },
+      "trianglesPerFodder": 368,
+      "trianglesPerHero": 628,
+      "triangles": 24840,
+      "units": 60,
+      "view": "crowd"
+    },
+    "hero-1-480x270": {
+      "authoredKeysPerClip": 4,
+      "authoredKeysTotal": 12,
+      "base": "quad",
+      "boardMeshes": 2,
+      "boardTriangles": 1148,
+      "drawCalls": 17,
+      "fodder": 0,
+      "fps": 2736,
+      "frameMs": {
+        "max": 1.1,
+        "mean": 0.366,
+        "p95": 0.6,
+        "samples": 180
+      },
+      "heroes": 1,
+      "meshesPerFodder": 0,
+      "meshesPerHero": 14,
+      "programs": 3,
+      "stage": {
+        "height": 270,
+        "pixelRatio": 1,
+        "width": 480,
+        "zoom": 0.82
+      },
+      "trianglesPerFodder": 0,
+      "trianglesPerHero": 608,
+      "triangles": 1770,
+      "units": 1,
+      "view": "hero"
+    }
+  }
+}

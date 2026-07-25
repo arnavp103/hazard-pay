@@ -23,25 +23,47 @@ import * as THREE from "three";
 import { ALL_LAYERS, type LayerFlags, NO_LAYERS, UnitAnimator } from "./animator.ts";
 import { authoredKeyTotal, BASE_KEY_COUNT, type BaseDensity } from "./authored.ts";
 import { buildBoard } from "./board.ts";
-import { buildUnit, type UnitRig } from "./figure.ts";
+import { type Archetype, buildUnit, type Faction, type Tier, type UnitRig } from "./figure.ts";
 import { emitMaterial, flatLights, INK, litMaterial } from "./flat.ts";
-import { clamp } from "./procedural.ts";
-import { battleAt, createBattle, type SimUnit, stepBattle } from "./sim.ts";
+import { createBattle, type SimUnit, stepBattle } from "./sim.ts";
 
 export const STAGE_WIDTH = 480;
 export const STAGE_HEIGHT = 270;
 const PX_PER_UNIT = 40;
 /** The shared combat zoom the #81 lane settled on in round 2. */
 export const COMBAT_ZOOM = 0.82;
-export const CROWD_ZOOM = 0.42;
+export const CROWD_ZOOM = 0.55;
 
 /** Screen-right and screen-up unit vectors of the dimetric camera, in world space. */
 const RIGHT = new THREE.Vector3(Math.SQRT1_2, 0, -Math.SQRT1_2);
 const UP = new THREE.Vector3(-0.35355, 0.86603, -0.35355);
 const VIEW = new THREE.Vector3(0.61237, 0.5, 0.61237);
 
-export type HeroAnim = "attack" | "idle" | "turn" | "walk";
-export type SceneView = "crowd" | "hero";
+export type HeroAnim = "attack" | "idle" | "march" | "turn" | "walk";
+
+/**
+ * March speed chosen so the speed-matched stride lands on exactly one cycle
+ * per second: a locomotion comparison whose loop does not close is unreadable
+ * as a filmstrip.
+ */
+const MARCH_SPEED = 1.554;
+export type SceneView = "crowd" | "hero" | "lineup";
+
+/**
+ * The roster the `lineup` view renders, left to right. It exists so tier and
+ * archetype separation can be judged as a controlled comparison rather than
+ * inferred from a battle still.
+ */
+const LINEUP: Array<{ archetype: Archetype; faction: Faction; tier: Tier }> = [
+  { archetype: "medic", faction: "crew", tier: "hero" },
+  { archetype: "melee", faction: "crew", tier: "hero" },
+  { archetype: "melee", faction: "crew", tier: "fodder" },
+  { archetype: "ranged", faction: "crew", tier: "fodder" },
+  { archetype: "melee", faction: "opfor", tier: "hero" },
+  { archetype: "ranged", faction: "opfor", tier: "hero" },
+  { archetype: "melee", faction: "opfor", tier: "fodder" },
+  { archetype: "ranged", faction: "opfor", tier: "fodder" },
+];
 
 export interface CostReport {
   view: SceneView;
@@ -79,6 +101,8 @@ export interface MountOptions {
   heroesPerSide?: number;
   /** Camera pans across the encounter (translation only, never rotation). */
   motion?: boolean;
+  /** Tile N deterministic frames into one contact sheet instead of animating. */
+  strip?: { frames: number; fps: number; from: number; columns: number };
 }
 
 export interface FlatSceneHandle {
@@ -137,6 +161,14 @@ class ShadowField {
   }
 }
 
+/**
+ * Publishes a pixel-exact PNG of the current capture so the harness can pull
+ * frames out without depending on element screenshots and CSS scaling.
+ */
+function expose(png: () => string): void {
+  (globalThis as { __flatProceduralPng?: () => string }).__flatProceduralPng = png;
+}
+
 function makeDrive(id: number): SimUnit {
   return {
     aimX: 0,
@@ -164,7 +196,7 @@ function makeDrive(id: number): SimUnit {
 }
 
 /** Eight held facings with deliberately uneven dwells — a turn, not a turntable. */
-const TURN_DWELLS = [0.66, 0.34, 0.5, 0.7, 0.3, 0.52, 0.6, 0.36];
+const TURN_DWELLS = [0.66, 0.34, 0.5, 0.7, 0.3, 0.52, 0.6, 0.38];
 const TURN_LOOP = TURN_DWELLS.reduce((sum, d) => sum + d, 0);
 
 /**
@@ -185,7 +217,7 @@ function driveHero(unit: SimUnit, anim: HeroAnim, t: number): void {
     unit.angularVelocity = 0;
     unit.attackPhase = -1;
     // The idle gaze drifts between two points of interest — intent, not noise.
-    const look = Math.sin((t / 5.4) * Math.PI * 2);
+    const look = Math.sin((t / 4) * Math.PI * 2);
     unit.aimX = look * 3.2;
     unit.aimZ = 4.4;
     unit.aimY = 1.15;
@@ -205,20 +237,40 @@ function driveHero(unit: SimUnit, anim: HeroAnim, t: number): void {
     unit.aimX = 0.15;
     unit.aimZ = 1.35;
     unit.aimY = 1.0;
-    const cycle = 1.9;
+    const cycle = 2;
     const local = t % cycle;
-    unit.attackPhase = local < 1.15 ? local / 1.15 : -1;
-    if (local >= 0.42 * 1.15 && local < 0.42 * 1.15 + 1 / 30) {
+    unit.attackPhase = local < 1.2 ? local / 1.2 : -1;
+    if (local >= 0.42 * 1.2 && local < 0.42 * 1.2 + 1 / 30) {
       unit.firedAt = Math.floor(t / cycle) + 1;
     }
+    return;
+  }
+
+  if (anim === "march") {
+    // Locomotion held in frame: the stride layer runs at full speed while the
+    // root stays put, so the authored-base ladder compares cycles rather than
+    // chasing the subject out of the crop.
+    unit.x = 0;
+    unit.z = 0;
+    unit.facing = 0.34;
+    unit.vx = Math.sin(unit.facing) * MARCH_SPEED;
+    unit.vz = Math.cos(unit.facing) * MARCH_SPEED;
+    unit.speed = MARCH_SPEED;
+    unit.ax = 0;
+    unit.az = 0;
+    unit.angularVelocity = 0;
+    unit.attackPhase = -1;
+    unit.aimX = Math.sin(unit.facing) * 5;
+    unit.aimZ = Math.cos(unit.facing) * 5;
+    unit.aimY = 1.15;
     return;
   }
 
   if (anim === "walk") {
     // A slow circuit: stride tracks the tangential speed while aim stays
     // locked on a fixed point, so feet and gaze visibly decouple.
-    const period = 9.5;
-    const radius = 1.55;
+    const period = 4.8;
+    const radius = 1.5;
     const omega = (Math.PI * 2) / period;
     const angle = t * omega;
     unit.x = Math.sin(angle) * radius;
@@ -269,18 +321,33 @@ function driveHero(unit: SimUnit, anim: HeroAnim, t: number): void {
   unit.aimY = 1.15;
 }
 
+/** Lineup drive: same scripted clips as the hero view, held in place. */
+function driveLineup(unit: SimUnit, anim: HeroAnim, t: number): void {
+  const x = unit.x;
+  const z = unit.z;
+  driveHero(unit, anim === "walk" ? "idle" : anim, t);
+  unit.x = x;
+  unit.z = z;
+  unit.aimX += x;
+  unit.aimZ += z;
+}
+
 export function mountFlatScene(host: HTMLElement, options: MountOptions = {}): FlatSceneHandle {
   const view = options.view ?? "hero";
   const anim = options.anim ?? "idle";
   const base = options.base ?? "quad";
   const layers = options.layers ?? ALL_LAYERS;
   const scale = options.scale ?? 1;
-  const zoom = options.zoom ?? (view === "crowd" ? CROWD_ZOOM : COMBAT_ZOOM);
+  const zoom = options.zoom
+    ?? (view === "crowd" ? CROWD_ZOOM : (view === "lineup" ? 0.95 : COMBAT_ZOOM));
   const width = Math.round(STAGE_WIDTH * scale);
   const height = Math.round(STAGE_HEIGHT * scale);
   const pxPerUnit = PX_PER_UNIT * scale;
 
-  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  // preserveDrawingBuffer so a filmstrip can copy each rendered frame out of
+  // the WebGL canvas; without it the buffer is cleared on composite and the
+  // contact sheet comes out blank.
+  const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
   renderer.setPixelRatio(1);
   renderer.setSize(width, height);
   renderer.setClearColor("#1b1220");
@@ -302,6 +369,17 @@ export function mountFlatScene(host: HTMLElement, options: MountOptions = {}): F
       heroesPerSide: options.heroesPerSide ?? 2,
     });
     drives = battle.units;
+  } else if (view === "lineup") {
+    drives = LINEUP.map((entry, index) => {
+      const drive = makeDrive(index * 5 + 3);
+      const offset = (index - (LINEUP.length - 1) / 2) * 1.28;
+      drive.archetype = entry.archetype;
+      drive.tier = entry.tier;
+      drive.side = entry.faction === "crew" ? 0 : 1;
+      drive.x = RIGHT.x * offset;
+      drive.z = RIGHT.z * offset;
+      return drive;
+    });
   } else {
     drives = [makeDrive(7)];
   }
@@ -314,19 +392,29 @@ export function mountFlatScene(host: HTMLElement, options: MountOptions = {}): F
     });
     scene.add(rig.root);
     rigs.push(rig);
-    animators.push(new UnitAnimator(rig, drive.id, { density: base, layers }));
+    // The controlled hero still is a single subject: per-unit phase, rate and
+    // amplitude jitter exist to desynchronise a crowd, and leaving them on
+    // here only makes the capture loop close untidily.
+    const soloLayers = view === "hero" ? { ...layers, phase: false } : layers;
+    animators.push(new UnitAnimator(rig, drive.id, { density: base, layers: soloLayers }));
   }
 
   const shadows = new ShadowField(drives.length);
   scene.add(shadows.mesh);
 
-  // Framing: hero view reproduces the #81 lane's controlled still (feet in
-  // the lower-right third); the crowd view centres the engagement line.
+  // Framing. At or below the shared combat zoom the hero view reproduces the
+  // #81 lane's controlled still (feet in the lower-right third, board in
+  // shot). Above it the camera re-centres on the unit, because a loupe that
+  // keeps the board framing simply pushes the subject off the canvas.
   const target = view === "crowd"
-    ? new THREE.Vector3(0, 0.55, 0)
-    : new THREE.Vector3()
-        .addScaledVector(RIGHT, -7 / PX_PER_UNIT)
-        .addScaledVector(UP, 74 / PX_PER_UNIT);
+    ? new THREE.Vector3(0, 0.55, 0).addScaledVector(UP, 0.85)
+    : (view === "lineup"
+        ? new THREE.Vector3(0, 0.95, 0)
+        : zoom > 1.05
+          ? new THREE.Vector3(0, 0.95, 0)
+          : new THREE.Vector3()
+              .addScaledVector(RIGHT, -7 / PX_PER_UNIT)
+              .addScaledVector(UP, 74 / PX_PER_UNIT));
   const basePosition = target.clone().addScaledVector(VIEW, 24);
   const halfW = width / (2 * pxPerUnit * zoom);
   const halfH = height / (2 * pxPerUnit * zoom);
@@ -398,86 +486,42 @@ export function mountFlatScene(host: HTMLElement, options: MountOptions = {}): F
     (globalThis as { __flatProceduralCost?: CostReport }).__flatProceduralCost = report;
   };
 
-  const poseAt = (t: number, dt: number): void => {
+  // --- Simulation clock ------------------------------------------------------
+  //
+  // One fixed-step integrator serves the live loop, the freeze capture and the
+  // filmstrip. Captures are therefore not a separate code path that can drift
+  // from what the browser shows — they are the same steps, replayed.
+
+  const STEP = 1 / 60;
+  let simTime = 0;
+
+  const stepOnce = (at: number, dt: number): void => {
     if (battle !== undefined) {
-      // Fixed-step catch-up keeps the crowd frame-rate independent.
-      const step = 1 / 60;
-      let remaining = t - battle.t;
-      let guard = 0;
-      while (remaining > step && guard < 600) {
-        stepBattle(battle, step);
-        remaining -= step;
-        guard += 1;
-      }
-    } else {
+      stepBattle(battle, dt);
+    } else if (view === "hero") {
       const drive = drives[0];
-      if (drive !== undefined) { driveHero(drive, anim, t); }
+      if (drive !== undefined) { driveHero(drive, anim, at); }
+    } else {
+      for (const drive of drives) { driveLineup(drive, anim, at); }
     }
     for (let i = 0; i < drives.length; i += 1) {
       const drive = drives[i];
       const animator = animators[i];
-      const rig = rigs[i];
-      if (drive === undefined || animator === undefined || rig === undefined) { continue; }
-      animator.update(drive, t, dt);
-      const radius = rig.height * (rig.spec.tier === "hero" ? 0.3 : 0.28);
-      shadows.set(i, drive.x - radius * 0.16, drive.z - radius * 0.06, radius, 0.02);
+      if (drive === undefined || animator === undefined) { continue; }
+      animator.update(drive, at, dt);
     }
-    shadows.commit();
   };
 
-  const renderAt = (t: number, dt: number): void => {
-    poseAt(t, dt);
-    if (options.motion === true) {
-      const cycle = (t % 8) / 8;
-      const sweep = Math.sin(cycle * Math.PI * 2) * 2.6;
-      pan.set(0, 0, 0).addScaledVector(RIGHT, sweep);
-      camera.position.copy(basePosition).add(pan);
+  const advanceTo = (target: number): void => {
+    let guard = 0;
+    while (simTime + STEP <= target + 1e-9 && guard < 4000) {
+      simTime += STEP;
+      stepOnce(simTime, STEP);
+      guard += 1;
     }
-    renderer.render(scene, camera);
   };
 
-  let frame = 0;
-  const freezeMs = options.freezeMs;
-  if (freezeMs === undefined) {
-    let previous = performance.now();
-    const start = previous;
-    const tick = (): void => {
-      const now = performance.now();
-      const dt = clamp((now - previous) / 1000, 1 / 240, 1 / 12);
-      previous = now;
-      renderAt((now - start) / 1000, dt);
-      frames.push(now === previous ? 0 : (performance.now() - now));
-      if (frames.length > 180) { frames.shift(); }
-      publish();
-      frame = requestAnimationFrame(tick);
-    };
-    frame = requestAnimationFrame(tick);
-  } else {
-    // Deterministic capture: replay the whole timeline at a fixed step so a
-    // freeze at 4200 ms is byte-identical every run.
-    const seconds = freezeMs / 1000;
-    if (battle !== undefined) {
-      battle = battleAt(seconds, {
-        fodderPerSide: options.fodderPerSide ?? 18,
-        heroesPerSide: options.heroesPerSide ?? 2,
-      });
-      drives = battle.units;
-    }
-    const step = 1 / 60;
-    const steps = Math.max(1, Math.round(seconds / step));
-    for (let i = 1; i <= steps; i += 1) {
-      const at = i * step;
-      if (battle === undefined) {
-        const drive = drives[0];
-        if (drive !== undefined) { driveHero(drive, anim, at); }
-      }
-      for (let u = 0; u < drives.length; u += 1) {
-        const drive = drives[u];
-        const animator = animators[u];
-        if (drive === undefined || animator === undefined) { continue; }
-        animator.update(drive, at, step);
-      }
-    }
+  const syncShadows = (): void => {
     for (let i = 0; i < drives.length; i += 1) {
       const drive = drives[i];
       const rig = rigs[i];
@@ -486,10 +530,57 @@ export function mountFlatScene(host: HTMLElement, options: MountOptions = {}): F
       shadows.set(i, drive.x - radius * 0.16, drive.z - radius * 0.06, radius, 0.02);
     }
     shadows.commit();
+  };
+
+  const renderAt = (t: number): void => {
+    advanceTo(t);
+    syncShadows();
+    if (options.motion === true) {
+      const cycle = (t % 8) / 8;
+      const sweep = Math.sin(cycle * Math.PI * 2) * 2.6;
+      pan.set(0, 0, 0).addScaledVector(RIGHT, sweep);
+      camera.position.copy(basePosition).add(pan);
+    }
     const before = performance.now();
     renderer.render(scene, camera);
     frames.push(performance.now() - before);
+    if (frames.length > 180) { frames.shift(); }
+  };
+
+  let frame = 0;
+  const strip = options.strip;
+  const freezeMs = options.freezeMs;
+
+  if (strip !== undefined) {
+    // Filmstrip: N deterministic frames tiled into one PNG. GIF cadence
+    // aliases motion beats, so the strip — not the GIF — is the artifact a
+    // cold critic should be judging motion from.
+    const columns = strip.columns;
+    const rows = Math.ceil(strip.frames / columns);
+    const sheet = document.createElement("canvas");
+    sheet.width = width * columns;
+    sheet.height = height * rows;
+    const ctx = sheet.getContext("2d");
+    host.append(sheet);
+    renderer.domElement.style.display = "none";
+    for (let i = 0; i < strip.frames; i += 1) {
+      renderAt(strip.from / 1000 + i / strip.fps);
+      ctx?.drawImage(renderer.domElement, (i % columns) * width, Math.floor(i / columns) * height);
+    }
     publish();
+    expose(() => sheet.toDataURL("image/png"));
+  } else if (freezeMs === undefined) {
+    const start = performance.now();
+    const tick = (): void => {
+      renderAt((performance.now() - start) / 1000);
+      publish();
+      frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+  } else {
+    renderAt(freezeMs / 1000);
+    publish();
+    expose(() => renderer.domElement.toDataURL("image/png"));
   }
 
   return {

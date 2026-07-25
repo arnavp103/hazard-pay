@@ -2,8 +2,8 @@
  * THROWAWAY PROTOTYPE (#89): the flat low-poly + procedural animation lane.
  *
  * Query parameters (all optional):
- *   view=hero|crowd          single unit at combat zoom, or the seeded battle
- *   anim=idle|attack|walk|turn   hero view only
+ *   view=hero|crowd|lineup   one unit, the seeded battle, or the roster
+ *   anim=idle|attack|walk|march|turn   hero view only
  *   base=none|stance|pair|quad   authored-key rung (the experiment)
  *   layers=all|none|a,b,c    procedural layer ablation
  *                            (phase,stride,aim,ik,lean,react)
@@ -12,6 +12,7 @@
  *   freeze=<ms>              render exactly one deterministic frame
  *   fodder=<n> heroes=<n>    crowd composition per side
  *   motion=1                 translation-only camera pan
+ *   strip=<n>&fps=&from=&cols=  tile n deterministic frames into a filmstrip
  *   capture=1                hide dev chrome
  *
  * Run at `/flat-proto`.
@@ -52,6 +53,11 @@ export const heroAnimations = [
     law: "Stride frequency and amplitude are computed from speed; the unit banks into the turn while torso and head stay aimed at a fixed point.",
   },
   {
+    key: "march",
+    name: "March in place",
+    law: "Locomotion held in frame: stride frequency is computed from a fixed speed so one cycle takes exactly one second and the loop closes.",
+  },
+  {
     key: "turn",
     name: "Character turn",
     law: "Eight facings on uneven dwells. The head leads via the aim layer, the body banks via the lean layer — no per-facing authoring exists.",
@@ -66,7 +72,8 @@ function params(): URLSearchParams {
 }
 
 function readView(): SceneView {
-  return params().get("view") === "crowd" ? "crowd" : "hero";
+  const raw = params().get("view");
+  return raw === "crowd" || raw === "lineup" ? raw : "hero";
 }
 
 function readAnim(): HeroAnim {
@@ -136,8 +143,23 @@ export function FlatProceduralPrototype() {
       layers: readLayers(),
       motion: params().get("motion") === "1",
       scale: readNumber("scale", 1, 1, 3),
+      ...(readNumber("strip", 0, 0, 80) > 0
+        ? {
+            strip: {
+              columns: readNumber("cols", 6, 1, 12),
+              fps: readNumber("fps", 15, 2, 60),
+              frames: readNumber("strip", 0, 0, 80),
+              from: readNumber("from", 0, 0, 60000),
+            },
+          }
+        : {}),
       view: currentView,
-      zoom: readNumber("zoom", currentView === "crowd" ? CROWD_ZOOM : COMBAT_ZOOM, 0.2, 4),
+      zoom: readNumber(
+        "zoom",
+        currentView === "crowd" ? CROWD_ZOOM : (currentView === "lineup" ? 0.95 : COMBAT_ZOOM),
+        0.2,
+        4,
+      ),
     });
     handleRef.current = handle;
     const timer = globalThis.setInterval(() => { setCost(handle.cost()); }, 500);
