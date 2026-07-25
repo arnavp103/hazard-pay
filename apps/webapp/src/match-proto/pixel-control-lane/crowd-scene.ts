@@ -28,6 +28,7 @@ import {
   type CrowdGrid,
   type CrowdPalette,
   type TeamKey,
+  crowdAnatomy,
   depthPalettes,
   getGrid,
   palettesFor,
@@ -90,6 +91,11 @@ export interface CrowdPolicy {
   markingTaper: boolean;
   /** Staging: archetypes interleaved (round 4) or sorted by rank (round 3). */
   staging: "interleaved" | "ranked";
+  /**
+   * Round 5: the authored beat layer on top of the breath. LARGE is the
+   * frozen control and runs round 3's single-beat idle, so this is SMALL-only.
+   */
+  idleVocabulary: boolean;
 }
 
 export const crowdConfigs: Record<ConfigKey, CrowdConfig> = {
@@ -111,6 +117,7 @@ export const crowdConfigs: Record<ConfigKey, CrowdConfig> = {
       idleGain: 0.82,
       markingTaper: true,
       staging: "interleaved",
+      idleVocabulary: true,
     },
   },
   large: {
@@ -131,6 +138,7 @@ export const crowdConfigs: Record<ConfigKey, CrowdConfig> = {
       idleGain: 1,
       markingTaper: false,
       staging: "ranked",
+      idleVocabulary: false,
     },
   },
 };
@@ -228,12 +236,133 @@ export interface PlacedUnit {
    * than formation bookkeeping.
    */
   depthStep: number;
+  /**
+   * The authored beats this unit plays, in order, once each per program.
+   * Two entries, evenly spaced, so a single unit shows more than one thing
+   * over a program and a third of the crowd is doing something at any
+   * instant rather than a seventh.
+   */
+  beats: IdleBeat[];
+  /** Where in the program the FIRST beat fires, in ms. */
+  beatAt: number;
+  /**
+   * Which way this unit's head is set while it waits, in pixels. A STATIC
+   * offset, not animation.
+   *
+   * Two things it buys, both of which the round-4 cold pass asked for. It is
+   * the only per-unit variation in the render - "8 identical 6 px helmets,
+   * 16 identical rifle stamps, these are stamps, not drawings" - and it is
+   * what stops the crowd's REST pose being universal: 44 % of the breath
+   * cycle produces no whole-pixel lean at all, so without it every idle unit
+   * of one archetype is byte-identical at that moment.
+   */
+  headSet: -1 | 0 | 1;
+}
+
+// --- round-5 idle vocabulary ------------------------------------------
+
+/**
+ * The long idle program: three breaths.
+ *
+ * Round 4's crowd had exactly ONE motion beat - a lean-and-bob on a 1600 ms
+ * clock - and the cold pass measured 28 of 45 tracked components sitting at
+ * exactly 2.00 px with nothing above 2.74. Its verdict was explicit: the axis
+ * fails on VOCABULARY, not amplitude, and retuning the amplitude again (which
+ * round 4 did, and had to partly revert) would not touch it.
+ *
+ * So the breath is left exactly where it is and a second, slower layer is
+ * added on top. Every unit plays ONE authored beat per program, drawn from a
+ * vocabulary its archetype owns, in a window nothing standing beside it is
+ * using. Cost is one extra grid transform per unit per frame, and only while
+ * its beat is actually firing - roughly 13 % of the program.
+ *
+ * Three whole breaths, so a single-program capture closes cleanly on the
+ * breath as well as on the beat. The literal is spelled out only because the
+ * breath constant is declared with the idle treatments further down the file;
+ * `crowd-scene.test.ts` pins the ratio.
+ */
+export const IDLE_PROGRAM_MS = 4800;
+
+/** How long one authored beat runs, inside the program. */
+export const IDLE_BEAT_MS = 760;
+
+/** How many beats each unit plays per program. */
+export const IDLE_BEATS_PER_PROGRAM = 2;
+
+export type IdleBeat = "weight-shift" | "gear-adjust" | "look" | "settle";
+
+/**
+ * What each archetype does when it is not fighting.
+ *
+ * The lists are deliberately different, and not only in order: `gear-adjust`
+ * appears twice for the ranged unit, because a rifleman fiddling with his
+ * weapon is that archetype's signature, and it RENDERS differently on each
+ * archetype anyway - the breaker drops a cleaver and a buckler, the stinger
+ * a levelled rifle. The hero gets no gear beat: its sprite is a placeholder
+ * pending the parallel design round, and animating kit that is about to be
+ * redrawn is thrown-away work.
+ */
+export const IDLE_VOCAB: Record<"melee" | "ranged" | "hero", IdleBeat[]> = {
+  melee: ["gear-adjust", "settle", "look", "weight-shift"],
+  ranged: ["gear-adjust", "look", "gear-adjust", "weight-shift"],
+  hero: ["look", "weight-shift", "settle"],
+};
+
+/** Roles a `gear-adjust` moves: the held equipment, never the body. */
+const GEAR_ROLES = new Set(["l", "L", "i", "m", "M", "n"]);
+
+/**
+ * Beat envelope, quantised to whole pixels because everything in this lane
+ * is. Returns 0 when the beat is not firing, then 1, then `span` at the top
+ * of the arc - so a beat has a rise and a fall rather than a switch.
+ */
+export function beatStrength(clockMs: number, beatAt: number, span: number): number {
+  const t = (((clockMs - beatAt) % IDLE_PROGRAM_MS) + IDLE_PROGRAM_MS) % IDLE_PROGRAM_MS;
+  if (t >= IDLE_BEAT_MS) { return 0; }
+  const env = Math.sin((t / IDLE_BEAT_MS) * Math.PI);
+  if (env < 0.35) { return 0; }
+  return env > 0.85 ? span : 1;
+}
+
+/**
+ * Which of a unit's beats is firing right now, and how hard. Returns null
+ * when the unit is on the breath alone, which is most of the program.
+ */
+export function activeBeat(
+  beats: IdleBeat[],
+  beatAt: number,
+  clockMs: number,
+): { beat: IdleBeat; strength: number } | null {
+  const stride = IDLE_PROGRAM_MS / Math.max(1, beats.length);
+  for (let index = 0; index < beats.length; index += 1) {
+    const beat = beats[index];
+    if (beat === undefined) { continue; }
+    const strength = beatStrength(clockMs, beatAt + index * stride, beatSpan(beat));
+    if (strength > 0) { return { beat, strength }; }
+  }
+  return null;
 }
 
 /** Cheap deterministic hash -> [0,1). Keeps captures byte-reproducible. */
 function hash01(seed: number): number {
   const x = Math.sin(seed * 12.9898) * 43758.5453;
   return x - Math.floor(x);
+}
+
+/**
+ * Deal this unit its beats. Consecutive picks from the archetype's own
+ * vocabulary, so no unit ever plays the same beat twice in a program and
+ * neighbouring slots get different pairs.
+ */
+function beatsFor(kind: "melee" | "ranged" | "hero", slotIndex: number): IdleBeat[] {
+  const vocab = IDLE_VOCAB[kind];
+  const out: IdleBeat[] = [vocab[slotIndex % vocab.length] ?? "look"];
+  for (let step = 1; step <= vocab.length; step += 1) {
+    if (out.length >= IDLE_BEATS_PER_PROGRAM) { break; }
+    const next = vocab[(slotIndex + step) % vocab.length];
+    if (next !== undefined && !out.includes(next)) { out.push(next); }
+  }
+  return out;
 }
 
 function kindGrid(config: CrowdConfig, kind: "melee" | "ranged" | "hero"): string {
@@ -255,6 +384,19 @@ export function buildRoster(config: CrowdConfig): PlacedUnit[] {
   ];
 
   const formation = formationFor(config);
+  /**
+   * Beat windows are dealt out by a stride coprime with the formation size,
+   * so the eighteen units of a side get eighteen DISTINCT start times evenly
+   * spread across the program - staggering by construction rather than by
+   * hoping a hash scatters. The second side is offset by half a step so the
+   * two crowds never fire together either.
+   */
+  const beatSlot = (slotIndex: number, sideIndex: number) => {
+    const step = IDLE_PROGRAM_MS / formation.length;
+    const spread = ((slotIndex * 7) % formation.length) * step;
+    return Math.round(spread + sideIndex * (step / 2));
+  };
+  const headSets: (-1 | 0 | 1)[] = [0, -1, 1, 0, 1, -1, 1, 0, -1];
   const depthOf = (slot: { rank: number; file: number }) => {
     if (!config.policy.depth) { return 0; }
     const sum = slot.rank + slot.file;
@@ -283,6 +425,9 @@ export function buildRoster(config: CrowdConfig): PlacedUnit[] {
         amplitude: 0.6 + hash01(seed + 313) * 0.7,
         flip: hash01(seed + 557) < 0.5 ? -1 : 1,
         depthStep: depthOf(slot),
+        beats: beatsFor(slot.kind, slotIndex),
+        beatAt: beatSlot(slotIndex, sideIndex),
+        headSet: headSets[(slotIndex + sideIndex) % headSets.length] ?? 0,
       });
     });
   });
@@ -320,6 +465,11 @@ export function buildLineup(config: CrowdConfig): PlacedUnit[] {
         amplitude: 1,
         flip: 1,
         depthStep: 0,
+        beats: beatsFor(kind, index + sideIndex),
+        headSet: 0,
+        // seated so nothing is mid-beat at clock 0: the lineup's job is to be
+        // a clean sprite reference, and a filmstrip walks it forward anyway
+        beatAt: 900 + index * 240,
       });
     });
   });
@@ -699,6 +849,60 @@ export function crouchRows(rows: string[], kneeY: number, dy: number): string[] 
   return out.map((row) => row.join(""));
 }
 
+/**
+ * Rigid sideways shift of a row band. Whole rows move, so the band cannot
+ * tear; the discontinuity lands at the band's edge, which is exactly what a
+ * head turning on a neck or a hip taking the weight looks like at 22 px.
+ */
+export function shiftBand(rows: string[], y0: number, y1: number, dx: number): string[] {
+  if (dx === 0) { return rows.slice(); }
+  const width = rows[0]?.length ?? 0;
+  return rows.map((row, y) => {
+    if (y < y0 || y > y1) { return row; }
+    const out = Array.from({ length: width }, () => TRANSPARENT);
+    [...row].forEach((ch, x) => {
+      const nx = x + dx;
+      if (ch !== TRANSPARENT && nx >= 0 && nx < width) { out[nx] = ch; }
+    });
+    return out.join("");
+  });
+}
+
+/**
+ * Move a role-selected region inside a row band - the held equipment, and
+ * nothing else. Selected cells are lifted, their old positions cleared, and
+ * the cells re-stamped at the offset, so a weapon can travel over the body
+ * the way a real one does without punching a hole in the torso behind it.
+ */
+export function nudgeRoles(
+  rows: string[],
+  width: number,
+  roles: Set<string>,
+  y0: number,
+  y1: number,
+  dy: number,
+): string[] {
+  if (dy === 0) { return rows.slice(); }
+  const out = toCells(rows);
+  const moved: { x: number; y: number; ch: string }[] = [];
+  for (let y = y0; y <= y1; y += 1) {
+    const row = out[y];
+    if (row === undefined) { continue; }
+    for (let x = 0; x < width; x += 1) {
+      const ch = row[x] ?? TRANSPARENT;
+      if (ch === TRANSPARENT || !roles.has(ch)) { continue; }
+      moved.push({ x, y, ch });
+      row[x] = TRANSPARENT;
+    }
+  }
+  for (const cell of moved) {
+    const row = out[cell.y + dy];
+    if (row === undefined) { continue; }
+    row[cell.x] = cell.ch;
+  }
+  return out.map((row) => row.join(""));
+}
+
 // --- idle treatments ---------------------------------------------------
 
 /** Shared loop length so a single-cycle capture closes cleanly. */
@@ -714,23 +918,93 @@ export interface PosedUnit {
   bob: number;
 }
 
+export interface IdleOptions {
+  amplitude?: number;
+  flip?: 1 | -1;
+  gain?: number;
+  /** The authored beats, or empty to run round 3's breath-only idle. */
+  beats?: IdleBeat[];
+  beatAt?: number;
+  /** Static head offset - individuality, not animation. */
+  headSet?: number;
+}
+
+/** Knee row - shins and feet below this stay planted through every beat. */
+function kneeRow(grid: CrowdGrid): number {
+  return Math.round(grid.bottomRow - (grid.bottomRow - grid.topRow) * 0.18);
+}
+
+/**
+ * Apply this unit's authored beat, if it is firing.
+ *
+ * Each beat moves ONE part and leaves the rest of the breath alone, which is
+ * what makes them combine instead of fighting: a unit can be mid-inhale and
+ * mid-look at the same time, and the pair is a pose neither produces alone.
+ *
+ * - `look`        - the head band turns one pixel on the neck.
+ * - `gear-adjust` - the held equipment drops a pixel and comes back: a
+ *                   cleaver and buckler sagging, a rifle re-shouldered.
+ * - `weight-shift`- everything above the knee translates over one foot.
+ * - `settle`      - a deeper knee bend than the breath's, up to two rows.
+ */
+function applyBeat(
+  grid: CrowdGrid,
+  rows: string[],
+  beat: IdleBeat,
+  strength: number,
+  flip: 1 | -1,
+): string[] {
+  if (strength === 0) { return rows; }
+  const anatomy = crowdAnatomy[grid.key];
+  if (anatomy === undefined) { return rows; }
+  if (beat === "look") {
+    return shiftBand(rows, anatomy.headTop, anatomy.headBottom, flip);
+  }
+  if (beat === "gear-adjust") {
+    return nudgeRoles(rows, grid.width, GEAR_ROLES, anatomy.gearTop, anatomy.gearBottom, 1);
+  }
+  if (beat === "weight-shift") {
+    return shiftBand(rows, 0, kneeRow(grid) - 1, flip);
+  }
+  return crouchRows(rows, kneeRow(grid), strength);
+}
+
+/** Set the head where this unit holds it. Static; runs before any beat. */
+function applyHeadSet(grid: CrowdGrid, rows: string[], headSet: number): string[] {
+  if (headSet === 0) { return rows; }
+  const anatomy = crowdAnatomy[grid.key];
+  if (anatomy === undefined) { return rows; }
+  return shiftBand(rows, anatomy.headTop, anatomy.headBottom, headSet);
+}
+
+/** Beats that reach two pixels at the top of their arc. */
+function beatSpan(beat: IdleBeat): number {
+  return beat === "settle" ? 2 : 1;
+}
+
 /**
  * Fodder idle - the cheap programmatic treatment. A low-pivot shear sways
- * the mass over planted feet and a 1px bob carries the breath. Two grid
- * transforms per unit per frame; this is what a crowd can afford.
+ * the mass over planted feet and a 1px bob carries the breath, and on top of
+ * that the unit plays its one authored beat. Three grid transforms per unit
+ * per frame at worst, two the 87 % of the program when no beat is firing.
  */
 export function poseFodder(
   grid: CrowdGrid,
   clockMs: number,
   phaseMs: number,
-  amplitude = 1,
-  flip: 1 | -1 = 1,
-  gain = 1,
+  options: IdleOptions = {},
 ): PosedUnit {
+  const amplitude = options.amplitude ?? 1;
+  const flip = options.flip ?? 1;
+  const gain = options.gain ?? 1;
   const t = phase(clockMs + phaseMs, CROWD_CYCLE_MS);
   const wave = Math.sin(t * Math.PI * 2) * flip;
-  const pivot = Math.round(grid.bottomRow - (grid.bottomRow - grid.topRow) * 0.35);
-  const kneeY = Math.round(grid.bottomRow - (grid.bottomRow - grid.topRow) * 0.18);
+  // The sway pivot rides the unit's own stance. Without this a +1 lean on a
+  // head set -1 px lands on exactly the same rows as a 0 lean on a 0 set, and
+  // units that are posed differently still render byte-identically.
+  const pivot = Math.round(grid.bottomRow - (grid.bottomRow - grid.topRow) * 0.35)
+    + (options.headSet ?? 0) * 2;
+  const kneeY = kneeRow(grid);
   // Scale the sway to the figure, or a 22px fodder unit swings as far as a
   // 34px one and the crowd's motion drowns the tier's height difference.
   const reach = (grid.bottomRow - grid.topRow) / 34;
@@ -739,7 +1013,14 @@ export function poseFodder(
   // of only 6 px - "a bobbing fodder unit at the top of its arc is momentarily
   // as tall as a hero at the bottom of its". At gain 1 this is round-3 code
   // exactly, so LARGE is untouched.
-  let rows = leanRows(grid.rows, pivot, 0.11 * reach * amplitude * wave * gain);
+  const firing = options.beats === undefined || options.beats.length === 0
+    ? null
+    : activeBeat(options.beats, options.beatAt ?? 0, clockMs);
+  const held = applyHeadSet(grid, grid.rows, options.headSet ?? 0);
+  let rows = firing === null
+    ? held
+    : applyBeat(grid, held, firing.beat, firing.strength, flip);
+  rows = leanRows(rows, pivot, 0.11 * reach * amplitude * wave * gain);
   if (wave < (-0.45 * amplitude) / gain) { rows = crouchRows(rows, kneeY, 1); }
   return { rows, bob: wave > 0.55 / (amplitude * gain) ? -1 : 0 };
 }
@@ -754,25 +1035,40 @@ export function poseHero(
   grid: CrowdGrid,
   clockMs: number,
   phaseMs: number,
-  amplitude = 1,
-  flip: 1 | -1 = 1,
+  options: IdleOptions = {},
 ): PosedUnit {
+  const amplitude = options.amplitude ?? 1;
+  const flip = options.flip ?? 1;
   const t = phase(clockMs + phaseMs, CROWD_CYCLE_MS);
   const wave = Math.sin(t * Math.PI * 2) * flip * amplitude;
   const kneeY = Math.round(grid.bottomRow - (grid.bottomRow - grid.topRow) * 0.22);
   const pivot = Math.round(grid.bottomRow - (grid.bottomRow - grid.topRow) * 0.45);
   const reach = (grid.bottomRow - grid.topRow) / 44;
-  let rows = leanRows(grid.rows, pivot, 0.06 * reach * wave);
+  const firing = options.beats === undefined || options.beats.length === 0
+    ? null
+    : activeBeat(options.beats, options.beatAt ?? 0, clockMs);
+  const held = applyHeadSet(grid, grid.rows, options.headSet ?? 0);
+  let rows = firing === null
+    ? held
+    : applyBeat(grid, held, firing.beat, firing.strength, flip);
+  rows = leanRows(rows, pivot, 0.06 * reach * wave);
   if (wave < -0.3) { rows = crouchRows(rows, kneeY, 1); }
   return { rows, bob: wave > 0.6 ? -1 : 0 };
 }
 
 export function poseUnit(unit: PlacedUnit, clockMs: number): PosedUnit {
   const grid = getGrid(unit.gridKey);
-  const gain = crowdConfigs[grid.config].policy.idleGain;
+  const policy = crowdConfigs[grid.config].policy;
+  const options: IdleOptions = {
+    amplitude: unit.amplitude,
+    flip: unit.flip,
+    beats: policy.idleVocabulary ? unit.beats : [],
+    beatAt: unit.beatAt,
+    headSet: policy.idleVocabulary ? unit.headSet : 0,
+  };
   return unit.tier === "hero"
-    ? poseHero(grid, clockMs, unit.phaseMs, unit.amplitude, unit.flip)
-    : poseFodder(grid, clockMs, unit.phaseMs, unit.amplitude, unit.flip, gain);
+    ? poseHero(grid, clockMs, unit.phaseMs, options)
+    : poseFodder(grid, clockMs, unit.phaseMs, { ...options, gain: policy.idleGain });
 }
 
 /** Top-left blit origin for a unit's grid, given its anchor. */

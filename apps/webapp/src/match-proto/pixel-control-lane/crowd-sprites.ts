@@ -531,6 +531,30 @@ export const crowdGrids: CrowdGrid[] = [
   makeGrid("mara-large", "Mara Voss (hero)", "hero", "large", 32, maraLargeRows),
 ];
 
+/**
+ * Where a grid's parts sit, so the idle vocabulary can move one of them
+ * without a second authored frame. Rows are inclusive and refer to the
+ * authored grid, before any pose transform.
+ *
+ * Only the SMALL grids are described. LARGE is the frozen round-3 control and
+ * runs the round-3 idle unchanged; a grid with no entry here simply never
+ * plays an authored beat.
+ */
+export interface CrowdAnatomy {
+  /** First and last row of the head / helm. */
+  headTop: number;
+  headBottom: number;
+  /** First and last row of the HELD equipment - weapon, shield, both. */
+  gearTop: number;
+  gearBottom: number;
+}
+
+export const crowdAnatomy: Record<string, CrowdAnatomy> = {
+  "breaker-small": { headTop: 2, headBottom: 5, gearTop: 9, gearBottom: 11 },
+  "stinger-small": { headTop: 2, headBottom: 5, gearTop: 10, gearBottom: 11 },
+  "mara-small": { headTop: 2, headBottom: 8, gearTop: 10, gearBottom: 15 },
+};
+
 export function getGrid(key: string): CrowdGrid {
   const found = crowdGrids.find((grid) => grid.key === key);
   if (found === undefined) { throw new Error(`unknown crowd grid: ${key}`); }

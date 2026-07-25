@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   type CrowdGrid,
   controlPalettes,
+  crowdAnatomy,
   crowdGrids,
   luma,
   crowdRowsToRgba,
@@ -213,6 +214,56 @@ describe("round-4 control repairs", () => {
       }
       // the ink anchor is the thing everything mixes toward, so it never moves
       expect(ramp.every((step) => step.k === teamPalettes[team].k)).toBe(true);
+    }
+  });
+});
+
+describe("anatomy, the handle the idle vocabulary moves parts by", () => {
+  it("describes every SMALL grid, and only inside its own rows", () => {
+    for (const key of ["breaker-small", "stinger-small", "mara-small"]) {
+      const anatomy = crowdAnatomy[key];
+      const g = grid(key);
+      expect(anatomy).toBeDefined();
+      const parts = anatomy as NonNullable<typeof anatomy>;
+      expect(parts.headTop).toBeGreaterThanOrEqual(g.topRow);
+      expect(parts.headBottom).toBeLessThan(parts.gearTop);
+      expect(parts.gearBottom).toBeLessThanOrEqual(g.bottomRow);
+    }
+  });
+
+  /**
+   * A `gear-adjust` moves the cells inside the gear band whose role is
+   * equipment. If a band held no equipment the beat would be a no-op, and the
+   * vocabulary would silently shrink - so assert the gear is actually there.
+   */
+  it("puts real equipment inside every gear band", () => {
+    const gear = new Set(["l", "L", "i", "m", "M", "n"]);
+    for (const key of ["breaker-small", "stinger-small"]) {
+      const parts = crowdAnatomy[key] as NonNullable<(typeof crowdAnatomy)[string]>;
+      const g = grid(key);
+      const cells = g.rows
+        .slice(parts.gearTop, parts.gearBottom + 1)
+        .join("");
+      expect([...cells].filter((ch) => gear.has(ch)).length).toBeGreaterThan(5);
+    }
+  });
+
+  /**
+   * The head band is shifted whole, so it must not contain body cells that
+   * would tear away from the torso: at 22 px the helmet is the only thing up
+   * there, and this pins that it stays that way through a redraw.
+   */
+  it("keeps the fodder head bands narrower than the body below them", () => {
+    for (const key of ["breaker-small", "stinger-small"]) {
+      const parts = crowdAnatomy[key] as NonNullable<(typeof crowdAnatomy)[string]>;
+      const g = grid(key);
+      const span = (row: string) => {
+        const first = [...row].findIndex((ch) => ch !== ".");
+        return first === -1 ? 0 : row.length - [...row].reverse().findIndex((ch) => ch !== ".") - first;
+      };
+      const head = Math.max(...g.rows.slice(parts.headTop, parts.headBottom + 1).map(span));
+      const torso = span(g.rows[parts.headBottom + 1] ?? "");
+      expect(head).toBeLessThanOrEqual(torso);
     }
   });
 });

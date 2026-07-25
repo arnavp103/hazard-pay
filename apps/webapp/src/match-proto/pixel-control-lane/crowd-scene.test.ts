@@ -3,6 +3,9 @@ import { describe, expect, it } from "vitest";
 import {
   CONTOUR_MIN_CONTRAST,
   CROWD_CYCLE_MS,
+  IDLE_BEAT_MS,
+  IDLE_PROGRAM_MS,
+  IDLE_VOCAB,
   blitOrigin,
   buildRoster,
   contouredRows,
@@ -191,6 +194,7 @@ describe("round-4 rendering policy", () => {
       depth: false,
       halo: false,
       idleGain: 1,
+      idleVocabulary: false,
       markingTaper: false,
       staging: "ranked",
     });
@@ -268,6 +272,134 @@ describe("round-4 rendering policy", () => {
     expect(swing("small")).toBeLessThanOrEqual(1);
     expect(swing("large")).toBe(1);
     expect(crowdConfigs.small.policy.idleGain).toBeLessThan(1);
+  });
+});
+
+/**
+ * ROUND 5 - the idle vocabulary.
+ *
+ * Round 4 was the one outright FAIL on the cold pass's eight axes, and its
+ * diagnosis was specific: "28 of 45 tracked components sit at exactly 2.00 px
+ * and the entire distribution is clamped between 0 and 2.74 - one amplitude,
+ * applied 28 times". The answer here is a second, slower authored layer over
+ * the breath, so what follows pins VOCABULARY, not amplitude.
+ */
+describe("round-5 idle vocabulary", () => {
+  const program = (steps: number) =>
+    Array.from({ length: steps }, (_, i) => Math.round((i / steps) * IDLE_PROGRAM_MS));
+
+  it("runs three whole breaths per program, so a capture closes on both", () => {
+    expect(IDLE_PROGRAM_MS).toBe(CROWD_CYCLE_MS * 3);
+    expect(IDLE_BEAT_MS).toBeLessThan(IDLE_PROGRAM_MS / 4);
+  });
+
+  it("deals every unit beats from its own archetype's vocabulary, never repeating", () => {
+    for (const unit of buildRoster(crowdConfigs.small)) {
+      const kind = unit.tier === "hero"
+        ? "hero"
+        : (unit.gridKey.startsWith("breaker") ? "melee" : "ranged");
+      expect(unit.beats.length).toBeGreaterThan(1);
+      expect(new Set(unit.beats).size).toBe(unit.beats.length);
+      for (const beat of unit.beats) {
+        expect(IDLE_VOCAB[kind]).toContain(beat);
+      }
+    }
+  });
+
+  /**
+   * "Staggered so neighbouring units are never on the same beat" has to be a
+   * construction, not a hope: the start times are dealt by a stride coprime
+   * with the formation size, so all thirty-six are distinct by arithmetic.
+   */
+  it("gives all 36 units distinct beat windows", () => {
+    const roster = buildRoster(crowdConfigs.small);
+    const starts = roster.map((unit) => unit.beatAt).sort((a, b) => a - b);
+    expect(new Set(starts).size).toBe(roster.length);
+    const gaps = starts.slice(1).map((value, index) => value - (starts[index] ?? 0));
+    expect(Math.min(...gaps)).toBeGreaterThanOrEqual(100);
+  });
+
+  /**
+   * The headline number. Round 4's crowd could show 55 distinct posed frames
+   * over its whole cycle; this asserts the floor is far above that, so the
+   * vocabulary cannot be quietly deleted by a later tuning pass.
+   */
+  it("can show far more distinct poses than round 4's 55", () => {
+    const seen = new Map<string, Set<string>>();
+    for (const unit of buildRoster(crowdConfigs.small)) {
+      const bucket = seen.get(unit.gridKey) ?? new Set<string>();
+      for (const clock of program(48)) {
+        const posed = poseUnit(unit, clock);
+        bucket.add(`${posed.rows.join("|")}#${String(posed.bob)}`);
+      }
+      seen.set(unit.gridKey, bucket);
+    }
+    const total = [...seen.values()].reduce((sum, set) => sum + set.size, 0);
+    expect(total).toBeGreaterThan(220);
+  });
+
+  /**
+   * The other half of "too few beats": how many units can be showing the
+   * SAME frame at the same instant. Round 4 measured 6 of 36 - and 44 % of
+   * the breath cycle produces no whole-pixel lean at all, so those six were
+   * byte-identical, not merely similar. The static head set is what breaks it,
+   * down to 4 - the residual is a unit whose lean happens to cancel another
+   * unit's head offset, which is reported rather than papered over.
+   */
+  it("never puts more than four units on an identical frame at once", () => {
+    const roster = buildRoster(crowdConfigs.small);
+    let worst = 0;
+    for (const clock of program(48)) {
+      const groups = new Map<string, number>();
+      for (const unit of roster) {
+        const posed = poseUnit(unit, clock);
+        const key = `${unit.gridKey}|${String(unit.mirrored)}|${posed.rows.join("")}#${String(posed.bob)}`;
+        groups.set(key, (groups.get(key) ?? 0) + 1);
+      }
+      worst = Math.max(worst, ...groups.values());
+    }
+    expect(worst).toBeLessThanOrEqual(4);
+  });
+
+  /** One amplitude applied to everyone was the specific charge. */
+  it("gives the crowd more than one vertical excursion", () => {
+    const excursions = new Set<number>();
+    for (const unit of buildRoster(crowdConfigs.small)) {
+      const tops = program(48).map((clock) => {
+        const posed = poseUnit(unit, clock);
+        return posed.rows.findIndex((row) => [...row].some((ch) => ch !== ".")) - posed.bob;
+      });
+      excursions.add(Math.max(...tops) - Math.min(...tops));
+    }
+    expect(excursions.size).toBeGreaterThan(1);
+    expect(Math.max(...excursions)).toBeGreaterThan(1);
+  });
+
+  /**
+   * Round 2's closing note - "the legs stay planted" - has to survive every
+   * new beat, including the two that translate whole bands of the figure.
+   */
+  it("keeps the contact rows planted through every beat", () => {
+    for (const unit of buildRoster(crowdConfigs.small)) {
+      const grid = getGrid(unit.gridKey);
+      for (const clock of program(24)) {
+        const posed = poseUnit(unit, clock);
+        for (let y = grid.bottomRow - 2; y <= grid.bottomRow; y += 1) {
+          expect(posed.rows[y]).toBe(grid.rows[y]);
+        }
+      }
+    }
+  });
+
+  /** LARGE is the frozen control: breath only, and it still loops on 1600 ms. */
+  it("leaves the LARGE control on the round-3 single-beat idle", () => {
+    expect(crowdConfigs.large.policy.idleVocabulary).toBe(false);
+    for (const unit of buildRoster(crowdConfigs.large)) {
+      for (const clock of [0, 137, 400, 913]) {
+        expect(poseUnit(unit, clock).rows)
+          .toEqual(poseUnit(unit, clock + CROWD_CYCLE_MS).rows);
+      }
+    }
   });
 });
 
