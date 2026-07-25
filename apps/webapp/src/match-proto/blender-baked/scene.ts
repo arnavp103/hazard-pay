@@ -29,7 +29,8 @@ import {
   STAGE_HEIGHT,
   STAGE_WIDTH,
 } from "./framing.ts";
-import { hexToRgb, INK, quantizeToPalette } from "./palette.ts";
+import { consolidate } from "./consolidate.ts";
+import { BOARD_PALETTE, deepenBoard, hexToRgb, INK, quantizeToPalette } from "./palette.ts";
 
 export { STAGE_HEIGHT, STAGE_WIDTH, TURN_CYCLE_MS };
 export type { Mode };
@@ -69,7 +70,13 @@ async function loadBoardTexture(): Promise<Texture> {
   context.drawImage(image, 0, 0, BOARD_WIDTH, BOARD_HEIGHT);
 
   const pixels = context.getImageData(0, 0, BOARD_WIDTH, BOARD_HEIGHT);
-  quantizeToPalette(pixels.data, BOARD_WIDTH, BOARD_HEIGHT);
+  // Same three steps the sprites get, in the same order: value treatment,
+  // palette lock, cluster consolidation. Consolidation also kills the
+  // half-tone samples the SVG rasteriser leaves along every vector edge —
+  // without it, quantizing merely re-colours the antialiasing.
+  deepenBoard(pixels.data);
+  quantizeToPalette(pixels.data, BOARD_WIDTH, BOARD_HEIGHT, BOARD_PALETTE);
+  consolidate(pixels.data, BOARD_WIDTH, BOARD_HEIGHT, 3);
   context.putImageData(pixels, 0, 0);
 
   const texture = Texture.from(canvas);
@@ -229,6 +236,7 @@ export const COMPARISON_STRIPS = [
   { key: "shrunk", label: "8x render, box-downsampled", note: "the naive shrink" },
   { key: "native", label: "1x render, no filter", note: "straight out of Cycles" },
   { key: "quantized", label: "+ Direction B palette", note: "33 entries, CIEDE2000" },
+  { key: "consolidated", label: "+ cluster consolidation", note: "1-2px confetti absorbed" },
   { key: "inked", label: "+ 1px contour & seams", note: "what ships in the atlas" },
 ] as const;
 

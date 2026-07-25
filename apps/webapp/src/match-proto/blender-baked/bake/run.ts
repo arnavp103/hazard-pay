@@ -26,6 +26,7 @@ import { execa } from "execa";
 import { PNG } from "pngjs";
 
 import { ANCHOR, ATLAS_BASENAME, ATLAS_PUBLIC_DIR, CELL } from "../framing.ts";
+import { consolidate } from "../consolidate.ts";
 import { DIRECTION_B_PALETTE, quantizeToPalette } from "../palette.ts";
 import { compile } from "./compile.ts";
 import { DEFAULT_INK, inkSprite } from "./ink.ts";
@@ -143,7 +144,9 @@ function strip(cells: Uint8Array[]): PNG {
 async function buildQuantizationComparison(): Promise<void> {
   const hiDir = join(workDir, "compare-8x");
   const loDir = join(workDir, "compare-1x");
-  const variants: Record<string, Uint8Array[]> = { inked: [], native: [], quantized: [], shrunk: [] };
+  const variants: Record<string, Uint8Array[]> = {
+    consolidated: [], inked: [], native: [], quantized: [], shrunk: [],
+  };
 
   const bakeOne = async (dir: string, supersample: number): Promise<BakeManifest> => {
     rmSync(dir, { force: true, recursive: true });
@@ -171,7 +174,9 @@ async function buildQuantizationComparison(): Promise<void> {
     variants.native?.push(native);
     const quantized = new Uint8Array(native);
     quantizeToPalette(quantized, CELL.width, CELL.height);
-    variants.quantized?.push(quantized);
+    variants.quantized?.push(Uint8Array.from(quantized));
+    consolidate(quantized, CELL.width, CELL.height, 2);
+    variants.consolidated?.push(Uint8Array.from(quantized));
     variants.inked?.push(
       inkSprite(quantized, read(loDir, loFrame.id), CELL.width, CELL.height, DEFAULT_INK),
     );

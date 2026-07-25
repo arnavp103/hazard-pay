@@ -16,6 +16,7 @@ import { join } from "node:path";
 import pixelmatch from "pixelmatch";
 import { PNG } from "pngjs";
 
+import { consolidate, islandStats } from "../consolidate.ts";
 import { DIRECTION_B_PALETTE, paletteCoverage, quantizeToPalette } from "../palette.ts";
 import { toIndexed, writeIndexedPng } from "./indexed-png.ts";
 import { alphaBounds, DEFAULT_INK, type InkOptions, inkSprite } from "./ink.ts";
@@ -74,6 +75,12 @@ export interface AtlasCost {
   /** What it costs as an 8-bit indexed PNG — the palette's practical payoff. */
   indexedPngBytes: number;
   paletteEntriesUsed: number;
+  /**
+   * Flat-colour islands per body pixel, before and after consolidation. The
+   * density reference the art board names sits near 0.21; a straight
+   * palette-quantized render measures roughly double that.
+   */
+  clusterDensity: { before: number; after: number; singletonShareBefore: number; singletonShareAfter: number };
 }
 
 export interface CompileResult {
@@ -115,6 +122,7 @@ export function compileFrames(
   manifest: BakeManifest,
   workDir: string,
   ink: InkOptions = DEFAULT_INK,
+  minIsland = 2,
 ): CompiledFrame[] {
   const { width, height } = manifest.cell;
   return manifest.frames.map((entry) => {
@@ -123,6 +131,9 @@ export function compileFrames(
 
     const quantized = new Uint8Array(raw);
     quantizeToPalette(quantized, width, height);
+    // Consolidate BEFORE inking: the contour is a deliberate 1-px structure
+    // and must not be eaten by the same rule that removes 1-px confetti.
+    consolidate(quantized, width, height, minIsland);
     const finished = inkSprite(quantized, ids, width, height, ink);
 
     const trim = alphaBounds(finished, width, height);
@@ -151,9 +162,10 @@ export function compile(
   workDir: string,
   imageName: string,
   ink: InkOptions = DEFAULT_INK,
+  minIsland = 2,
 ): CompileResult {
   const cell = manifest.cell;
-  const frames = compileFrames(manifest, workDir, ink);
+  const frames = compileFrames(manifest, workDir, ink, minIsland);
 
   const items: PackItem[] = frames.map((f) => ({ name: f.name, width: f.trim.width, height: f.trim.height }));
   const packed = packBest(items, [128, 192, 256, 320, 384, 512, 640]);
@@ -231,6 +243,26 @@ export function compile(
     for (const name of paletteCoverage(frame.finished)) { used.add(name); }
   }
 
+  // Cluster density, measured on the raw quantized frames versus what shipped.
+  let before = { islands: 0, pixels: 0, singletons: 0 };
+  let after = { islands: 0, pixels: 0, singletons: 0 };
+  for (const frame of frames) {
+    const rawQuantized = new Uint8Array(frame.raw);
+    quantizeToPalette(rawQuantized, cell.width, cell.height);
+    const b = islandStats(rawQuantized, cell.width, cell.height);
+    const a = islandStats(frame.quantized, cell.width, cell.height);
+    before = {
+      islands: before.islands + b.islands,
+      pixels: before.pixels + b.pixels,
+      singletons: before.singletons + b.singletonShare * b.islands,
+    };
+    after = {
+      islands: after.islands + a.islands,
+      pixels: after.pixels + a.pixels,
+      singletons: after.singletons + a.singletonShare * a.islands,
+    };
+  }
+
   const perFacing = manifest.clips.reduce((sum, clip) => sum + clip.frames, 0);
   // The uniform-grid comparison uses the widest/tallest TRIMMED frame, not the
   // authored cell: a naive sheet would still size its grid to the biggest pose,
@@ -267,6 +299,12 @@ export function compile(
       rgbaPngBytes: rgbaBytes,
       indexedPngBytes: encoded.byteLength,
       paletteEntriesUsed: used.size,
+      clusterDensity: {
+        before: Number((before.islands / Math.max(1, before.pixels)).toFixed(4)),
+        after: Number((after.islands / Math.max(1, after.pixels)).toFixed(4)),
+        singletonShareBefore: Number((before.singletons / Math.max(1, before.islands)).toFixed(4)),
+        singletonShareAfter: Number((after.singletons / Math.max(1, after.islands)).toFixed(4)),
+      },
     },
   };
 }

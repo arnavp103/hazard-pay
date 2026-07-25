@@ -119,8 +119,13 @@ export function BlenderBakedPrototype() {
     handleRef.current?.setFacing(wrapped);
   };
 
+  // No `hp-noise` on this surface. The UI grain is a sub-pixel texture, and
+  // over a 2x nearest-neighbour canvas it lands INSIDE the art pixel: it cost
+  // the first pass its palette lock — 6,665 unique colours in a shipped still
+  // whose atlas holds 26 — while being invisible as texture. Grit belongs in
+  // the art, at the art's own pixel size.
   return (
-    <main className="hp-noise flex min-h-screen flex-col bg-shell">
+    <main className="flex min-h-screen flex-col bg-shell">
       <header className="flex items-center justify-between border-b-2 border-line bg-panel px-5 py-3">
         <div className="flex items-baseline gap-4">
           <h1 className="font-display text-2xl leading-none font-extrabold tracking-[0.06em] text-ink uppercase">
@@ -159,7 +164,6 @@ export function BlenderBakedPrototype() {
               {/* Pixi appends its canvas here; React never renders into this div. */}
               <div ref={hostRef} data-testid="baked-stage-host" className="absolute inset-0" />
 
-              <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(110deg,transparent_58%,rgb(18_11_16_/_0.22)_58%)]" />
               <div className="absolute top-3 left-3 border border-line/80 bg-shell/90 px-2 py-1 font-data text-[8px] tracking-[0.12em] text-ink-dim uppercase">
                 baked atlas · 8 facings
               </div>

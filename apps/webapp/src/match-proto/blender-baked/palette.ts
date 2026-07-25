@@ -46,6 +46,11 @@ export const DIRECTION_B_PALETTE: readonly PaletteEntry[] = [
   { name: "brick-1", hex: "#56303d", role: "world" },
   { name: "brick-2", hex: "#6e413c", role: "world" },
   { name: "brick-3", hex: "#8c5141", role: "world" },
+  // The world's own warm bright end. Deliberately more amber than the unit's
+  // rust ramp so the board can carry lit trim and signage without wearing a
+  // colour the roster reserves — r1 found the board's hazard stripe within
+  // (1,3,3) of the medic's dominant accent.
+  { name: "copper", hex: "#a06a3e", role: "world" },
   // Sage cloth — the medic's coat, the largest area on the unit.
   { name: "sage-1", hex: "#262a2e", role: "identity" },
   { name: "sage-2", hex: "#3e4744", role: "identity" },
@@ -81,19 +86,54 @@ export function hexToRgb(hex: string): [number, number, number] {
   return [(value >> 16) & 0xff, (value >> 8) & 0xff, value & 0xff];
 }
 
-let cached: utils.Palette | undefined;
+/**
+ * The board's vocabulary. Canon (#68): "playable map regions use quieter
+ * contrast so units can own the darkest contours and brightest focal points."
+ * The first pass let the board wear the roster's own accents — its teal floor
+ * pad landed within (5,0,1) of the medic's signal teal and its hazard stripe
+ * within (1,3,3) of her livery orange — so the unit was camouflaged by its own
+ * identity colours. Restricting the environment to the world ramps plus the
+ * two darkest rusts and the dead teal reserves the saturated end for units.
+ */
+export const BOARD_PALETTE: readonly PaletteEntry[] = DIRECTION_B_PALETTE.filter(
+  (entry) => entry.role === "world" || entry.name === "rust-1" || entry.name === "rust-2"
+    || entry.name === "signal-1",
+);
+
+const paletteCache = new Map<string, utils.Palette>();
 
 /** The palette as image-q sees it. Built once; `Palette` caches its own index. */
-export function paletteForQuantizer(): utils.Palette {
-  if (cached === undefined) {
-    const built = new utils.Palette();
-    for (const entry of DIRECTION_B_PALETTE) {
-      const [r, g, b] = hexToRgb(entry.hex);
-      built.add(utils.Point.createByRGBA(r, g, b, 0xff));
-    }
-    cached = built;
+export function paletteForQuantizer(subset?: readonly PaletteEntry[]): utils.Palette {
+  const entries = subset ?? DIRECTION_B_PALETTE;
+  const cacheKey = entries.map((entry) => entry.name).join(",");
+  const existing = paletteCache.get(cacheKey);
+  if (existing !== undefined) { return existing; }
+  const built = new utils.Palette();
+  for (const entry of entries) {
+    const [r, g, b] = hexToRgb(entry.hex);
+    built.add(utils.Point.createByRGBA(r, g, b, 0xff));
   }
-  return cached;
+  paletteCache.set(cacheKey, built);
+  return built;
+}
+
+/**
+ * Push the board's midtones down before quantizing it.
+ *
+ * The first pass measured 68.7% of the play field inside a 40-level luminance
+ * window with nothing below L20 and nothing above L180 — dim, but flat, and
+ * the medic's coat sat at the same luminance as the floor directly under her
+ * feet. Deepening the environment's darks buys the near-black massing the
+ * grime register wants AND gives the unit a value to stand against, without
+ * touching the shared board art the three lanes are all being judged on.
+ */
+export function deepenBoard(rgba: Uint8ClampedArray | Uint8Array): void {
+  for (let i = 0; i < rgba.length; i += 4) {
+    for (let c = 0; c < 3; c += 1) {
+      const value = (rgba[i + c] ?? 0) / 255;
+      rgba[i + c] = Math.round(255 * value ** 1.25 * 0.94);
+    }
+  }
 }
 
 /**
@@ -114,13 +154,14 @@ export function quantizeToPalette(
   rgba: Uint8Array | Uint8ClampedArray,
   width: number,
   height: number,
+  subset?: readonly PaletteEntry[],
 ): void {
   const alphaCutoff = 128;
   const container = utils.PointContainer.fromUint8Array(rgba, width, height);
   for (const point of container.getPointArray()) {
     point.a = 0xff;
   }
-  const mapped = applyPaletteSync(container, paletteForQuantizer(), {
+  const mapped = applyPaletteSync(container, paletteForQuantizer(subset), {
     colorDistanceFormula: "ciede2000",
     imageQuantization: "nearest",
   }).toUint8Array();

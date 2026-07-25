@@ -289,7 +289,6 @@ def build_leg(side, root):
         box("shin_tape", feat(0.175, 0.06, 0.185), (0, -0.12, 0.005), flat_material(TAPE), knee)
     box("boot", (0.24, 0.15, 0.42), (0, -0.385, 0.09), cel_material(BOOT), knee)
     box("toe", (0.245, 0.11, 0.13), (0, -0.41, 0.28), cel_material(TOE_METAL), knee)
-    box("toe_hi", feat(0.245, 0.03, 0.04), (0, -0.372, 0.338), flat_material(METAL_HI), knee)
     # Chip-led wear: a notched, scuffed heel block (the r2 critique's lesson).
     box("boot_scuff", feat(0.09, 0.05, 0.1), (side * 0.07, -0.325, -0.115), flat_material(SCUFF), knee)
     return hip, knee
@@ -301,14 +300,12 @@ def build_arm(side, cyber, torso):
     elbow = empty(f"elbow{side}", shoulder, (0.0, 0.0, -0.34))
     if cyber:
         box("forearm", (0.14, 0.27, 0.15), (0, -0.15, 0), cel_material(METAL), elbow)
-        box("forearm_spec", feat(0.035, 0.22, 0.035), (side * 0.06, -0.14, 0.08), flat_material(METAL_HI), elbow)
     else:
         box("forearm", (0.13, 0.26, 0.14), (0, -0.15, 0), cel_material(COAT_DARK), elbow)
         box("wrist_wrap", feat(0.155, 0.07, 0.165), (0, -0.03, 0.005), flat_material(TAPE), elbow)
     hand = empty(f"hand{side}", elbow, (0.0, 0.0, -0.33))
     if cyber:
         box("fist", (0.2, 0.16, 0.18), (0, -0.06, 0), cel_material(METAL), hand)
-        box("knuckle", feat(0.055, 0.045, 0.17), (0, -0.012, 0.02), flat_material(METAL_HI), hand)
     else:
         box("fist", (0.19, 0.15, 0.17), (0, -0.06, 0), cel_material(SKIN), hand)
     return shoulder, elbow, hand
@@ -329,7 +326,10 @@ def build_injector(hand):
     box("inj_grip", (0.06, 0.12, 0.07), (0, -0.1, 0.02), cel_material(BOOT), tool)
     tip = empty("tip", tool, (0.0, -0.4, -0.02))
     needle = cylinder("inj_needle", 0.042, 0.12, (0, 0, 0), flat_material(SIGNAL), tip)
-    return tip, needle
+    burst = empty("burst", tool, (0.0, -0.52, -0.02))
+    box("burst_core", (0.20, 0.20, 0.06), (0, 0, 0), flat_material(SIGNAL_HOT), burst)
+    box("burst_bar", (0.34, 0.07, 0.05), (0, 0, 0), flat_material(SIGNAL), burst)
+    return tip, needle, burst
 
 
 def build_medic():
@@ -337,6 +337,14 @@ def build_medic():
     pelvis = empty("pelvis", root, (0.0, 0.0, 0.9))
     box("hem", (0.46, 0.26, 0.32), (0, 0.02, 0), cel_material(COAT_DARK), pelvis)
     box("holster", (0.12, 0.18, 0.1), (0.26, -0.04, 0.06), cel_material(HOLSTER), pelvis)
+    # Slung medkit. The r1 critique found no medic in any of eight facings —
+    # a cross the size of three pixels is a colour patch, not an identity. This
+    # is a mass that leaves the body outline, so the read survives grayscale
+    # and survives being 21 px wide.
+    box("kit", (0.26, 0.24, 0.20), (-0.31, 0.02, 0.05), cel_material(LIVERY), pelvis)
+    box("kit_lid", feat(0.26, 0.06, 0.20), (-0.31, 0.15, 0.05), cel_material(LIVERY_DK), pelvis)
+    cross_plate(0.14, (-0.31, 0.02, 0.16), pelvis)
+    box("kit_sling", feat(0.07, 0.5, 0.07), (-0.22, 0.32, 0.11), flat_material(STRAP), pelvis, rot=(0, 0, -0.5))
 
     torso = empty("torso", pelvis, (0.0, 0.0, 0.12))
     box("chest", (0.5, 0.44, 0.34), (0, 0.28, 0), cel_material(COAT), torso)
@@ -347,15 +355,14 @@ def build_medic():
     box("strap", feat(0.56, 0.085, 0.03), (-0.02, 0.3, 0.19), flat_material(STRAP), torso, rot=(0, 0, 0.55))
     box("buckle", (0.09, 0.08, 0.035), (-0.14, 0.36, 0.2), flat_material(METAL), torso)
     # Field pack.
-    box("pack", (0.38, 0.44, 0.2), (0, 0.22, -0.27), cel_material(PACK), torso)
-    box("pack_plate", (0.24, 0.28, 0.05), (-0.02, 0.22, -0.39), cel_material(LIVERY), torso)
-    cross_plate(0.12, (-0.02, 0.26, -0.425), torso, flip=True)
+    box("pack", (0.40, 0.46, 0.30), (0, 0.22, -0.32), cel_material(PACK), torso)
+    box("pack_plate", (0.26, 0.30, 0.05), (-0.02, 0.22, -0.47), cel_material(LIVERY), torso)
+    cross_plate(0.15, (-0.02, 0.25, -0.505), torso, flip=True)
     # The rival's three-tick unit stencil is 0.3 art px per tick — dropped, and
     # its history re-spent as one readable painted bar.
-    box("stencil_bar", feat(0.17, 0.05, 0.025), (-0.02, 0.075, -0.43), flat_material(STENCIL), torso)
-    box("pack_scuff", (0.22, 0.06, 0.16), (0.05, 0.42, -0.27), flat_material(SCUFF), torso)
-    box("pack_worn", feat(0.075, 0.3, 0.075), (-0.2, 0.22, -0.28), flat_material(LIVERY_DK), torso)
-    box("aerial", feat(0.035, 0.34, 0.035), (0.15, 0.56, -0.3), flat_material(AERIAL), torso)
+    box("stencil_bar", feat(0.17, 0.05, 0.025), (-0.02, 0.055, -0.51), flat_material(STENCIL), torso)
+    box("pack_scuff", feat(0.22, 0.07, 0.16), (0.05, 0.44, -0.32), flat_material(SCUFF), torso)
+    box("pack_worn", feat(0.085, 0.32, 0.085), (-0.21, 0.22, -0.33), flat_material(LIVERY_DK), torso)
 
     head = empty("head", torso, (0.0, 0.0, 0.46))
     box("neck", (0.14, 0.1, 0.13), (0, 0.02, 0), cel_material(SKIN), head)
@@ -369,7 +376,7 @@ def build_medic():
     box("pad", (0.24, 0.11, 0.26), (-0.04, 0.06, 0), cel_material(LIVERY), shoulder_l)
     box("pad_chip", feat(0.085, 0.06, 0.1), (-0.14, 0.09, 0.095), flat_material(LIVERY_DK), shoulder_l)
 
-    tip, needle = build_injector(hand_r)
+    tip, needle, burst = build_injector(hand_r)
 
     hip_l, knee_l = build_leg(-1, root)
     hip_r, knee_r = build_leg(1, root)
@@ -380,7 +387,7 @@ def build_medic():
         "shoulderL": shoulder_l, "elbowL": elbow_l,
         "shoulderR": shoulder_r, "elbowR": elbow_r,
         "hipL": hip_l, "kneeL": knee_l, "hipR": hip_r, "kneeR": knee_r,
-        "tip": tip, "needle": needle,
+        "tip": tip, "needle": needle, "burst": burst,
     }
 
 
@@ -412,23 +419,30 @@ def empty_pose():
             "squash": 1.0, "flash": False, "spark": False}
 
 
+# Stepped idle. The r1 critique measured ONE native pixel of head travel across
+# the whole cycle while 25-33% of interior pixels churned on every step — an
+# outline that stands still inside a body that shimmers, which is the worst
+# combination available and the most expensive. These are authored per-frame
+# values with held beats, so the SILHOUETTE moves ~3 art px and the interior
+# holds.
+IDLE_LIFT = (0.00, 0.00, 0.07, 0.15, 0.19, 0.19, 0.11, 0.04)
+IDLE_GLANCE = (0.0, 0.0, 0.0, 0.30, 0.30, 0.30, 0.10, 0.0)
+
+
 def idle_pose(frame, count):
-    """8 frames at 8 fps: breath + weight shift + one held glance beat."""
+    """8 frames at 8 fps: a real breath lift, a held glance, one kit check."""
+    del count
     pose = empty_pose()
-    phase = frame / count
-    breath = math.sin(phase * TAU)
-    sway = math.sin(phase * TAU - 0.9)
-    pose["rot"]["torso"] = (0.055 * breath, 0.04 * sway, 0.06 * sway)
-    pose["rot"]["shoulderL"] = (-0.07 * breath, 0, 0.05 * sway)
-    pose["rot"]["shoulderR"] = (-0.07 * breath, 0, -0.05 * sway)
-    pose["dip"] = 0.045 * (0.5 - 0.5 * breath)
-    pose["sway"] = 0.05 * sway
-    # Held glance: two frames out of eight look off-axis, then snap back.
-    glance = 0.34 if frame in (3, 4) else (0.12 if frame == 5 else 0.0)
-    pose["rot"]["head"] = (0.03 * breath, glance, 0.04 * sway)
-    # One injector check per loop, on the two frames after the glance.
+    lift = IDLE_LIFT[frame]
+    pose["dip"] = -lift
+    # Chest and shoulders follow the lift rather than running on their own
+    # sine, so nothing moves that the outline does not also move.
+    pose["rot"]["torso"] = (-0.16 * lift, 0.0, 0.0)
+    pose["rot"]["shoulderL"] = (-0.25 * lift, 0, 0)
+    pose["rot"]["shoulderR"] = (-0.25 * lift, 0, 0)
+    pose["rot"]["head"] = (-0.10 * lift, IDLE_GLANCE[frame], 0)
     if frame in (6, 7):
-        pose["rot"]["elbowR"] = (-0.22 if frame == 6 else -0.1, 0, 0)
+        pose["rot"]["elbowR"] = (-0.24 if frame == 6 else -0.12, 0, 0)
     pose["flash"] = frame == 6
     return pose
 
@@ -447,9 +461,9 @@ def attack_pose(frame, count):
         pose["squash"] = 1.0 + 0.03 * coil
     elif frame <= 8:
         strike = min(1.0, (frame - 3) / 2.0)
-        pose["rot"]["torso"] = (0.19 * strike, 0.45 - 0.85 * strike, 0)
-        pose["rot"]["shoulderR"] = (0.68 - 2.0 * strike, 0, 0)
-        pose["rot"]["elbowR"] = (-0.68 + 0.52 * strike, 0, 0)
+        pose["rot"]["torso"] = (0.10 * strike, 0.45 - 0.85 * strike, 0)
+        pose["rot"]["shoulderR"] = (0.68 - 2.25 * strike, 0, 0)
+        pose["rot"]["elbowR"] = (-0.68 + 0.66 * strike, 0, 0)
         pose["rot"]["head"] = (0.12 * strike, -0.22 + 0.3 * strike, 0)
         pose["rot"]["hipL"] = (0.58 * strike, 0, 0)
         pose["rot"]["kneeL"] = (-0.38 * strike, 0, 0)
@@ -464,7 +478,7 @@ def attack_pose(frame, count):
         pose["spark"] = frame == 5
     else:
         back = 1.0 - (frame - 8) / 3.0
-        pose["rot"]["torso"] = (0.19 * back, -0.4 * back, 0)
+        pose["rot"]["torso"] = (0.10 * back, -0.4 * back, 0)
         pose["rot"]["shoulderR"] = (-1.32 * back, 0, 0)
         pose["rot"]["elbowR"] = (-0.16 * back, 0, 0)
         pose["rot"]["hipL"] = (0.58 * back, 0, 0)
@@ -526,6 +540,11 @@ def apply_pose(rig, pose, facing):
     # 60 px; the same multiplier here is a solid teal slab across a fifth of
     # the figure's width, and it stops reading as a flash.
     tip_scale = 2.0 if pose["spark"] else (1.35 if pose["flash"] else 1.0)
+    # The burst is the only thing in the rig allowed to be bright, and it exists
+    # for exactly the two frames of contact. r1: "nothing spends any part of the
+    # 5% emission budget on the one moment the budget exists for."
+    burst = 1.0 if pose["spark"] else (0.62 if pose["flash"] else 0.001)
+    rig["burst"].scale = (burst, burst, burst)
     rig["tip"].scale = (tip_scale, tip_scale, tip_scale)
     rig["needle"].data.materials[0] = flat_material(SIGNAL_HOT if pose["flash"] else SIGNAL)
 

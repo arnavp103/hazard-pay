@@ -6,22 +6,28 @@
   "cellWidth": 64,
   "cellHeight": 48,
   "uniformGrid": {
-    "width": 405,
-    "height": 504,
-    "pixels": 204120
+    "width": 420,
+    "height": 518,
+    "pixels": 217560
   },
   "trimmed": {
-    "width": 324,
-    "height": 456,
-    "pixels": 147744,
-    "occupancy": 0.8357970543643058
+    "width": 636,
+    "height": 236,
+    "pixels": 150096,
+    "occupancy": 0.8617018441530754
   },
-  "rgbaPngBytes": 197337,
-  "indexedPngBytes": 33620,
-  "paletteEntriesUsed": 26,
-  "paletteSize": 33,
-  "blenderRenderSeconds": 6.158,
-  "blenderTotalSeconds": 6.811,
-  "bakeWallClockSeconds": 8.39,
+  "rgbaPngBytes": 193234,
+  "indexedPngBytes": 30130,
+  "paletteEntriesUsed": 27,
+  "clusterDensity": {
+    "before": 0.1997,
+    "after": 0.129,
+    "singletonShareBefore": 0.3482,
+    "singletonShareAfter": 0.0126
+  },
+  "paletteSize": 34,
+  "blenderRenderSeconds": 7.398,
+  "blenderTotalSeconds": 8.156,
+  "bakeWallClockSeconds": 9.59,
   "atlasRoundTripMismatchedPixels": 0
 }
