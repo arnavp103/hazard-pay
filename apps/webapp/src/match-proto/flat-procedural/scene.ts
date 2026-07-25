@@ -23,7 +23,15 @@ import * as THREE from "three";
 import { ALL_LAYERS, type LayerFlags, NO_LAYERS, UnitAnimator } from "./animator.ts";
 import { authoredKeyTotal, BASE_KEY_COUNT, type BaseDensity } from "./authored.ts";
 import { buildBoard } from "./board.ts";
-import { type Archetype, buildUnit, type Faction, type Tier, type UnitRig } from "./figure.ts";
+import {
+  type Archetype,
+  buildUnit,
+  type Faction,
+  HERO_HEIGHT,
+  LEG_LENGTH,
+  type Tier,
+  type UnitRig,
+} from "./figure.ts";
 import { emitMaterial, flatLights, INK, litMaterial } from "./flat.ts";
 import { createBattle, type SimUnit, stepBattle } from "./sim.ts";
 
@@ -44,9 +52,11 @@ export type HeroAnim = "attack" | "idle" | "march" | "turn" | "walk";
 /**
  * March speed chosen so the speed-matched stride lands on exactly one cycle
  * per second: a locomotion comparison whose loop does not close is unreadable
- * as a filmstrip.
+ * as a filmstrip. A stride covers two leg lengths, so this must be DERIVED
+ * from the rig — the round-2 proportions shortened the legs, and a hard-coded
+ * 1.554 would have silently desynchronised every march filmstrip.
  */
-const MARCH_SPEED = 1.554;
+const MARCH_SPEED = 2 * LEG_LENGTH * HERO_HEIGHT;
 export type SceneView = "crowd" | "hero" | "lineup";
 
 /**
@@ -80,6 +90,9 @@ export interface CostReport {
   boardTriangles: number;
   meshesPerHero: number;
   meshesPerFodder: number;
+  /** Extra draw calls the hero marking shell costs, per marked hero. */
+  markMeshesPerHero: number;
+  marking: boolean;
   trianglesPerHero: number;
   trianglesPerFodder: number;
   stage: { width: number; height: number; zoom: number; pixelRatio: number };
@@ -101,6 +114,8 @@ export interface MountOptions {
   heroesPerSide?: number;
   /** Camera pans across the encounter (translation only, never rotation). */
   motion?: boolean;
+  /** Hero marking (the approved thick border). Default on. */
+  mark?: boolean;
   /** Tile N deterministic frames into one contact sheet instead of animating. */
   strip?: { frames: number; fps: number; from: number; columns: number };
 }
@@ -338,6 +353,7 @@ export function mountFlatScene(host: HTMLElement, options: MountOptions = {}): F
   const base = options.base ?? "quad";
   const layers = options.layers ?? ALL_LAYERS;
   const scale = options.scale ?? 1;
+  const marking = options.mark ?? true;
   const zoom = options.zoom
     ?? (view === "crowd" ? CROWD_ZOOM : (view === "lineup" ? 0.95 : COMBAT_ZOOM));
   const width = Math.round(STAGE_WIDTH * scale);
@@ -388,6 +404,7 @@ export function mountFlatScene(host: HTMLElement, options: MountOptions = {}): F
     const rig = buildUnit({
       archetype: drive.archetype,
       faction: drive.side === 0 ? "crew" : "opfor",
+      mark: marking && drive.tier === "hero",
       tier: drive.tier,
     });
     scene.add(rig.root);
@@ -427,6 +444,7 @@ export function mountFlatScene(host: HTMLElement, options: MountOptions = {}): F
   let heroCount = 0;
   let fodderCount = 0;
   let heroMeshes = 0;
+  let heroMarkMeshes = 0;
   let fodderMeshes = 0;
   let heroTriangles = 0;
   let fodderTriangles = 0;
@@ -434,6 +452,7 @@ export function mountFlatScene(host: HTMLElement, options: MountOptions = {}): F
     if (rig.spec.tier === "hero") {
       heroCount += 1;
       heroMeshes = rig.cost.meshes;
+      heroMarkMeshes = rig.cost.markMeshes;
       heroTriangles = rig.cost.triangles;
     } else {
       fodderCount += 1;
@@ -453,6 +472,8 @@ export function mountFlatScene(host: HTMLElement, options: MountOptions = {}): F
     fps: 0,
     frameMs: { max: 0, mean: 0, p95: 0, samples: 0 },
     heroes: heroCount,
+    markMeshesPerHero: heroMarkMeshes,
+    marking,
     meshesPerFodder: fodderMeshes,
     meshesPerHero: heroMeshes,
     programs: 0,

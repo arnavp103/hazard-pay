@@ -12,6 +12,7 @@
  *   freeze=<ms>              render exactly one deterministic frame
  *   fodder=<n> heroes=<n>    crowd composition per side
  *   motion=1                 translation-only camera pan
+ *   mark=0|1                 hero marking (thick border); default on
  *   strip=<n>&fps=&from=&cols=  tile n deterministic frames into a filmstrip
  *   capture=1                hide dev chrome
  *
@@ -141,6 +142,7 @@ export function FlatProceduralPrototype() {
       freezeMs: readFreeze(),
       heroesPerSide: readNumber("heroes", 2, 0, 6),
       layers: readLayers(),
+      mark: params().get("mark") !== "0",
       motion: params().get("motion") === "1",
       scale: readNumber("scale", 1, 1, 3),
       ...(readNumber("strip", 0, 0, 80) > 0

@@ -92,10 +92,20 @@ export const NO_LAYERS: LayerFlags = {
   stride: false,
 };
 
+/**
+ * The rest pose every layer composes on top of.
+ *
+ * Round 1 folded it forward: torso +0.05 and head +0.02 pitched the head
+ * down and INTO the shoulder mass, and because the procedural stack is
+ * additive over this pose, all six layers inherited the fold. That is why a
+ * rig defect presented as an animation defect. Round 2 stands the torso up
+ * and lifts the chin, so the neck does the work and the face plate keeps
+ * pointing at the camera-facing hemisphere.
+ */
 const BIND: Record<JointName, Triple> = {
   elbowL: [-0.3, 0, 0],
   elbowR: [-0.44, 0, 0],
-  head: [0.02, 0, 0],
+  head: [-0.03, 0, 0],
   hipL: [0.06, 0, 0.03],
   hipR: [-0.05, 0, -0.03],
   kneeL: [-0.12, 0, 0],
@@ -103,7 +113,7 @@ const BIND: Record<JointName, Triple> = {
   pelvis: [0, 0, 0],
   shoulderL: [0.06, 0, 0.09],
   shoulderR: [0.06, 0, -0.09],
-  torso: [0.05, 0, 0],
+  torso: [0.015, 0, 0],
 };
 
 /**
