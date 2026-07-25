@@ -115,6 +115,17 @@ once the capture clears to the floor tone it folds in a large block of one
 constant value, collapsing the band to a couple of luma steps and reporting a
 fake 4.5%. That error was made and corrected during this round.
 
+## The marked/unmarked A/B is a controlled comparison
+
+`crowd-*-marked.png` and `crowd-*-unmarked.png` differ by **0.6% of pixels**
+— the rings, and nothing else. That is worth stating because for one
+iteration it was not true: the marking pass left its own transparent-black
+clear colour in the renderer's global state, so the *next* frame cleared the
+main framebuffer to black instead of the board tone. Marked captures had
+black off-board corners and unmarked ones had floor tone, and a cold critic
+measured 39% of the far frame differing between two images that were supposed
+to differ only by a ring. Saving and restoring the clear colour fixed it.
+
 ## Capture framing note
 
 At the 22 px register the aperture covers 35.5 × 20 world units, but the

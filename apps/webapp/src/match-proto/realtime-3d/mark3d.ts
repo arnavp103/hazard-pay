@@ -178,6 +178,15 @@ export function createMarkPass(width: number, height: number): MarkPass {
       const savedOverride = scene.overrideMaterial;
       const savedTarget = renderer.getRenderTarget();
       const savedAutoClear = renderer.autoClear;
+      // The clear colour is GLOBAL renderer state. Leaving this pass's
+      // transparent black behind meant the NEXT frame cleared the main
+      // framebuffer to black instead of the board tone — so every marked
+      // capture had black off-board corners and every unmarked one had floor
+      // tone, and the marked/unmarked A/B was not a controlled comparison at
+      // all. A cold critic measured 39% of the far frame differing.
+      const savedClear = new THREE.Color();
+      renderer.getClearColor(savedClear);
+      const savedClearAlpha = renderer.getClearAlpha();
 
       renderer.setRenderTarget(target);
       renderer.setClearColor("#000000", 0);
@@ -198,6 +207,7 @@ export function createMarkPass(width: number, height: number): MarkPass {
       renderer.render(scene, camera);
 
       renderer.setRenderTarget(savedTarget);
+      renderer.setClearColor(savedClear, savedClearAlpha);
       scene.overrideMaterial = savedOverride;
       camera.layers.mask = savedLayers;
       renderer.autoClear = false;

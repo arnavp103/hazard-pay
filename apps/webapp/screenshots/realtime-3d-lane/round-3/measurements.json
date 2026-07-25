@@ -7,8 +7,8 @@
     "heroes": 4,
     "markCalls": 1784,
     "markTriangles": 23538,
-    "meanMs": 25.72000000004967,
-    "p95Ms": 30.099999994039536,
+    "meanMs": 32.42999999995033,
+    "p95Ms": 39.399999998509884,
     "triangles": 42738,
     "units": 40
   },
@@ -20,8 +20,8 @@
     "heroes": 4,
     "markCalls": 0,
     "markTriangles": 0,
-    "meanMs": 13.673333333184322,
-    "p95Ms": 19.200000002980232,
+    "meanMs": 12.666666666418314,
+    "p95Ms": 21.399999998509884,
     "triangles": 19200,
     "units": 40
   },
@@ -33,8 +33,8 @@
     "heroes": 4,
     "markCalls": 1784,
     "markTriangles": 23538,
-    "meanMs": 43.49333333323399,
-    "p95Ms": 63,
+    "meanMs": 26.92999999995033,
+    "p95Ms": 33.100000001490116,
     "triangles": 42738,
     "units": 40
   },
@@ -46,8 +46,8 @@
     "heroes": 4,
     "markCalls": 0,
     "markTriangles": 0,
-    "meanMs": 12.326666666567325,
-    "p95Ms": 17.400000005960464,
+    "meanMs": 14.843333333482345,
+    "p95Ms": 19.5,
     "triangles": 19200,
     "units": 40
   },
