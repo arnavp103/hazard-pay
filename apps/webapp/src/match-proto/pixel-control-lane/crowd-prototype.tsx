@@ -146,7 +146,7 @@ function paintStage(
     if (marked && unit.tier === "hero") {
       const radius = MARKING_RADIUS[configKey];
       const brightTo = markingBrightLimit(grid);
-      const ring = markingPalette(unit);
+      const ring = markingPalette(unit, config);
       const offsets = markingOffsets(posed.rows, grid.width, radius);
       for (const offset of offsets) {
         if (offset.dy > grid.bottomRow + MARKING_FOOT_BLEED) { continue; }
@@ -227,7 +227,7 @@ export function CrowdPrototype() {
             <span className="text-accent"> crowd</span>
           </h1>
           <span className="font-data text-[10px] tracking-[0.1em] text-ink-dim uppercase">
-            /// pixel control lane · round 4 · small recovery
+            /// pixel control lane · round 5 · livery on the gear
           </span>
         </div>
         <div className="flex items-center gap-3">

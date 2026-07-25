@@ -30,7 +30,7 @@ import {
   type TeamKey,
   depthPalettes,
   getGrid,
-  teamPalettes,
+  palettesFor,
 } from "./crowd-sprites.ts";
 
 export type ConfigKey = "small" | "large";
@@ -438,12 +438,30 @@ export function markingBrightLimit(grid: CrowdGrid): number {
 const FOCAL_ROLES = new Set(["n", "u", "t", "w"]);
 
 /**
- * Rim-light promotion, lit edge only. Deliberately restricted to the coat
- * and the livery *shadow*: promoting metal or the livery base would scatter
- * near-white and high-chroma pixels across thirty-two fodder heads and eat
- * the frame's bright budget, which is reserved for effects.
+ * Rim-light promotion. Cloth and the livery shadow promote on the LIT edge
+ * only, so the light direction still reads; metal is never promoted, because
+ * scattering near-white across thirty-two fodder heads eats the frame's
+ * bright budget, which is reserved for effects.
+ *
+ * ROUND 5 adds the livery base `l`, and it is the one role allowed to promote
+ * on ANY edge. Round 5 moved the faction colour onto the equipment, and the
+ * cool faction's livery now sits below the coat in value by design (canon
+ * #68 requires the two sides to differ in value, not only hue). That puts a
+ * slate helmet edge inside the board's own value band, where the default rule
+ * inks it — and inking an identity pixel with the world anchor does not
+ * separate it, it deletes it. Lightening instead keeps the pixel and keeps
+ * the faction.
  */
-const RIM_LIGHT: Record<string, string> = { c: "e", C: "c", L: "l" };
+const RIM_LIGHT: Record<string, string> = { c: "e", C: "c", L: "l", l: "i" };
+
+/**
+ * Roles whose dissolving edge is ALWAYS lightened rather than inked, on any
+ * edge and regardless of which side of the background they sit on. Only the
+ * livery base qualifies: it is the identity carrier, and replacing an
+ * identity pixel with the world anchor separates nothing - it deletes the
+ * faction. Everything else keeps the round-4 rule.
+ */
+const RIM_ANY_EDGE = new Set(["l"]);
 
 /**
  * How much luma separation counts as "this edge already reads". Below it the
@@ -569,7 +587,9 @@ export function contouredRows(
     const behind: number = worst;
     if (Math.abs(mine - behind) >= CONTOUR_MIN_CONTRAST) { continue; }
     const lit = RIM_LIGHT[edge.role];
-    if (mine >= behind && lit !== undefined && (edge.up || edge.left)) {
+    const always = RIM_ANY_EDGE.has(edge.role);
+    const promote = always || (mine >= behind && (edge.up || edge.left));
+    if (lit !== undefined && promote) {
       outRow[edge.x] = lit;
       continue;
     }
@@ -592,15 +612,16 @@ export function contouredRows(
  * affordance drawn on top of the world, the way a health bar is. It reads at
  * the same strength wherever the unit stands.
  */
-export function markingPalette(unit: PlacedUnit): CrowdPalette {
-  return teamPalettes[unit.team];
+export function markingPalette(unit: PlacedUnit, config: CrowdConfig): CrowdPalette {
+  return palettesFor(config.key)[unit.team];
 }
 
 /** The palette a unit's own pixels render with, after depth falloff. */
 export function unitPalette(unit: PlacedUnit, config: CrowdConfig): CrowdPalette {
-  if (!config.policy.depth) { return teamPalettes[unit.team]; }
+  const base = palettesFor(config.key)[unit.team];
+  if (!config.policy.depth) { return base; }
   const ramp = depthPalettes[unit.team];
-  return ramp[Math.min(ramp.length - 1, unit.depthStep)] ?? teamPalettes[unit.team];
+  return ramp[Math.min(ramp.length - 1, unit.depthStep)] ?? base;
 }
 
 /**

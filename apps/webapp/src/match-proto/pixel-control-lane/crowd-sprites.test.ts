@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   type CrowdGrid,
+  controlPalettes,
   crowdGrids,
   luma,
   crowdRowsToRgba,
@@ -218,10 +219,10 @@ describe("round-4 control repairs", () => {
 
 describe("palette law", () => {
   it("keeps the two team liveries as the ONLY colour difference between sides", () => {
-    const rust = teamPalettes.rust;
-    const slate = teamPalettes.slate;
-    const differing = Object.keys(rust).filter((role) => rust[role] !== slate[role]);
-    expect(differing.sort()).toEqual(["L", "i", "l"]);
+    for (const ramp of [teamPalettes, controlPalettes]) {
+      const differing = Object.keys(ramp.rust).filter((role) => ramp.rust[role] !== ramp.slate[role]);
+      expect(differing.sort()).toEqual(["L", "i", "l"]);
+    }
   });
 
   /**
@@ -231,17 +232,56 @@ describe("palette law", () => {
    * value gap at every step of the ramp.
    */
   it("splits the two factions in VALUE, not only in hue", () => {
+    for (const ramp of [teamPalettes, controlPalettes]) {
+      for (const role of ["l", "L", "i"] as const) {
+        const rust = ramp.rust[role];
+        const slate = ramp.slate[role];
+        expect(rust).toBeDefined();
+        expect(slate).toBeDefined();
+        expect(luma(rust as string) - luma(slate as string)).toBeGreaterThan(14);
+      }
+    }
+  });
+
+  /**
+   * ROUND 5. The livery moved onto the equipment, so it is now read against
+   * the NEUTRAL coat rather than against the board, and the direction of that
+   * separation is the faction: the warm side's gear sits ABOVE the coat in
+   * value and the cool side's BELOW it. Both are therefore legible in
+   * grayscale, which two hues at matched luma are not. Round 4's slate livery
+   * sat 2.9 luma from the coat - inside its own noise - which is why the cool
+   * faction measured 0.0 % accent pixels.
+   */
+  it("seats the round-5 liveries on opposite sides of the neutral coat", () => {
+    const coat = luma(teamPalettes.rust.c as string);
+    expect(luma(teamPalettes.rust.l as string) - coat).toBeGreaterThan(20);
+    expect(coat - luma(teamPalettes.slate.l as string)).toBeGreaterThan(10);
+  });
+
+  /**
+   * The accent detectors every cold pass has used are keyed on saturation.
+   * Round 4's slate livery ran S 0.39 against rust's 0.68, so the same
+   * detector found one faction and not the other. Matching the saturation of
+   * the two ramps is what makes the measured identity share symmetric.
+   */
+  it("matches the two ramps' saturation so an accent detector is fair", () => {
+    const sat = (hex: string) => {
+      const n = Number.parseInt(hex.slice(1), 16);
+      const channels = [(n >> 16) & 0xff, (n >> 8) & 0xff, n & 0xff];
+      const max = Math.max(...channels);
+      return max === 0 ? 0 : (max - Math.min(...channels)) / max;
+    };
     for (const role of ["l", "L", "i"] as const) {
-      const rust = teamPalettes.rust[role];
-      const slate = teamPalettes.slate[role];
-      expect(rust).toBeDefined();
-      expect(slate).toBeDefined();
-      expect(luma(rust as string) - luma(slate as string)).toBeGreaterThan(14);
+      const rust = sat(teamPalettes.rust[role] as string);
+      const slate = sat(teamPalettes.slate[role] as string);
+      expect(rust).toBeGreaterThan(0.45);
+      expect(slate).toBeGreaterThan(0.45);
+      expect(Math.abs(rust - slate)).toBeLessThan(0.2);
     }
   });
 
   it("uses no magenta or chartreuse and anchors on plum-black", () => {
-    for (const palette of Object.values(teamPalettes)) {
+    for (const palette of [...Object.values(teamPalettes), ...Object.values(controlPalettes)]) {
       expect(palette.k).toBe("#120b10");
       expect(Object.values(palette)).not.toContain("#ff2e6c");
       expect(Object.values(palette)).not.toContain("#c8f031");

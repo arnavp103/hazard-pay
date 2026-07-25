@@ -95,16 +95,49 @@ export type TeamKey = "rust" | "slate";
  * the 70/25/5 budget. Heroes use their side's livery unchanged - colour is
  * a team read, never a tier read.
  *
- * The two ramps are deliberately split in VALUE as well as hue: the first
- * round-3 pass had them at the same luma, so the crowd's faction read
- * collapsed completely in grayscale, which the canon forbids. Rust is now
- * the warm/light side and slate the cool/dark one at every step of the
- * ramp; a test pins the gap.
+ * ROUND 3/4 RAMP, FROZEN. Config LARGE is the untouched control, so its
+ * committed captures have to stay byte-valid; it keeps these values while
+ * SMALL moves to the round-5 ramp below.
  */
-export const teamPalettes: Record<TeamKey, CrowdPalette> = {
+export const controlPalettes: Record<TeamKey, CrowdPalette> = {
   rust: { ...sharedRoles, l: "#ad5638", L: "#63332a", i: "#e0a06f" },
   slate: { ...sharedRoles, l: "#3f5268", L: "#232f3f", i: "#5c7ea8" },
 };
+
+/**
+ * ROUND 5. The livery ramp is re-cut around two facts the round-4 captures
+ * measured.
+ *
+ * 1. **The equipment is now the team-colour carrier** (helmet, pauldron,
+ *    buckler face, cleaver haft, rifle stock), so the livery is read against
+ *    the NEUTRAL coat `c` at luma 76.6 rather than against the board. Rust
+ *    sits ABOVE the coat (+30.7) and slate BELOW it (-14.3): on both sides
+ *    the gear separates from the cloth in value, and which DIRECTION it
+ *    separates is the faction read. That works in grayscale, where a hue
+ *    pair does not.
+ * 2. **Round 4's slate livery was near-isoluminant with the coat** (79.5 vs
+ *    76.6) and only barely saturated (S 0.39 against rust's 0.68), so the
+ *    cool faction's identity pixels did not register as identity at all -
+ *    the "left team 37.1 % accent, right team 0.0 %" asymmetry in the record.
+ *    Both ramps now run S 0.55-0.72 at every step, so an accent detector
+ *    keyed on saturation finds the two sides in the same proportion.
+ *
+ * The value split canon #68 requires is unchanged in direction and wider in
+ * magnitude: rust is warm/light and slate cool/dark at every step, now by
+ * 27-57 luma rather than 15-48. A test pins the gap.
+ */
+export const teamPalettes: Record<TeamKey, CrowdPalette> = {
+  rust: { ...sharedRoles, l: "#aa5e38", L: "#67382b", i: "#e5a366" },
+  slate: { ...sharedRoles, l: "#1d4468", L: "#12293f", i: "#4a7ba6" },
+};
+
+/**
+ * Which livery ramp a config renders with. SMALL is the ratified config and
+ * takes the round-5 ramp; LARGE is the frozen control.
+ */
+export function palettesFor(config: "small" | "large"): Record<TeamKey, CrowdPalette> {
+  return config === "large" ? controlPalettes : teamPalettes;
+}
 
 /**
  * Depth falloff, round 4 (SMALL only). Back ranks are mixed toward the
@@ -174,29 +207,45 @@ export interface CrowdGrid {
 // ---------------------------------------------------------------------
 
 /**
- * Fodder melee - "breaker" (round-4 redraw). Silhouette contract: WIDE,
- * COMPACT, TOP-HEAVY. Shoulder span 14 px against a 8 px hip, the helm sunk
- * between the pauldrons so there is no neck to read, a stubby cleaver adding
- * WIDTH at shoulder height rather than height above the crown, and a 3 px
- * buckler boss where round 3 carried a full shield slab.
+ * Fodder melee - "breaker". Silhouette contract: WIDE, COMPACT, TOP-HEAVY.
+ * Shoulder span 14 px against a 8 px hip, the helm sunk between the pauldrons
+ * so there is no neck to read, a stubby cleaver adding WIDTH at shoulder
+ * height rather than height above the crown, and a buckler where round 3
+ * carried a full shield slab.
  *
- * Authored as material only - `applyContour` inks it at blit time.
+ * ROUND 5 - RECOLOUR ONLY. The silhouette mask is byte-identical to round 4;
+ * every changed cell changes which palette role it carries, never whether it
+ * is filled. That is deliberate: archetype separation passed on shape in
+ * round 4, and a recolour cannot take it back.
+ *
+ * What moved: the team livery now rides the EQUIPMENT and nothing else -
+ * helmet dome (shaded `i`/`l`/`L`, not a flat block), pauldrons, buckler
+ * face, cleaver haft. The belt, which is cloth, drops to a neutral strap.
+ * Two effects, both measured: the coat stops carrying faction colour, and
+ * the round-4 confound where "orange run >= 5 px" was a perfect melee badge
+ * (6 px helmet band, 8 px belt, against ranged's 4 px) dies with it - the
+ * longest livery run on either archetype is now 4 px.
+ *
+ * The working surfaces stay metal so the grayscale equipment read is
+ * untouched: the buckler keeps its `n` boss and the cleaver its `nnn` blade.
+ *
+ * Authored as material only - the contour is applied at blit time.
  */
 const breakerSmallRows: string[] = [
   "..................",
   "..................",
-  ".......CCCC.......",
-  "......CCCCCC......",
-  "......llllll......",
+  ".......illL.......",
+  "......illllL......",
+  "......MMMMMM......",
   "......MMMMMM......",
   "....lllcccccClll..",
   "...lllicccccCCilll",
   "..llliccccccCCilll",
-  ".mmmccccccccCCmnnn",
-  ".mMmccccccccCCmmnn",
-  "..mmcccccccccCmmn.",
+  ".lnmccccccccCClnnn",
+  ".lnmccccccccCClmnn",
+  "..lmcccccccccClnn.",
   "...cccwccccccC....",
-  "...cLllllllLC.....",
+  "...cbbbbbbbbC.....",
   "....cccccCwcC.....",
   "....ppPppppP......",
   "....pppp.pppp.....",
@@ -210,29 +259,39 @@ const breakerSmallRows: string[] = [
 ];
 
 /**
- * Fodder ranged - "stinger" (round-4 redraw). Silhouette contract: NARROW
- * COLUMN plus a hard HORIZONTAL weapon line that BREAKS THE OUTLINE. Body
- * mass is 7 px wide against the breaker's 14, and the rifle runs 14 px
- * across chest height, clear of the body on both sides. The archetype read
- * is therefore global (aspect ratio + one protrusion) rather than internal
- * kit, which is the only channel that survives 22 px inside a clump.
+ * Fodder ranged - "stinger". Silhouette contract: NARROW COLUMN plus a hard
+ * HORIZONTAL weapon line that BREAKS THE OUTLINE. Body mass is 7 px wide
+ * against the breaker's 14, and the rifle runs 14 px across chest height,
+ * clear of the body on both sides. The archetype read is therefore global
+ * (aspect ratio + one protrusion) rather than internal kit, which is the only
+ * channel that survives 22 px inside a clump.
  *
- * Authored as material only - `applyContour` inks it at blit time.
+ * ROUND 5 - RECOLOUR ONLY, mask byte-identical to round 4.
+ *
+ * Livery moves onto the equipment: a shaded helmet dome matching the
+ * breaker's construction (so the helmet is a faction read, not an archetype
+ * one), and the rifle's butt-stock, muzzle and fore-grip. The BARREL stays
+ * metal end to end, because the ranged archetype cue that a shape-only
+ * detector found 16/16 times in round 4 is a pale run of >= 10 px across the
+ * chest - x2..x13 is 12 px of unbroken metal here, exactly as it was.
+ * The belt drops to a neutral strap, as on the breaker.
+ *
+ * Authored as material only - the contour is applied at blit time.
  */
 const stingerSmallRows: string[] = [
   "................",
   "................",
-  ".....CCC........",
-  "....CCCCC.......",
-  "....lltll.......",
-  "....ccccc.......",
+  ".....ilL........",
+  "....illlL.......",
+  "....MMtMM.......",
+  "....MMMMM.......",
   "..llccccc.......",
   "..lliccccc......",
   "..llicccc.......",
   "...lcccccc......",
-  ".MmmnmmmmmmnnmM.",
-  "...ccwcccc.mm...",
-  "...cLlllLc......",
+  ".lmmnmmmmmmnnml.",
+  "...ccwcccc.ll...",
+  "...cbbbbbc......",
   "...cccccCc......",
   "...pPppppp......",
   "...ppppppp......",

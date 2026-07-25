@@ -18,7 +18,7 @@ import {
   STAGE_W,
   unitPalette,
 } from "./crowd-scene.ts";
-import { getGrid, teamPalettes, validateCrowdGrid } from "./crowd-sprites.ts";
+import { controlPalettes, getGrid, teamPalettes, validateCrowdGrid } from "./crowd-sprites.ts";
 
 const configs = Object.values(crowdConfigs);
 
@@ -195,7 +195,7 @@ describe("round-4 rendering policy", () => {
       staging: "ranked",
     });
     expect(unitPalette(buildRoster(crowdConfigs.large)[0]!, crowdConfigs.large))
-      .toEqual(teamPalettes[buildRoster(crowdConfigs.large)[0]!.team]);
+      .toEqual(controlPalettes[buildRoster(crowdConfigs.large)[0]!.team]);
   });
 
   it("finds every silhouette edge and no interior pixel", () => {
