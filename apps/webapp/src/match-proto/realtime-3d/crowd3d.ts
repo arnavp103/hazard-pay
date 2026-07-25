@@ -51,18 +51,64 @@ export function zoomFor(register: Register): number {
 
 const RANKS = 4;
 const FILES = 5;
-const SPACING_FILE = 0.92;
-const SPACING_RANK = 0.86;
 
 /**
- * Hero slots as [file, rank]. Chosen far apart on purpose: adjacent hero
- * rings fuse, and a fused ring measures the marking rather than the tier.
+ * The formation is deliberately NOT screen-aligned, and that took two tries.
+ *
+ * Facing the sides at each other along screen-x puts the rank axis on
+ * (1,0,-1)/sqrt2 and the file axis on (-1,0,-1)/sqrt2 — which project to
+ * pure screen-horizontal (travel 1.414) and pure screen-vertical (travel
+ * 0.5) respectively. Two consequences, both bad: equal world spacing puts
+ * ranks nearly 3x further apart on screen than files, and even after
+ * correcting for that the block reads as a flat grid pasted on the viewport,
+ * because neither axis recedes.
+ *
+ * Facing them along world X instead puts both axes on (0.707, -0.354) and
+ * (0.707, 0.354) — the camera's own ground diagonals. Ranks now recede
+ * down-right, files run up-right, the two armies confront each other across
+ * the screen diagonal, and because both axes project at the same magnitude
+ * (0.79) a single spacing number produces even screen spacing.
  */
-export const HERO_SLOTS: Array<[number, number]> = [[1, 0], [4, 2]];
+const AXIS_SCREEN_TRAVEL = Math.hypot(Math.SQRT1_2, 0.35355);
+const SPACING_RANK = 1.02;
+const SPACING_FILE = 1.02;
 
-/** Chebyshev distance between two slots — the adjacency the test asserts on. */
+/**
+ * Hero slots as [file, rank], chosen to maximise SCREEN separation.
+ *
+ * "Non-adjacent in the formation" is not the same constraint as
+ * "non-adjacent on screen", and this camera is exactly where the two come
+ * apart. Under the dimetric projection a slot's screen offset is
+ * proportional to `((file - mid) - rank, (file - mid) + rank)`, so a pair
+ * three files and two ranks apart — Chebyshev distance 3, comfortably
+ * "non-adjacent" — collapses to 1.94 world units on screen and its two rings
+ * touch. The pair below is Chebyshev 4 but 5.06 units apart on screen, 2.6x
+ * further, because it is separated along the axis the projection stretches
+ * rather than the one it compresses.
+ *
+ * Fused rings matter because the capture then measures the ring instead of
+ * measuring tier separation.
+ */
+export const HERO_SLOTS: Array<[number, number]> = [[4, 0], [0, 3]];
+
+/** Chebyshev distance between two slots. */
 export function slotDistance(a: [number, number], b: [number, number]): number {
   return Math.max(Math.abs(a[0] - b[0]), Math.abs(a[1] - b[1]));
+}
+
+/**
+ * Screen-space distance between two slots, in world units of screen travel.
+ * This is the number that decides whether two hero rings fuse.
+ */
+export function slotScreenDistance(a: [number, number], b: [number, number]): number {
+  const mid = (FILES - 1) / 2;
+  const at = (slot: [number, number]): [number, number] => [
+    SPACING_FILE * Math.SQRT1_2 * ((slot[0] - mid) - slot[1]),
+    SPACING_FILE * 0.35355 * ((slot[0] - mid) + slot[1]),
+  ];
+  const p0 = at(a);
+  const p1 = at(b);
+  return Math.hypot(p0[0] - p1[0], p0[1] - p1[1]);
 }
 
 /**
@@ -92,9 +138,12 @@ interface SideSpec {
 }
 
 const SIDES: SideSpec[] = [
-  { center: [-2.85, 2.85], faction: "crew", yaw: (Math.PI * 3) / 4 },
-  { center: [2.85, -2.85], faction: "opfor", yaw: -Math.PI / 4 },
+  { center: [-2.6, 0], faction: "crew", yaw: Math.PI / 2 },
+  { center: [2.6, 0], faction: "opfor", yaw: -Math.PI / 2 },
 ];
+
+/** Screen travel per world unit of formation spacing, for the cost report. */
+export const FORMATION_AXIS_TRAVEL = AXIS_SCREEN_TRAVEL;
 
 /**
  * Lay one side out. Files run across the facing, ranks run back from it, so
@@ -110,8 +159,8 @@ function layoutSide(spec: SideSpec, seed: number): Slot[] {
       index += 1;
       const hero = HERO_SLOTS.some(([f, r]) => f === file && r === rank);
       // A small deterministic wobble so the block is a formation, not a grid.
-      const jx = (((index * 37) % 11) / 11 - 0.5) * 0.24;
-      const jz = (((index * 53) % 13) / 13 - 0.5) * 0.22;
+      const jx = (((index * 37) % 11) / 11 - 0.5) * 0.5;
+      const jz = (((index * 53) % 13) / 13 - 0.5) * 0.3;
       const position = new THREE.Vector3(spec.center[0], 0, spec.center[1])
         .addScaledVector(across, (file - (FILES - 1) / 2) * SPACING_FILE + jx)
         .addScaledVector(forward, -rank * SPACING_RANK + jz);
@@ -135,6 +184,9 @@ export function layoutCrowd(): Slot[] {
 }
 
 export interface CrowdStats {
+  /** Draw calls for the lit scene pass alone, before any marking. */
+  baseCalls: number;
+  baseTriangles: number;
   units: number;
   heroes: number;
   fodder: number;
@@ -157,10 +209,28 @@ export interface CrowdOptions {
   freezeMs?: number;
   /** Render only the units, on a flat card — the un-crowded lineup view. */
   lineup?: boolean;
+  /**
+   * Board with no units. Used to sample the floor's luminance distribution
+   * for the contrast measurement escalated on #69.
+   */
+  boardOnly?: boolean;
+  /**
+   * Units on a keyed background no palette colour can collide with, so the
+   * unit mask — and therefore the silhouette edge — can be extracted exactly
+   * rather than thresholded out of the composited frame.
+   */
+  maskMode?: boolean;
 }
+
+/** The key colour for `maskMode`. Not reachable by any material in the lane. */
+export const MASK_KEY: [number, number, number] = [255, 0, 255];
 
 export interface CrowdHandle {
   canvas: HTMLCanvasElement;
+  /** World point -> stage pixel, so loupe crops are computed, not eyeballed. */
+  project: (at: THREE.Vector3) => [number, number];
+  /** Where each unit stands, for targeting loupes and hero-finding checks. */
+  slots: Slot[];
   destroy: () => void;
   renderAt: (t: number) => void;
   stats: () => CrowdStats;
@@ -196,9 +266,12 @@ function lineupSlots(): Slot[] {
     file: i,
     hero,
     jitter: i * 7 + 3,
-    position: new THREE.Vector3().addScaledVector(RIGHT, (i - (specs.length - 1) / 2) * 1.35),
+    // 1.1 rather than 1.35: at the near register's 3x lineup zoom the
+    // aperture is 7.45 world units wide and six units at 1.35 spanned 8.0,
+    // so the last unit was cropped straight out of the capture.
+    position: new THREE.Vector3().addScaledVector(RIGHT, (i - (specs.length - 1) / 2) * 1.1),
     rank: 0,
-    yaw: (Math.PI * 3) / 4,
+    yaw: Math.PI / 2,
   }));
 }
 
@@ -214,16 +287,27 @@ export function mountCrowd3d(host: HTMLElement | null, options: CrowdOptions): C
   const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
   renderer.setPixelRatio(1);
   renderer.setSize(width, height);
-  renderer.setClearColor(options.lineup === true ? "#241c24" : "#120b10");
+  // At the 22 px register the aperture is 35.5 x 20 world units, but the
+  // shared board's floor is a 30 x 30 plane whose dimetric projection is a
+  // diamond — so its corners fall short of a 16:9 frame and the clear colour
+  // shows through. Clearing to the floor's own tone keeps that from reading
+  // as a hole in the capture. The BOARD is untouched; this is a framing
+  // choice in the capture surface, and it is called out in the gallery.
+  const clear = options.maskMode === true
+    ? "#ff00ff"
+    : (options.lineup === true ? "#241c24" : "#332733");
+  renderer.setClearColor(clear);
   if (host !== null) { host.append(renderer.domElement); }
 
   const scene = new THREE.Scene();
   scene.add(...makeLights());
-  if (options.lineup !== true) {
+  if (options.lineup !== true && options.maskMode !== true) {
     scene.add(buildBoard(options.grit ?? "both"));
   }
 
-  const slots = options.lineup === true ? lineupSlots() : layoutCrowd();
+  const slots = options.boardOnly === true
+    ? []
+    : (options.lineup === true ? lineupSlots() : layoutCrowd());
   const units: Unit[] = [];
 
   for (const slot of slots) {
@@ -251,7 +335,7 @@ export function mountCrowd3d(host: HTMLElement | null, options: CrowdOptions): C
     if (slot.hero && mark) { enableMark(root, slot.faction); }
 
     // Flat comic drop shadow, scaled with the tier so the crowd sits down.
-    if (options.lineup !== true) {
+    if (options.lineup !== true && options.maskMode !== true) {
       const r = slot.hero ? 0.42 : 0.34;
       const shadow = new THREE.Mesh(
         new THREE.CircleGeometry(1, 16),
@@ -283,6 +367,11 @@ export function mountCrowd3d(host: HTMLElement | null, options: CrowdOptions): C
   let markPass: MarkPass | undefined;
   if (mark) { markPass = createMarkPass(width, height); }
 
+  // three resets `renderer.info` at the start of every `render()` call, so a
+  // multi-pass frame reports only its LAST pass. Left on, the mark pass
+  // measured as -1444 draw calls. Counters are now driven by hand.
+  renderer.info.autoReset = false;
+
   const renderAt = (t: number): void => {
     for (let i = 0; i < units.length; i += 1) {
       const unit = units[i]!;
@@ -296,8 +385,13 @@ export function mountCrowd3d(host: HTMLElement | null, options: CrowdOptions): C
     renderer.setRenderTarget(null);
     renderer.autoClear = true;
     renderer.render(scene, camera);
+    baseCalls = renderer.info.render.calls;
+    baseTriangles = renderer.info.render.triangles;
     if (markPass !== undefined) { markPass.render(renderer, scene, camera); }
   };
+
+  let baseCalls = 0;
+  let baseTriangles = 0;
 
   let frame = 0;
   if (options.freezeMs === undefined) {
@@ -313,6 +407,11 @@ export function mountCrowd3d(host: HTMLElement | null, options: CrowdOptions): C
 
   return {
     canvas: renderer.domElement,
+    project: (at: THREE.Vector3) => {
+      const ndc = at.clone().project(camera);
+      return [(ndc.x * 0.5 + 0.5) * width, (1 - (ndc.y * 0.5 + 0.5)) * height];
+    },
+    slots,
     destroy: () => {
       cancelAnimationFrame(frame);
       markPass?.dispose();
@@ -339,6 +438,8 @@ export function mountCrowd3d(host: HTMLElement | null, options: CrowdOptions): C
     stats: () => {
       const markCost = markPass?.lastCost() ?? { calls: 0, triangles: 0 };
       return {
+        baseCalls,
+        baseTriangles,
         calls: renderer.info.render.calls,
         fodder: units.filter((u) => !u.hero).length,
         heroes: units.filter((u) => u.hero).length,

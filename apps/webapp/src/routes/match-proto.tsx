@@ -1,9 +1,23 @@
 import { createFileRoute } from "@tanstack/react-router";
 
+import { CrowdCapture } from "../match-proto/realtime-3d/crowd-capture.tsx";
 import { Realtime3dPrototype } from "../match-proto/realtime-3d/realtime-3d-prototype.tsx";
 
+/**
+ * `?view=capture` swaps in the round-3 capture surface, which builds every
+ * gallery artifact in one page load. Kept behind a query param on the
+ * existing route rather than added as a new one, because a new route does
+ * not typecheck until `vite build` regenerates `routeTree.gen.ts`.
+ */
+function MatchProto() {
+  const view = globalThis.location === undefined
+    ? null
+    : new URLSearchParams(globalThis.location.search).get("view");
+  return view === "capture" ? <CrowdCapture /> : <Realtime3dPrototype />;
+}
+
 export const Route = createFileRoute("/match-proto")({
-  component: Realtime3dPrototype,
+  component: MatchProto,
 });
 
 /**

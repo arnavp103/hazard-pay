@@ -24,6 +24,7 @@ import {
   layoutCrowd,
   REGISTER_PX,
   slotDistance,
+  slotScreenDistance,
   zoomFor,
 } from "./crowd3d.ts";
 import { buildFodder, type FodderArchetype, TIER_SCALE } from "./fodder3d.ts";
@@ -140,10 +141,16 @@ describe("formation", () => {
     }
   });
 
-  it("never places two heroes adjacent — fused rings measure the ring, not the tier", () => {
+  it("separates heroes ON SCREEN, which is not the same as in the formation", () => {
     for (let i = 0; i < HERO_SLOTS.length; i += 1) {
       for (let j = i + 1; j < HERO_SLOTS.length; j += 1) {
-        expect(slotDistance(HERO_SLOTS[i]!, HERO_SLOTS[j]!)).toBeGreaterThanOrEqual(2);
+        const a = HERO_SLOTS[i]!;
+        const b = HERO_SLOTS[j]!;
+        expect(slotDistance(a, b)).toBeGreaterThanOrEqual(2);
+        // The one that actually matters. A Chebyshev-3 pair can project to
+        // 1.94 units of screen travel under this camera and fuse its rings;
+        // 4 units is roughly two fodder widths of clear air between them.
+        expect(slotScreenDistance(a, b)).toBeGreaterThan(4);
       }
     }
     const slots = layoutCrowd();

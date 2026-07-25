@@ -195,33 +195,45 @@ function buildBrute(palette: Palette): FodderRig {
   const head = bruteHead(palette);
   torso.add(head);
 
-  // Shield arm: a slab held out to the -X side. This is the archetype's
-  // whole silhouette argument, so it is big, flat and unambiguous.
+  // Shield arm: a slab carried out to the -X side and ANGLED.
+  //
+  // The lineup view is what caught this: held flat and centred, the slab
+  // projected face-on to the dimetric camera and covered the entire unit, so
+  // a brute read as a floating square with a helmet behind it — no body, no
+  // weapon arm, no stance. It measured fine (widest archetype, densest
+  // silhouette) and looked fine in isolation. Only standing it next to its
+  // siblings showed that the archetype had eaten itself. Third lane in a row
+  // where the lineup caught what the single-subject loupe hid.
+  //
+  // Yawing the shield off the body plane and dropping it to chest height
+  // keeps the wide, solid silhouette the archetype needs while leaving the
+  // helmet, shoulder and mace arm outside its outline.
   const armL = new THREE.Group();
-  armL.position.set(-0.3, 0.2, 0.02);
+  armL.position.set(-0.3, 0.16, 0.02);
+  armL.rotation.y = 0.62;
   torso.add(armL);
   // Sized against the hero rather than by eye: at 0.72 x 0.56 the shield made
   // a brute out-mass a hero by 281 filled cells to 238 at a shared cell size,
   // which inverts the tier it is supposed to sit under. Trimmed until the
   // brute is still unambiguously the widest thing on the field but no longer
   // the heaviest. The measurement is in `crowd3d.test.ts`.
-  const shield = inkBox(0.1, 0.66, 0.44, cel(palette.metal), SHELL);
-  shield.position.set(-0.12, -0.04, 0.06);
+  const shield = inkBox(0.1, 0.58, 0.46, cel(palette.metal), SHELL);
+  shield.position.set(-0.13, -0.08, 0.1);
   armL.add(shield);
-  const boss = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.18, 0.18), flat(palette.liveryDark));
-  boss.position.set(-0.18, -0.02, 0.06);
+  const boss = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.16, 0.16), flat(palette.liveryDark));
+  boss.position.set(-0.19, -0.06, 0.1);
   armL.add(boss);
 
   // Weapon arm: a stubby mace, kept inside the body width so it never
   // competes with the shield for the silhouette.
   const armR = new THREE.Group();
-  armR.position.set(0.3, 0.2, 0);
+  armR.position.set(0.31, 0.2, -0.02);
   torso.add(armR);
   const arm = inkBox(0.15, 0.3, 0.16, cel(palette.coatDark), SHELL);
-  arm.position.y = -0.13;
+  arm.position.set(0.05, -0.13, 0);
   armR.add(arm);
-  const mace = inkBox(0.14, 0.14, 0.14, cel(palette.metal), SHELL);
-  mace.position.set(0.02, -0.34, 0.06);
+  const mace = inkBox(0.16, 0.16, 0.16, cel(palette.metal), SHELL);
+  mace.position.set(0.09, -0.34, 0.04);
   armR.add(mace);
 
   root.add(simpleLeg(palette, -1, 0.15, 0.3), simpleLeg(palette, 1, 0.15, 0.3));
@@ -310,8 +322,8 @@ function buildMarksman(palette: Palette): FodderRig {
 /** Rest pose. Weight forward, knees soft, weapon carried — never a T-pose. */
 const BIND: Record<FodderArchetype, Partial<Record<keyof FodderJoints, [number, number, number]>>> = {
   brute: {
-    armL: [0.06, 0.16, 0.05],
-    armR: [-0.22, 0, -0.06],
+    armL: [0.06, -0.1, 0.05],
+    armR: [-0.22, 0, -0.12],
     head: [0.05, 0, 0],
     hipL: [0.12, 0, 0],
     hipR: [-0.1, 0, 0],

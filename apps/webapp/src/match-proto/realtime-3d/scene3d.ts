@@ -82,6 +82,10 @@ export interface Realtime3dHandle {
   setAnim: (anim: MedicAnim) => void;
   setMotion: (motion: boolean) => void;
   destroy: () => void;
+  /** The stage canvas, for capture. */
+  canvas: HTMLCanvasElement;
+  /** Render one deterministic frame at clock `t` seconds — filmstrip driver. */
+  renderAt: (t: number) => void;
 }
 
 export function mountRealtime3d(
@@ -94,7 +98,10 @@ export function mountRealtime3d(
   const zoom = options.zoom ?? 1;
   const grit = options.grit ?? "both";
 
-  const stageRenderer = new THREE.WebGLRenderer({ antialias: true });
+  // preserveDrawingBuffer is required for capture: WebGL clears the drawing
+  // buffer on composite, so `canvas.toDataURL()` on a default context returns
+  // a blank image and element screenshots come back empty.
+  const stageRenderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
   stageRenderer.setPixelRatio(1);
   stageRenderer.setSize(STAGE_WIDTH, STAGE_HEIGHT);
   stageRenderer.setClearColor("#120b10");
@@ -202,6 +209,7 @@ export function mountRealtime3d(
   };
 
   return {
+    canvas: stageRenderer.domElement,
     destroy: () => {
       cancelAnimationFrame(frame);
       disposeScene(stageScene);
@@ -213,6 +221,7 @@ export function mountRealtime3d(
         loupeRenderer.domElement.remove();
       }
     },
+    renderAt,
     setAnim: (next) => {
       anim = next;
       if (freezeMs !== undefined) { renderAt(freezeMs / 1000); }

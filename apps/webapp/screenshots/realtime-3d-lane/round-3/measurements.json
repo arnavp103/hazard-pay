@@ -1,0 +1,77 @@
+{
+  "cost-far-marked": {
+    "baseCalls": 1445,
+    "baseTriangles": 19064,
+    "calls": 1782,
+    "fodder": 36,
+    "heroes": 4,
+    "markCalls": 337,
+    "markTriangles": 4338,
+    "meanMs": 83.33000000032285,
+    "p95Ms": 113,
+    "triangles": 23402,
+    "units": 40
+  },
+  "cost-far-unmarked": {
+    "baseCalls": 1445,
+    "baseTriangles": 19064,
+    "calls": 1445,
+    "fodder": 36,
+    "heroes": 4,
+    "markCalls": 0,
+    "markTriangles": 0,
+    "meanMs": 50.10666666676601,
+    "p95Ms": 74.30000000447035,
+    "triangles": 19064,
+    "units": 40
+  },
+  "cost-near-marked": {
+    "baseCalls": 1445,
+    "baseTriangles": 19064,
+    "calls": 1782,
+    "fodder": 36,
+    "heroes": 4,
+    "markCalls": 337,
+    "markTriangles": 4338,
+    "meanMs": 64.98499999990067,
+    "p95Ms": 86.10000000149012,
+    "triangles": 23402,
+    "units": 40
+  },
+  "cost-near-unmarked": {
+    "baseCalls": 1445,
+    "baseTriangles": 19064,
+    "calls": 1445,
+    "fodder": 36,
+    "heroes": 4,
+    "markCalls": 0,
+    "markTriangles": 0,
+    "meanMs": 48.17499999987582,
+    "p95Ms": 74,
+    "triangles": 19064,
+    "units": 40
+  },
+  "boardContrast-far": {
+    "dissolvedPct": 46.20253164556962,
+    "edgePixels": 632,
+    "floorBandHi": 82.2746,
+    "floorBandLo": 29.857199999999995,
+    "inBandPixels": 292,
+    "lowContrastPct": 34.96835443037975,
+    "medianDeltaLuma": 13.994799999999998
+  },
+  "boardContrast-near": {
+    "dissolvedPct": 38.012762078395625,
+    "edgePixels": 1097,
+    "floorBandHi": 88.41499999999999,
+    "floorBandLo": 30.133999999999997,
+    "inBandPixels": 417,
+    "lowContrastPct": 32.26982680036463,
+    "medianDeltaLuma": 14.641800000000003
+  },
+  "registerPx": {
+    "far": 22,
+    "near": 35
+  },
+  "fodderScreenHeight": 1.6239999999999999
+}

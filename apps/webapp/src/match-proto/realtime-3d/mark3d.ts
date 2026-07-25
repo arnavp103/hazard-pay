@@ -162,6 +162,9 @@ export function createMarkPass(width: number, height: number): MarkPass {
     },
     lastCost: () => cost,
     render: (renderer, scene, camera) => {
+      // The caller owns `renderer.info.autoReset` and has turned it off, so
+      // the counters accumulate across this pass's three renders instead of
+      // each render silently wiping the last.
       const beforeCalls = renderer.info.render.calls;
       const beforeTris = renderer.info.render.triangles;
 
