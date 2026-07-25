@@ -10,11 +10,17 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as FlatProtoRouteImport } from './routes/flat-proto'
 import { Route as MatchProtoRouteImport } from './routes/match-proto'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FlatProtoRoute = FlatProtoRouteImport.update({
+  id: '/flat-proto',
+  path: '/flat-proto',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MatchProtoRoute = MatchProtoRouteImport.update({
@@ -25,27 +31,31 @@ const MatchProtoRoute = MatchProtoRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/flat-proto': typeof FlatProtoRoute
   '/match-proto': typeof MatchProtoRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/flat-proto': typeof FlatProtoRoute
   '/match-proto': typeof MatchProtoRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/flat-proto': typeof FlatProtoRoute
   '/match-proto': typeof MatchProtoRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/match-proto'
+  fullPaths: '/' | '/flat-proto' | '/match-proto'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/match-proto'
-  id: '__root__' | '/' | '/match-proto'
+  to: '/' | '/flat-proto' | '/match-proto'
+  id: '__root__' | '/' | '/flat-proto' | '/match-proto'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  FlatProtoRoute: typeof FlatProtoRoute
   MatchProtoRoute: typeof MatchProtoRoute
 }
 
@@ -56,6 +66,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/flat-proto': {
+      id: '/flat-proto'
+      path: '/flat-proto'
+      fullPath: '/flat-proto'
+      preLoaderRoute: typeof FlatProtoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/match-proto': {
@@ -70,6 +87,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  FlatProtoRoute: FlatProtoRoute,
   MatchProtoRoute: MatchProtoRoute,
 }
 export const routeTree = rootRouteImport

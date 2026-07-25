@@ -1,0 +1,86 @@
+{
+  "lane": "flat low-poly + procedural animation (#89, PR #90)",
+  "round": 2,
+  "note": "Round 2 rebuilds the base rig for head visibility and adds the approved hero marking. Timings were taken on a busier machine than round 1's, so compare marked-vs-unmarked within this file rather than against round 1's absolute numbers.",
+  "rig": {
+    "headCount": 3.774,
+    "headCountRound1": 4.4,
+    "neckRiseFractionOfHeight": 0.14,
+    "neckRiseRound1": -0.005,
+    "heroHeightWorld": 1.85,
+    "fodderHeightWorld": 1.48,
+    "tierScale": 1.25
+  },
+  "authored": {
+    "keysPerClip": 4,
+    "keysTotalWholeLane": 12,
+    "boundary": "two keys per clip; unchanged by the rig fix"
+  },
+  "scenes": {
+    "crowd40Marked": {
+      "units": 40,
+      "heroes": 4,
+      "drawCalls": 489,
+      "markDrawCalls": 49,
+      "triangles": 20128,
+      "frameMsMean": 7.477,
+      "frameMsP95": 9.3,
+      "programs": 6
+    },
+    "crowd40Unmarked": {
+      "units": 40,
+      "heroes": 4,
+      "drawCalls": 489,
+      "markDrawCalls": 0,
+      "triangles": 20128,
+      "frameMsMean": 5.022,
+      "frameMsP95": 7.0,
+      "programs": 3
+    },
+    "crowd60Marked": {
+      "units": 60,
+      "heroes": 4,
+      "drawCalls": 729,
+      "markDrawCalls": 49,
+      "triangles": 29112,
+      "frameMsMean": 11.378,
+      "frameMsP95": 16.6,
+      "programs": 6
+    },
+    "heroCombatZoom": {
+      "units": 1,
+      "heroes": 1,
+      "drawCalls": 17,
+      "markDrawCalls": 13,
+      "triangles": 1830,
+      "frameMsMean": 1.629,
+      "frameMsP95": 2.0,
+      "programs": 5
+    }
+  },
+  "perUnit": {
+    "meshesPerHero": 14,
+    "meshesPerFodder": 12,
+    "trianglesPerHero": 688,
+    "trianglesPerFodder": 448,
+    "markMeshesPerHero": 12
+  },
+  "marking": {
+    "implementation": "screen-space silhouette: hero-only mask layer rendered to an offscreen target, dilated over three 12-tap rings, composited as the ring outside the unit",
+    "borderHalfWidthPx": 2.2,
+    "costMs40Units": 2.455,
+    "costDrawCalls": 49,
+    "unspentLevers": [
+      "separable two-pass max dilate (~36 taps down to ~10)",
+      "half-resolution mask target",
+      "GPU skinning + InstancedMesh collapses the 489 scene calls to ~one per archetype"
+    ]
+  },
+  "stage": {
+    "width": 480,
+    "height": 270,
+    "pixelRatio": 1,
+    "combatZoom": 0.82,
+    "crowdZoom": 0.55
+  }
+}
