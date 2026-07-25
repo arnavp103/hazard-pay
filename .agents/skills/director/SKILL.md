@@ -283,3 +283,43 @@ Environment facts agents keep rediscovering; brief them or fix them:
 - Never build `raw.githubusercontent.com`/blob URLs from an abbreviated SHA
   extended by hand — one agent fabricated a full SHA and shipped 404 gallery
   links. `git rev-parse HEAD` first, always.
+- Canvas/WebGL lanes: element screenshots are unreliable. WebGL clears its
+  drawing buffer on composite (needs `preserveDrawingBuffer: true`), and CDP
+  fails wide sheets with "Cannot take screenshot with 0 width". The reliable
+  pattern is `canvas.toDataURL()` pulled through
+  `agent-browser eval --max-output <large>` and base64-decoded — pixel-exact
+  and immune to CSS scaling. Make this the default for canvas prototypes.
+- Build filmstrips INTO the page rather than reloading per frame: one page
+  load yields N deterministic frames, and slicing the GIF from those same
+  pixels means cadence can never disagree with the strip. Also ~4x faster.
+- A new TanStack route fails `tsc` until `vite build` regenerates
+  `routeTree.gen.ts`; the generated file must be committed in the same commit.
+  Undocumented and rediscovered per-lane.
+- Single-subject loupes hide rigging bugs. Two axis errors (a blade prism
+  rigged as a crossbar, awnings tilted about the wrong axis) were invisible in
+  the loupe and obvious the moment all units were rendered in one lineup.
+  Capture a lineup before trusting a controlled still.
+- Geometry/rig tests must settle the rig through the animator (~90 steps)
+  before asserting — the bind pose never reaches the screen, so tests written
+  against it fail for the wrong reason.
+- `python3` heredoc string-replacement can silently drop a guard clause and
+  present as an unrelated symptom (a contour flood read as "sprite touches the
+  cell edge", costing two debug cycles). When a guard misfires, print the
+  guard's INPUTS before touching the guard's constants.
+- The isolation-guard fallback (author in `/tmp/<lane>/`, `cp` into the
+  worktree) costs two operations per edit, and `lint:fix` rewriting files in
+  the worktree forces a copy-back before the next edit. Budget for the
+  double-bookkeeping or switch to in-place Bash edits after the first commit.
+- Concurrent agents distort wall-clock measurements badly — one lane's bake
+  read 6.9s / 27s / 46s / 9.0s depending on what else was running. Re-measure
+  any published timing on a quiet machine before reporting it.
+- Cold critics reliably catch the builder's own self-reporting bugs: one lane
+  published mid-stage pipeline numbers as if they described the shipped
+  artifact THREE separate times, each caught by a critic rather than the
+  builder. Budget a critic pass specifically over the cost/audit artifacts,
+  not just the art.
+- A measurement is only as good as its mask. Two critics measured the same
+  reference image and got 0.21 vs 0.32-0.60 islands/px because one included a
+  flat backdrop with no alpha. A critic that RETRACTS an earlier measurement is
+  behaving correctly — but a wrong benchmark can cause an over-correction
+  before it is retracted, so treat single-critic numbers as provisional.
