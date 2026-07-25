@@ -25,6 +25,14 @@ import { type ClipSpec, type CrowdConfig, type TierKey, type UnitId } from "./fr
 
 export type Treatment = "full" | "phase" | "sync" | "variants";
 
+/** Hero marking: none, a ring grown outside, or the silhouette's own edge. */
+export type MarkMode = "inset" | "off" | "outward";
+
+export function markedUnitId(unit: { tier: string; unit: string }, marking: MarkMode): string {
+  if (marking === "off" || unit.tier !== "hero") { return unit.unit; }
+  return marking === "inset" ? `${unit.unit}_marked_inset` : `${unit.unit}_marked`;
+}
+
 export interface CrowdUnit {
   index: number;
   /** Atlas unit id, e.g. `brute_b` — rig plus faction. */
@@ -173,11 +181,11 @@ export function crowdCueAt(
   clips: readonly ClipSpec[],
   elapsedMs: number,
   treatment: Treatment,
-  marked = false,
+  marking: MarkMode = "off",
 ): CrowdCue {
   // Marking is a hero-only variant of the same cells; fodder never carries it,
   // because a ring on everything marks nothing.
-  const atlasUnit = marked && unit.tier === "hero" ? `${unit.unit}_marked` : unit.unit;
+  const atlasUnit = markedUnitId(unit, marking);
   const phase = treatment === "sync" ? 0 : unit.phaseMs;
   const t = elapsedMs + phase;
 

@@ -267,11 +267,24 @@ async function bakeCrowdConfig(config: CrowdConfig): Promise<BakedConfig & {
       // with and without the ring, differing by exactly one image pass. The
       // marked pair is what makes the ring's contribution measurable instead
       // of asserted — and its atlas cost is the price of the ruling.
-      const mark = { hex: HERO_MARK_HEX, thickness: config.markThickness };
-      inputs.push({ id: `${unit.id}_a_marked`, manifest, mark, tier: unit.tier, workDir: dir });
-      inputs.push({
-        id: `${unit.id}_b_marked`, manifest, mark, remap: FACTION_B_LIVERY, tier: unit.tier, workDir: dir,
-      });
+      const modes = [
+        { mode: "outward" as const, suffix: "marked" },
+        { mode: "inset" as const, suffix: "marked_inset" },
+      ];
+      for (const { mode, suffix } of modes) {
+        const mark = { hex: HERO_MARK_HEX, mode, thickness: config.markThickness };
+        inputs.push({
+          id: `${unit.id}_a_${suffix}`, manifest, mark, tier: unit.tier, workDir: dir,
+        });
+        inputs.push({
+          id: `${unit.id}_b_${suffix}`,
+          manifest,
+          mark,
+          remap: FACTION_B_LIVERY,
+          tier: unit.tier,
+          workDir: dir,
+        });
+      }
     }
   }
 

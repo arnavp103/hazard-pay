@@ -9,7 +9,8 @@
  * `?mode=idle|attack|turn` · `?facing=0..7` · `?zoom=` · `?capture=1` hides
  * dev chrome · `?freeze=<ms>` renders one deterministic frame ·
  * `?view=quant` swaps in the quantization comparison ·
- * `?view=crowd&config=small|large&treatment=sync|phase|variants|full&mark=1`
+ * `?view=crowd&config=small|large&treatment=sync|phase|variants|full`
+ * `&mark=outward|inset`
  * runs the round-4 crowd. Run at `/match-proto`.
  */
 
@@ -18,7 +19,7 @@ import { useEffect, useRef, useState } from "react";
 import { StatusChip } from "@hazard-pay/ui";
 
 import { mountCrowdStage } from "./crowd-stage.ts";
-import type { Treatment } from "./crowd.ts";
+import type { MarkMode, Treatment } from "./crowd.ts";
 import { configByKey, FACINGS } from "./framing.ts";
 import {
   type BakedStageHandle,
@@ -83,6 +84,11 @@ function readFlag(name: string): boolean {
   return params().get(name) === "1";
 }
 
+function readMarking(): MarkMode {
+  const raw = params().get("mark");
+  return raw === "outward" || raw === "inset" ? raw : "off";
+}
+
 function readTreatment(): Treatment {
   const raw = params().get("treatment");
   return raw === "sync" || raw === "full" || raw === "variants" ? raw : "phase";
@@ -105,7 +111,7 @@ function CrowdSurface() {
     const handle = mountCrowdStage(host, {
       config: configByKey(params().get("config")),
       freezeMs: readFreezeMs(),
-      marked: readFlag("mark"),
+      marking: readMarking(),
       treatment: readTreatment(),
     });
     void handle.ready;
@@ -126,7 +132,7 @@ function CrowdSurface() {
                 {config.note}
                 {" · "}
                 {treatment}
-                {readFlag("mark") ? " · marked" : ""}
+                {readMarking() === "off" ? "" : ` · marked ${readMarking()}`}
               </span>
             </div>
           )}

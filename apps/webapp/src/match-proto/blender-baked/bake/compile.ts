@@ -142,8 +142,8 @@ export interface CompileInput {
   tier: string;
   /** Frame-name prefix. Empty keeps the round-1..3 hero atlas naming intact. */
   prefix?: string;
-  /** Hero marking ring, grown outside the finished silhouette. */
-  mark?: { hex: string; thickness: number };
+  /** Hero marking ring — grown outside the silhouette, or recoloured into it. */
+  mark?: { hex: string; thickness: number; mode?: "inset" | "outward" };
   /**
    * Palette-entry remap applied to the finished cells. A faction recolour in
    * an indexed-palette lane is an index swap, not a render — which is worth
@@ -185,7 +185,7 @@ export function compileFrames(
   unit = manifest.unit,
   prefix = "",
   remap?: Readonly<Record<string, string>>,
-  mark?: { hex: string; thickness: number },
+  mark?: { hex: string; thickness: number; mode?: "inset" | "outward" },
 ): CompiledFrame[] {
   const { width, height } = manifest.cell;
   return manifest.frames.map((entry) => {
@@ -211,7 +211,7 @@ export function compileFrames(
     // pair differs by exactly one pass and nothing else.
     const marked = mark === undefined
       ? finished
-      : markOutline(finished, width, height, mark.hex, mark.thickness);
+      : markOutline(finished, width, height, mark.hex, mark.thickness, mark.mode ?? "outward");
 
     const trim = alphaBounds(marked, width, height);
     if (trim === null) {

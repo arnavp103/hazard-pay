@@ -38,9 +38,9 @@
     }
   },
   "paletteSize": 35,
-  "blenderRenderSeconds": 10.91,
-  "blenderTotalSeconds": 12.021,
-  "bakeWallClockSeconds": 15.02,
+  "blenderRenderSeconds": 10.749,
+  "blenderTotalSeconds": 11.85,
+  "bakeWallClockSeconds": 13.7,
   "atlasRoundTripMismatchedPixels": 0,
   "clusterDensityAudit": {
     "measuredOn": "public/blender-baked/medic.png",

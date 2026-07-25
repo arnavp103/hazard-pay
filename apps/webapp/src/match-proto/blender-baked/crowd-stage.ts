@@ -11,7 +11,14 @@
 
 import { Application, Assets, Container, Sprite, Spritesheet, type Texture } from "pixi.js";
 
-import { buildRoster, type CrowdUnit, crowdCueAt, type Treatment } from "./crowd.ts";
+import {
+  buildRoster,
+  type CrowdUnit,
+  crowdCueAt,
+  type MarkMode,
+  markedUnitId,
+  type Treatment,
+} from "./crowd.ts";
 import {
   ART_SCALE,
   ATLAS_PUBLIC_DIR,
@@ -30,8 +37,8 @@ const base = `/${ATLAS_PUBLIC_DIR}`;
 export interface CrowdMountOptions {
   config: CrowdConfig;
   treatment: Treatment;
-  /** Draw the approved hero marking ring (#69). */
-  marked: boolean;
+  /** Draw the approved hero marking ring (#69), and how. */
+  marking: MarkMode;
   /** Deterministic capture: render exactly this clock value and hold. */
   freezeMs?: number;
 }
@@ -109,7 +116,7 @@ export function mountCrowdStage(host: HTMLElement, options: CrowdMountOptions): 
 
     const drawables: { unit: CrowdUnit; sprite: Sprite; clips: readonly ClipSpec[] }[] = [];
     for (const unit of roster) {
-      const key = options.marked && unit.tier === "hero" ? `${unit.unit}_marked` : unit.unit;
+      const key = markedUnitId(unit, options.marking);
       const meta = units[key];
       if (meta === undefined) { throw new Error(`atlas has no unit ${key}`); }
 
@@ -129,7 +136,7 @@ export function mountCrowdStage(host: HTMLElement, options: CrowdMountOptions): 
     const draw = (elapsedMs: number): void => {
       for (const drawable of drawables) {
         const cue = crowdCueAt(
-          drawable.unit, drawable.clips, elapsedMs, options.treatment, options.marked,
+          drawable.unit, drawable.clips, elapsedMs, options.treatment, options.marking,
         );
         const texture = sheet.animations[cue.track]?.[cue.frame];
         if (texture !== undefined) { drawable.sprite.texture = texture; }
@@ -151,7 +158,7 @@ export function mountCrowdStage(host: HTMLElement, options: CrowdMountOptions): 
       Object.assign(globalThis, {
         __crowdInfo: {
           config: options.config.key,
-          marked: options.marked,
+          marking: options.marking,
           treatment: options.treatment,
           units: roster.length,
         },

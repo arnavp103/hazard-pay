@@ -161,9 +161,11 @@ export function markOutline(
   height: number,
   hex: string,
   thickness: number,
+  mode: "inset" | "outward" = "outward",
 ): Uint8Array {
   const out = new Uint8Array(rgba);
   if (thickness <= 0) { return out; }
+  if (mode === "inset") { return markInset(rgba, width, height, hex, thickness); }
   const [mr, mg, mb] = hexToRgb(hex);
   let ring: number[] = [];
   for (let i = 0; i < width * height; i += 1) {
@@ -194,6 +196,74 @@ export function markOutline(
       }
     }
     ring = next;
+  }
+  return out;
+}
+
+/**
+ * The same mark, recoloured INTO the sprite's own outermost ring instead of
+ * grown outside it.
+ *
+ * A cold critic found the outward ring's real defect at the small register:
+ * it adds 2 px per axis to the footprint, and two heroes standing a few pixels
+ * apart fuse into one blob — four heroes read as three marks. An inset ring
+ * cannot fuse, because it never leaves the silhouette. What it costs instead
+ * is the plum-black contour on the marked unit, so the hero loses the ink line
+ * that separates it from the board. Both are baked so the trade is visible
+ * rather than argued.
+ */
+export function markInset(
+  rgba: Uint8Array,
+  width: number,
+  height: number,
+  hex: string,
+  thickness: number,
+): Uint8Array {
+  const out = new Uint8Array(rgba);
+  const [mr, mg, mb] = hexToRgb(hex);
+  const opaque = (i: number): boolean => (rgba[i * 4 + 3] ?? 0) > 0;
+  let shell: number[] = [];
+  const claimed = new Uint8Array(width * height);
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const i = y * width + x;
+      if (!opaque(i)) { continue; }
+      let edge = false;
+      for (let dy = -1; dy <= 1 && !edge; dy += 1) {
+        for (let dx = -1; dx <= 1; dx += 1) {
+          const nx = x + dx;
+          const ny = y + dy;
+          if (nx < 0 || ny < 0 || nx >= width || ny >= height) { edge = true; break; }
+          if (!opaque(ny * width + nx)) { edge = true; break; }
+        }
+      }
+      if (edge) { shell.push(i); claimed[i] = 1; }
+    }
+  }
+
+  for (let step = 0; step < thickness; step += 1) {
+    for (const i of shell) {
+      out[i * 4] = mr;
+      out[i * 4 + 1] = mg;
+      out[i * 4 + 2] = mb;
+    }
+    if (step + 1 >= thickness) { break; }
+    const next: number[] = [];
+    for (const at of shell) {
+      const x = at % width;
+      const y = (at - x) / width;
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+        const nx = x + dx;
+        const ny = y + dy;
+        if (nx < 0 || ny < 0 || nx >= width || ny >= height) { continue; }
+        const n = ny * width + nx;
+        if (claimed[n] === 1 || !opaque(n)) { continue; }
+        claimed[n] = 1;
+        next.push(n);
+      }
+    }
+    shell = next;
   }
   return out;
 }
