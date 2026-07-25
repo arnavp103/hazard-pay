@@ -1,0 +1,210 @@
+{
+  "lane-reference-mara": {
+    "source": "origin/prototype/pixel-control-lane:crowd-sprites.ts (native at each register, not resampled)",
+    "native": true,
+    "28px": {
+      "w": 18,
+      "h": 28,
+      "inkPixels": 326,
+      "coloursSurviving": 16,
+      "lumaSpread": 40.6,
+      "dissolvingEdgePct": 1.0,
+      "contactRowRuns": 1,
+      "footStagger": 0
+    },
+    "44px": {
+      "w": 25,
+      "h": 44,
+      "inkPixels": 716,
+      "coloursSurviving": 18,
+      "lumaSpread": 40.1,
+      "dissolvingEdgePct": 0.5,
+      "contactRowRuns": 2,
+      "footStagger": 0
+    }
+  },
+  "quasimorph-grime": {
+    "source": ".worktrees/hero-design-fanout/docs/art-direction/hero-design-fanout/grids/quasimorph-grime.json",
+    "28px": {
+      "w": 19,
+      "h": 28,
+      "inkPixels": 329,
+      "coloursSurviving": 17,
+      "lumaSpread": 32.1,
+      "dissolvingEdgePct": 55.4,
+      "contactRowRuns": 2,
+      "footStagger": 0
+    },
+    "44px": {
+      "w": 30,
+      "h": 44,
+      "inkPixels": 829,
+      "coloursSurviving": 20,
+      "lumaSpread": 38.5,
+      "dissolvingEdgePct": 17.7,
+      "contactRowRuns": 2,
+      "footStagger": 0
+    }
+  },
+  "top-heavy-exaggerated": {
+    "source": ".worktrees/hero-design-fanout/docs/art-direction/hero-design-fanout/grids/top-heavy-exaggerated.json",
+    "28px": {
+      "w": 19,
+      "h": 28,
+      "inkPixels": 335,
+      "coloursSurviving": 47,
+      "lumaSpread": 34.8,
+      "dissolvingEdgePct": 59.9,
+      "contactRowRuns": 2,
+      "footStagger": 0
+    },
+    "44px": {
+      "w": 30,
+      "h": 44,
+      "inkPixels": 835,
+      "coloursSurviving": 55,
+      "lumaSpread": 42.5,
+      "dissolvingEdgePct": 23.4,
+      "contactRowRuns": 2,
+      "footStagger": 0
+    }
+  },
+  "metal-slug-tactics": {
+    "source": ".worktrees/hero-design-fanout/docs/art-direction/hero-design-fanout/grids/metal-slug-tactics.json",
+    "28px": {
+      "w": 20,
+      "h": 28,
+      "inkPixels": 306,
+      "coloursSurviving": 41,
+      "lumaSpread": 38.5,
+      "dissolvingEdgePct": 53.6,
+      "contactRowRuns": 1,
+      "footStagger": 0
+    },
+    "44px": {
+      "w": 32,
+      "h": 44,
+      "inkPixels": 745,
+      "coloursSurviving": 48,
+      "lumaSpread": 45.9,
+      "dissolvingEdgePct": 21.2,
+      "contactRowRuns": 1,
+      "footStagger": 0
+    }
+  },
+  "painterly-cluster": {
+    "source": ".worktrees/hero-design-fanout/docs/art-direction/hero-design-fanout/grids/painterly-cluster.json",
+    "28px": {
+      "w": 21,
+      "h": 28,
+      "inkPixels": 350,
+      "coloursSurviving": 49,
+      "lumaSpread": 50.6,
+      "dissolvingEdgePct": 47.9,
+      "contactRowRuns": 2,
+      "footStagger": 0
+    },
+    "44px": {
+      "w": 32,
+      "h": 44,
+      "inkPixels": 821,
+      "coloursSurviving": 56,
+      "lumaSpread": 57.2,
+      "dissolvingEdgePct": 29.4,
+      "contactRowRuns": 2,
+      "footStagger": 0
+    }
+  },
+  "flat-graphic": {
+    "source": ".worktrees/hero-design-fanout/docs/art-direction/hero-design-fanout/grids/flat-graphic.json",
+    "28px": {
+      "w": 19,
+      "h": 28,
+      "inkPixels": 372,
+      "coloursSurviving": 50,
+      "lumaSpread": 51.6,
+      "dissolvingEdgePct": 50.0,
+      "contactRowRuns": 1,
+      "footStagger": 0
+    },
+    "44px": {
+      "w": 29,
+      "h": 44,
+      "inkPixels": 863,
+      "coloursSurviving": 54,
+      "lumaSpread": 58.0,
+      "dissolvingEdgePct": 30.9,
+      "contactRowRuns": 2,
+      "footStagger": 0
+    }
+  },
+  "role-legible": {
+    "source": ".worktrees/hero-design-fanout/docs/art-direction/hero-design-fanout/grids/role-legible.json",
+    "28px": {
+      "w": 21,
+      "h": 28,
+      "inkPixels": 403,
+      "coloursSurviving": 49,
+      "lumaSpread": 48.7,
+      "dissolvingEdgePct": 60.2,
+      "contactRowRuns": 1,
+      "footStagger": 0
+    },
+    "44px": {
+      "w": 32,
+      "h": 44,
+      "inkPixels": 939,
+      "coloursSurviving": 51,
+      "lumaSpread": 54.4,
+      "dissolvingEdgePct": 15.9,
+      "contactRowRuns": 1,
+      "footStagger": 0
+    }
+  },
+  "chunky-silhouette": {
+    "source": ".worktrees/hero-design-fanout/docs/art-direction/hero-design-fanout/grids/chunky-silhouette.json",
+    "28px": {
+      "w": 21,
+      "h": 28,
+      "inkPixels": 380,
+      "coloursSurviving": 50,
+      "lumaSpread": 40.3,
+      "dissolvingEdgePct": 46.4,
+      "contactRowRuns": 2,
+      "footStagger": 0
+    },
+    "44px": {
+      "w": 34,
+      "h": 44,
+      "inkPixels": 955,
+      "coloursSurviving": 54,
+      "lumaSpread": 50.9,
+      "dissolvingEdgePct": 9.0,
+      "contactRowRuns": 2,
+      "footStagger": 0
+    }
+  },
+  "technofantasy-esper": {
+    "source": ".worktrees/hero-design-fanout/docs/art-direction/hero-design-fanout/grids/technofantasy-esper.json",
+    "28px": {
+      "w": 20,
+      "h": 28,
+      "inkPixels": 330,
+      "coloursSurviving": 19,
+      "lumaSpread": 39.4,
+      "dissolvingEdgePct": 48.7,
+      "contactRowRuns": 2,
+      "footStagger": 0
+    },
+    "44px": {
+      "w": 31,
+      "h": 44,
+      "inkPixels": 774,
+      "coloursSurviving": 20,
+      "lumaSpread": 43.3,
+      "dissolvingEdgePct": 22.7,
+      "contactRowRuns": 1,
+      "footStagger": 1
+    }
+  }
+}
