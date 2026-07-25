@@ -22,6 +22,7 @@
  * same seam at a different world scale, twice, and reports what that cost.
  */
 
+import { createHash } from "node:crypto";
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -30,7 +31,14 @@ import { execa } from "execa";
 import { PNG } from "pngjs";
 
 import { islandStats } from "../consolidate.ts";
-import { buildRoster, crowdMotionStats, FACING_NOTE, lockFacings, TREATMENTS } from "../crowd.ts";
+import {
+  buildRoster,
+  crowdMotionStats,
+  crowdPixelIdentity,
+  FACING_NOTE,
+  lockFacings,
+  TREATMENTS,
+} from "../crowd.ts";
 import {
   ANCHOR,
   ATLAS_BASENAME,
@@ -230,6 +238,35 @@ function measureShippedAtlas(pngPath: string): {
     pixels: stats.pixels,
     ratio: Number(stats.ratio.toFixed(4)),
     singletonShare: Number(stats.singletonShare.toFixed(4)),
+  };
+}
+
+/**
+ * The second baked idle, priced on the atlas that shipped.
+ *
+ * Bytes are attributed by trimmed area rather than by cell count: the atlas is
+ * indexed and shelf-packed, so packed area tracks content almost exactly, and a
+ * 4-frame idle does not cost the same as a 4-frame attack whose lunge is wider.
+ */
+function secondIdleCost(result: ReturnType<typeof compileAtlas>): unknown {
+  let idleB = 0;
+  let total = 0;
+  let cells = 0;
+  for (const frame of result.frames) {
+    const area = frame.trim.width * frame.trim.height;
+    total += area;
+    if (frame.clip !== "idle_b") { continue; }
+    idleB += area;
+    cells += 1;
+  }
+  const share = total === 0 ? 0 : idleB / total;
+  return {
+    cells,
+    shareOfTrimmedAtlas: Number(share.toFixed(4)),
+    estimatedIndexedBytes: Math.round(result.cost.indexedPngBytes * share),
+    // What the rest of the atlas would cost on its own — i.e. the growth a
+    // decision is actually being asked to approve.
+    growthOverOneIdle: Number((share / Math.max(1e-9, 1 - share)).toFixed(4)),
   };
 }
 
@@ -453,6 +490,16 @@ async function main(): Promise<void> {
     crowdWallClock += baked.wallClockSeconds;
     const audit = measureShippedAtlas(join(publicDir, `${config.atlas}.png`));
     const roster = buildRoster(config);
+    // Cell name -> a hash of the pixels that cell actually contains, so the
+    // repertoire question can be asked of images rather than of identifiers.
+    const pixelHashes = new Map<string, string>();
+    for (const frame of baked.result.frames) {
+      pixelHashes.set(frame.name, createHash("sha1").update(frame.finished).digest("hex"));
+    }
+    const hashOf = (track: string, frame: number): string => {
+      const name = baked.result.sheet.animations[track]?.[frame];
+      return name === undefined ? `missing:${track}` : pixelHashes.get(name) ?? `unhashed:${name}`;
+    };
     const clipsFor = (unit: { rig: string }): typeof config.units[number]["clips"] => {
       const found = config.units.find((entry) => entry.id === unit.rig);
       if (found === undefined) { throw new Error(`no bake spec for ${unit.rig}`); }
@@ -485,6 +532,11 @@ async function main(): Promise<void> {
         measuredOn: `public/${ATLAS_PUBLIC_DIR}/${config.atlas}.png`,
         ...audit,
       },
+      // What a second baked idle actually costs, measured on the frames that
+      // shipped rather than projected from a frame count. `idle_b` is the only
+      // lever a bake has on pose repertoire, so this is the price of the one
+      // thing playback phase offset cannot buy.
+      secondIdle: secondIdleCost(baked.result),
       // What the round-4 outline costs and what the round-5 one costs, from
       // one set of renders. The delta is the honest price of the rim.
       contour: {
@@ -517,6 +569,23 @@ async function main(): Promise<void> {
           TREATMENTS.map((treatment) => [
             treatment,
             crowdMotionStats(lockFacings(roster), clipsFor, treatment),
+          ]),
+        ),
+        // The second baked idle costs atlas and buys repertoire. Nothing in the
+        // timing statistics can see it — `phase` and `variants` have identical
+        // burstiness and identical frame synchrony by construction — so it has
+        // to be measured as "how many units are standing on the same image",
+        // and measured on the pixels of that image.
+        pixelIdentity: Object.fromEntries(
+          TREATMENTS.map((treatment) => [
+            treatment,
+            crowdPixelIdentity(roster, clipsFor, treatment, hashOf),
+          ]),
+        ),
+        pixelIdentityLockedFacing: Object.fromEntries(
+          TREATMENTS.map((treatment) => [
+            treatment,
+            crowdPixelIdentity(lockFacings(roster), clipsFor, treatment, hashOf),
           ]),
         ),
       },

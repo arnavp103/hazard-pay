@@ -256,7 +256,32 @@ export const FACTION_B_LIVERY: Readonly<Record<string, string>> = {
   "#7e382f": "#696477", // rust-2 -> steel-2
   "#c46047": "#a5a4ab", // rust-3 -> steel-3
   "#fc7c5a": "#d4d2d3", // rust-4 -> steel-4
+  // The brick ramp is a WORLD role and was deliberately left out of the remap
+  // while only the hero wore livery. Once the fodder torso carries it, leaving
+  // it out is a hole: CIEDE2000 puts a good share of the fodder's warm cloth on
+  // brick rather than on rust, and every one of those pixels was reaching the
+  // second army unchanged. The remap runs per unit, on that unit's finished
+  // cells, so adding world entries here cannot touch the board.
+  "#56303d": "#5e404e", // brick-1 -> violet-4
+  "#6e413c": "#504b5e", // brick-2 -> steel-1
+  "#8c5141": "#696477", // brick-3 -> steel-2
 };
+
+/**
+ * The warm identity mass, as the colours a fodder unit actually ends up wearing.
+ *
+ * These are protected from cluster consolidation for the same reason the signal
+ * teal is: at the small register a fodder torso is two or three pixels of
+ * livery, they form islands under the minimum cluster size, and consolidation
+ * absorbs them into the surrounding cloth. Measured on the small marksman —
+ * 199 opaque pixels across eight idle facings — quantization produced 28 warm
+ * pixels and consolidation deleted 15 of them before the ink pass took most of
+ * the rest. Two pixels of livery are the only thing on a 22 px fodder unit that
+ * says which army it belongs to, so they are deliberate, not confetti.
+ */
+export const LIVERY_HEXES: readonly string[] = [
+  "#5e2b28", "#7e382f", "#c46047", "#fc7c5a", "#56303d", "#6e413c", "#8c5141",
+];
 
 /**
  * Substitute palette entries in place. Only exact palette colours are touched,

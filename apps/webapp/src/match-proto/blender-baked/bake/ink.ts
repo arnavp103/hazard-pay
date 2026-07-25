@@ -25,7 +25,7 @@
  * is the oldest trick in the sprite book and the only one that survives here.
  */
 
-import { darkerStep, hexToRgb, INK } from "../palette.ts";
+import { darkerStep, hexToRgb, INK, LIVERY_HEXES } from "../palette.ts";
 
 /**
  * A value-lifted contour on the unlit side of the silhouette.
@@ -60,10 +60,16 @@ export interface InkOptions {
   internalMode: "darken" | "ink";
   /** Lift the shadow-side contour off a dark floor. `null` keeps a pure line. */
   rim: RimOptions | null;
+  /**
+   * Colours the cluster-consolidation passes around this one must not absorb,
+   * over and above the ones consolidation always protects. Empty is the
+   * round-1..4 behaviour, which is what keeps the hero portrait atlas stable.
+   */
+  protect: readonly string[];
 }
 
 export const DEFAULT_INK: InkOptions = {
-  contour: true, internalLumaGap: 10, internalMode: "darken", rim: null,
+  contour: true, internalLumaGap: 10, internalMode: "darken", protect: [], rim: null,
 };
 
 /**
@@ -87,7 +93,9 @@ export const RIM_HEX = "#59404f";
 
 /** What the crowd atlases are inked with. The hero portrait keeps DEFAULT_INK. */
 export const CROWD_INK: InkOptions = {
-  ...DEFAULT_INK, rim: { hex: RIM_HEX, key: SCREEN_KEY },
+  ...DEFAULT_INK,
+  protect: [RIM_HEX, ...LIVERY_HEXES],
+  rim: { hex: RIM_HEX, key: SCREEN_KEY },
 };
 
 /** Palette entries the internal pass must never overwrite: the scarce 5%. */

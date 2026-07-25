@@ -289,6 +289,60 @@ export function crowdMotionStats(
 
 export const TREATMENTS: readonly Treatment[] = ["sync", "phase", "variants", "full"];
 
+export interface PixelIdentityStats {
+  /** Distinct IMAGES the crowd draws across the window, by pixel content. */
+  distinctImages: number;
+  /** Mean units standing on a byte-identical image at one instant. */
+  meanIdenticalMultiplicity: number;
+  /** The worst instant: most units simultaneously drawing one image. */
+  peakIdenticalUnits: number;
+}
+
+/**
+ * The same question as `crowdMotionStats`, asked of PIXELS instead of cell
+ * names.
+ *
+ * Round 4 reported "2.8 units on a pixel-identical image at all times" by
+ * counting cell NAMES, which is an upper bound on variety in one direction and
+ * a lower bound in the other: two differently-named cells can be byte-identical
+ * (a 4-frame idle whose first and last poses round to the same pixels), and no
+ * name-based count can see that. `hashOf` is handed the finished atlas pixels,
+ * so this counts what a viewer actually sees twice.
+ */
+export function crowdPixelIdentity(
+  roster: readonly CrowdUnit[],
+  clipsFor: (unit: CrowdUnit) => readonly ClipSpec[],
+  treatment: Treatment,
+  hashOf: (track: string, frame: number) => string,
+  windowMs = 4000,
+  stepMs = 1000 / 60,
+): PixelIdentityStats {
+  const samples = Math.max(2, Math.round(windowMs / stepMs));
+  const distinct = new Set<string>();
+  let multiplicitySum = 0;
+  let peak = 0;
+
+  for (let sample = 0; sample < samples; sample += 1) {
+    const seen = new Map<string, number>();
+    const hashes: string[] = [];
+    for (const unit of roster) {
+      const cue = crowdCueAt(unit, clipsFor(unit), sample * stepMs, treatment);
+      const hash = hashOf(cue.track, cue.frame);
+      hashes.push(hash);
+      distinct.add(hash);
+      seen.set(hash, (seen.get(hash) ?? 0) + 1);
+    }
+    multiplicitySum += hashes.reduce((sum, hash) => sum + (seen.get(hash) ?? 1), 0) / hashes.length;
+    peak = Math.max(peak, ...seen.values());
+  }
+
+  return {
+    distinctImages: distinct.size,
+    meanIdenticalMultiplicity: Number((multiplicitySum / samples).toFixed(2)),
+    peakIdenticalUnits: peak,
+  };
+}
+
 /**
  * The degenerate crowd: every unit in a side facing the same way, which is
  * what a real formation does when it is marching or holding a line. Facing

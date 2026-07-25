@@ -6,9 +6,16 @@
  * browser loads — so a plate cannot flatter the artifact by rendering from an
  * earlier pipeline stage. That specific mistake has cost this lane a cold
  * critique already.
+ *
+ * Round 5 writes into `screenshots/blender-baked-lane/round-5/` and leaves
+ * round 4's plates where they are: the two rounds are meant to be comparable,
+ * and overwriting the older evidence with the newer artifact would make that
+ * impossible. It adds two plates the round-4 gallery did not have — the two
+ * fodder archetypes ADJACENT, which is how the crowd actually presents them,
+ * and the same cell inked both ways, which is the contour A/B.
  */
 
-import { readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -20,7 +27,7 @@ import { hexToRgb, INK } from "../palette.ts";
 const here = dirname(fileURLToPath(import.meta.url));
 const webappDir = join(dirname(here), "..", "..", "..");
 const publicDir = join(webappDir, "public", ATLAS_PUBLIC_DIR);
-const shotsDir = join(webappDir, "screenshots", "blender-baked-lane");
+const shotsDir = join(webappDir, "screenshots", "blender-baked-lane", "round-5");
 
 interface SheetJson {
   frames: Record<string, {
@@ -158,9 +165,52 @@ export function toGrayscale(png: PNG): PNG {
   return out;
 }
 
+/**
+ * The two archetypes side by side, one facing per column, both factions.
+ *
+ * Round 4 shipped them as two separate 8-facing sheets, which is the one layout
+ * that makes archetype separation LOOK solved: a reader compares a brute to a
+ * brute. In a crowd they stand next to each other, so that is how the plate has
+ * to present them, and the round-5 rig work is meant to be judged on it.
+ */
+function adjacencyPlate(atlas: PNG, sheet: SheetJson, zoom: number): PNG {
+  const facings = [6, 7, 0, 1, 2];
+  const tiles: (Tile | null)[] = [];
+  for (const unit of ["brute_a", "marksman_a", "brute_b", "marksman_b"]) {
+    for (const facing of facings) {
+      const name = sheet.animations[`${unit}_idle_${String(facing)}`]?.[0];
+      tiles.push(name === undefined ? null : trimTile(cellOf(atlas, sheet, name)));
+    }
+  }
+  return plate(tiles, facings.length, 3, zoom);
+}
+
 function main(): void {
+  mkdirSync(shotsDir, { recursive: true });
   for (const config of CROWD_CONFIGS) {
     const { png: atlas, sheet } = loadAtlas(config.atlas);
+
+    // Two archetypes adjacent, and the same plate with no hue at all.
+    const adjacent = adjacencyPlate(atlas, sheet, 4);
+    writeFileSync(join(shotsDir, `fodder-loupe-${config.key}.png`), PNG.sync.write(adjacent));
+    writeFileSync(
+      join(shotsDir, `fodder-loupe-${config.key}-gray.png`),
+      PNG.sync.write(toGrayscale(adjacent)),
+    );
+
+    // The contour A/B, from ONE set of Blender renders inked two ways.
+    const control = loadAtlas(`${config.atlas}-norim`);
+    const pair: (Tile | null)[] = [];
+    for (const source of [control, { png: atlas, sheet }]) {
+      for (const unit of ["brute_a", "marksman_a", "medic_a"]) {
+        const name = source.sheet.animations[`${unit}_idle_6`]?.[0];
+        pair.push(name === undefined ? null : trimTile(cellOf(source.png, source.sheet, name)));
+      }
+    }
+    writeFileSync(
+      join(shotsDir, `contour-ab-${config.key}.png`),
+      PNG.sync.write(plate(pair, 3, 4, 6)),
+    );
 
     // Archetype sheet: every facing of both fodder archetypes, both factions.
     const rows: (Tile | null)[] = [];

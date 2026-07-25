@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { hexToRgb, INK } from "../palette.ts";
+import { consolidate } from "../consolidate.ts";
+import { hexToRgb, INK, LIVERY_HEXES } from "../palette.ts";
 import { alphaBounds, CROWD_INK, inkSprite, RIM_HEX, SCREEN_KEY } from "./ink.ts";
 
 const W = 8;
@@ -38,7 +39,7 @@ describe("inkSprite contour", () => {
     put(color, 3, 3, "#4c5752");
     putId(ids, 3, 3, 1);
 
-    const out = inkSprite(color, ids, W, H, { contour: true, internalLumaGap: 0, internalMode: "ink", rim: null });
+    const out = inkSprite(color, ids, W, H, { contour: true, internalLumaGap: 0, internalMode: "ink", protect: [], rim: null });
 
     expect(at(out, 3, 3)).toBe("#4c5752");
     for (const [x, y] of [[2, 3], [4, 3], [3, 2], [3, 4]] as const) {
@@ -58,7 +59,7 @@ describe("inkSprite contour", () => {
     const { color, ids } = blank();
     put(color, 3, 3, "#4c5752");
     putId(ids, 3, 3, 1);
-    const out = inkSprite(color, ids, W, H, { contour: false, internalLumaGap: 0, internalMode: "ink", rim: null });
+    const out = inkSprite(color, ids, W, H, { contour: false, internalLumaGap: 0, internalMode: "ink", protect: [], rim: null });
     expect(out).toStrictEqual(color);
   });
 });
@@ -110,7 +111,7 @@ describe("inkSprite internal seams", () => {
     putId(ids, 2, 2, 1);
     putId(ids, 3, 2, 2);
 
-    const out = inkSprite(color, ids, W, H, { contour: false, internalLumaGap: 6, internalMode: "ink", rim: null });
+    const out = inkSprite(color, ids, W, H, { contour: false, internalLumaGap: 6, internalMode: "ink", protect: [], rim: null });
     const inked = [at(out, 2, 2), at(out, 3, 2)].filter((hex) => hex === INK);
     expect(inked).toHaveLength(1);
   });
@@ -122,7 +123,7 @@ describe("inkSprite internal seams", () => {
     putId(ids, 2, 2, 1);
     putId(ids, 3, 2, 2);
 
-    const out = inkSprite(color, ids, W, H, { contour: false, internalLumaGap: 6, internalMode: "ink", rim: null });
+    const out = inkSprite(color, ids, W, H, { contour: false, internalLumaGap: 6, internalMode: "ink", protect: [], rim: null });
     expect(at(out, 2, 2)).toBe("#17131b");
     expect(at(out, 3, 2)).toBe("#d4d2d3");
   });
@@ -134,7 +135,7 @@ describe("inkSprite internal seams", () => {
     putId(ids, 2, 2, 1);
     putId(ids, 3, 2, 2);
 
-    const out = inkSprite(color, ids, W, H, { contour: false, internalLumaGap: 6, internalMode: "ink", rim: null });
+    const out = inkSprite(color, ids, W, H, { contour: false, internalLumaGap: 6, internalMode: "ink", protect: [], rim: null });
     expect(at(out, 2, 2)).toBe("#2f9e96");
     expect(at(out, 3, 2)).toBe("#2f9e96");
   });
@@ -146,9 +147,45 @@ describe("inkSprite internal seams", () => {
     putId(ids, 2, 2, 7);
     putId(ids, 3, 2, 7);
 
-    const out = inkSprite(color, ids, W, H, { contour: false, internalLumaGap: 6, internalMode: "ink", rim: null });
+    const out = inkSprite(color, ids, W, H, { contour: false, internalLumaGap: 6, internalMode: "ink", protect: [], rim: null });
     expect(at(out, 2, 2)).toBe("#4c5752");
     expect(at(out, 3, 2)).toBe("#4c5752");
+  });
+});
+
+describe("consolidation protection", () => {
+  it("keeps a two-pixel livery mark that consolidation would otherwise absorb", () => {
+    // The shared `at` reader indexes at W, so this case is built on W too.
+    const width = W;
+    const height = H;
+    const buf = new Uint8Array(width * height * 4);
+    const paint = (x: number, y: number, hex: string): void => {
+      const [r, g, b] = hexToRgb(hex);
+      const i = (y * width + x) * 4;
+      buf[i] = r;
+      buf[i + 1] = g;
+      buf[i + 2] = b;
+      buf[i + 3] = 0xff;
+    };
+    for (let y = 1; y < 5; y += 1) {
+      for (let x = 1; x < 5; x += 1) { paint(x, y, "#4c5752"); }
+    }
+    // One lone livery pixel in the middle of a cloth mass: exactly the case a
+    // 22 px fodder torso produces, and exactly what an unprotected consolidate
+    // deletes.
+    paint(2, 2, "#7e382f");
+    const control = new Uint8Array(buf);
+    consolidate(control, width, height, 2);
+    expect(at(control, 2, 2)).not.toBe("#7e382f");
+
+    const kept = new Uint8Array(buf);
+    consolidate(kept, width, height, 2, 4, [0x7e382f]);
+    expect(at(kept, 2, 2)).toBe("#7e382f");
+  });
+
+  it("lists the livery colours the crowd ink protects", () => {
+    expect(CROWD_INK.protect).toContain(RIM_HEX);
+    for (const hex of LIVERY_HEXES) { expect(CROWD_INK.protect).toContain(hex); }
   });
 });
 

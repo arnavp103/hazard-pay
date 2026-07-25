@@ -158,11 +158,13 @@ export interface CompileInput {
   remap?: Readonly<Record<string, string>>;
 }
 
-/** The rim value as a consolidate-protected key, when a rim is configured. */
-function rimProtect(ink: InkOptions): readonly number[] | undefined {
-  if (ink.rim === null) { return undefined; }
-  const [r, g, b] = hexToRgb(ink.rim.hex);
-  return [(r << 16) | (g << 8) | b];
+/** The colours this compile refuses to lose, as consolidate keys. */
+function protectKeys(ink: InkOptions): readonly number[] | undefined {
+  if (ink.protect.length === 0) { return undefined; }
+  return ink.protect.map((hex) => {
+    const [r, g, b] = hexToRgb(hex);
+    return (r << 16) | (g << 8) | b;
+  });
 }
 
 function readRgba(path: string, width: number, height: number): Uint8Array {
@@ -209,14 +211,14 @@ export function compileFrames(
     quantizeToPalette(quantized, width, height);
     // Consolidate BEFORE inking: the contour is a deliberate 1-px structure
     // and must not be eaten by the same rule that removes 1-px confetti.
-    consolidate(quantized, width, height, minIsland);
+    consolidate(quantized, width, height, minIsland, 4, protectKeys(ink));
     const finished = inkSprite(quantized, ids, width, height, ink);
     // …and again after inking. The seam pass can strand a lone darkened pixel
     // where two parts touch across three cells; measured, the drawing passes
     // were re-introducing more confetti than they were worth. Ink is protected,
     // so the contour survives while orphan seams are folded back — and so is
     // the rim, which is the same contour drawn one value up.
-    consolidate(finished, width, height, minIsland, 4, rimProtect(ink));
+    consolidate(finished, width, height, minIsland, 4, protectKeys(ink));
     // The faction swap goes LAST, on finished pixels, so it can never change
     // which colours the quantizer chose or which seams the ink drew: the two
     // liveries are the same drawing carrying different indices.
