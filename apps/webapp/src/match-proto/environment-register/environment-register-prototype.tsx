@@ -242,26 +242,37 @@ function Caption({ children }: { children: React.ReactNode }) {
  * of the 22 px fodder figure — which is the number that actually predicts what
  * a player sees.
  */
-function CoverSheet({ surface }: { surface: Surface | null }) {
+function CoverSheet({ occlusion, surface }: { occlusion: UnitOcclusion[]; surface: Surface | null }) {
   const frames = useMemo(() => coverFrames(), []);
+  const hiddenByKind = new Map(
+    occlusion.filter((entry) => entry.unitId.startsWith("cover-")).map((entry) => [entry.unitId.slice(6), entry]),
+  );
   return (
     <div className="grid grid-cols-4 gap-3" data-panel="cover-sheet">
-      {frames.map((frame) => (
-        <figure className="m-0" key={frame.kind}>
-          <BoardPanel
-            aperture={{ height: COVER_PANEL_H, scale: 3, width: COVER_PANEL_W, x: frame.x, y: frame.y }}
-            label={frame.note}
-            panelId={`cover-${frame.kind}`}
-            surface={surface}
-          />
-          <Caption>
-            <span className="text-ink">{frame.kind}</span>
-            {` · ${frame.cover} · ${String(frame.height)}px = ${String(frame.figureRatio)}× figure`}
-            <br />
-            {frame.note}
-          </Caption>
-        </figure>
-      ))}
+      {frames.map((frame) => {
+        const posted = hiddenByKind.get(frame.kind);
+        const verdict = posted === undefined
+          ? "no unit posted — perimeter, not cover"
+          : `${String(Math.round(posted.fraction * 100))}% of the posted unit hidden${posted.shaded ? ", in shade" : ""}`;
+        return (
+          <figure className="m-0 flex flex-col" key={frame.kind}>
+            <BoardPanel
+              aperture={{ height: COVER_PANEL_H, scale: 3, width: COVER_PANEL_W, x: frame.x, y: frame.y }}
+              label={frame.note}
+              panelId={`cover-${frame.kind}`}
+              surface={surface}
+            />
+            <figcaption className="mt-1 min-h-[64px] font-data text-[10px] leading-snug tracking-[0.06em] text-ink-dim uppercase">
+              <span className="text-ink">{frame.kind}</span>
+              {` · ${frame.cover} · ${String(frame.height)}px = ${String(frame.figureRatio)}× figure`}
+              <br />
+              <span className="text-accent">{verdict}</span>
+              <br />
+              {frame.note}
+            </figcaption>
+          </figure>
+        );
+      })}
     </div>
   );
 }
@@ -365,7 +376,7 @@ export function EnvironmentRegisterPrototype() {
         </div>
       )
     : options.view === "cover"
-      ? <CoverSheet surface={own.surface} />
+      ? <CoverSheet occlusion={own.occlusion} surface={own.surface} />
       : options.view === "occlusion"
         ? <OcclusionProof occlusion={own.occlusion} surface={own.surface} />
         : options.view === "split"

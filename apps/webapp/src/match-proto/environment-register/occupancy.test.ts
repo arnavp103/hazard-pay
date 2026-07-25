@@ -20,7 +20,7 @@ import {
   unitRect,
   units,
 } from "./roster.ts";
-import { inFrontOf, occupied, propRect, underCover, walkable } from "./occupancy.ts";
+import { inFrontOf, inShade, occupied, propRect, underCover, walkable } from "./occupancy.ts";
 import { figureHeight, getGrid, validateCrowdGrid } from "./borrowed-crowd-small.ts";
 import { occlusionReport } from "./compose.ts";
 
@@ -137,7 +137,18 @@ describe("occupancy", () => {
         if (underCover(cx, cy) && walkable(cx, cy)) { walkableUnderCover += 1; }
       }
     }
-    expect(walkableUnderCover).toBeGreaterThan(20);
+    // Two rows per canopy, of which one is the frame's own tiles: the count is
+    // small because roof DEPTH is capped (see `propSpecs`), not because the
+    // board is short of canopies. The shaded *floor* is larger than this — the
+    // cast shadows land beside each roof rather than under it.
+    expect(walkableUnderCover).toBeGreaterThanOrEqual(6);
+    let shadedFloor = 0;
+    for (let cx = 0; cx < GRID; cx += 1) {
+      for (let cy = 0; cy < GRID; cy += 1) {
+        if (inShade(cx, cy) && walkable(cx, cy)) { shadedFloor += 1; }
+      }
+    }
+    expect(shadedFloor).toBeGreaterThanOrEqual(14);
   });
 });
 
@@ -169,7 +180,13 @@ describe("unit placement", () => {
       const prop = exemplarFor(post.kind);
       expect(prop).toBeDefined();
       if (prop === undefined || placed === undefined) { continue; }
-      // "Behind" means the prop is nearer the camera than the unit.
+      if (propSpecs[post.kind].cover === "canopy") {
+        // A canopy's claim is shade, not occlusion: its post stands UNDER the
+        // roof, in front of the frame that carries it.
+        expect(underCover(placed.cx, placed.cy), `${post.kind} post is not under its roof`).toBe(true);
+        continue;
+      }
+      // Everything else: "behind" means the prop is nearer the camera.
       expect(inFrontOf(propRect(prop), unitRect(placed)), `${post.kind} is not in front of its post`).toBe(true);
     }
   });

@@ -63,7 +63,12 @@ describe("treatment B — MST-register pixel", () => {
   });
 
   it("is deterministic", () => {
-    expect([...renderBoardPixels().data]).toEqual([...surface.data]);
+    const again = renderBoardPixels();
+    let differences = 0;
+    for (let at = 0; at < again.data.length; at += 1) {
+      if (again.data[at] !== surface.data[at]) { differences += 1; }
+    }
+    expect(differences).toBe(0);
   });
 
   it("separates the generated detail layer from the authored stamp layer", () => {
@@ -88,7 +93,7 @@ describe("treatment B — MST-register pixel", () => {
     const withStamps = renderPropSwatch("stall-nw", { stamps: true });
     const without = renderPropSwatch("stall-nw", { stamps: false });
     expect(withStamps.width).toBe(without.width);
-    expect([...withStamps.data]).not.toEqual([...without.data]);
+    expect(withStamps.data.every((value, at) => value === without.data[at])).toBe(false);
   });
 });
 

@@ -171,21 +171,37 @@ export const propSpecs: Record<PropKind, PropSpec> = {
   blockWall: { sx: 4, sy: 2, height: 68, cover: "full", note: "block wall — the plaza's back wall" },
   lampPost: { sx: 1, sy: 1, height: 46, cover: "pole", note: "lamp post — thin vertical, occludes a 3 px slice" },
   signPylon: { sx: 1, sy: 1, height: 52, cover: "pole", note: "sign pylon — thin mast under a lit panel" },
+  // ROOF DEPTH IS CAPPED AT TWO ROWS, AND THAT IS NOT A STYLE CHOICE.
+  //
+  // A roof drawn flat in dimetric projects DOWN-screen as it comes toward the
+  // camera: every tile of roof in front of a unit lands 14 px lower on screen
+  // than the last. At lift 34 a roof four tiles deep puts its own front edge
+  // at the unit's ankles, and the unit reads as standing in the middle of a
+  // large flat plane — which is to say, standing ON the roof. That is round
+  // 1's headline complaint arriving by a completely different route, and the
+  // first round-2 build reproduced it exactly.
+  //
+  // The arithmetic: the near edge clears a figure's crown only while
+  // `lift - 14 × (tiles in front) > figure height`. At lift 38 that allows two
+  // rows for a 22 px fodder unit and one for a 28 px hero. So the roofs below
+  // are shallow and wide-ish, more canopies are placed rather than bigger
+  // ones, and the honest next move is a *pitched* roof whose near edge is
+  // raised independently — recorded in the round-2 notes, not built here.
   awningStall: {
     sx: 2,
-    sy: 2,
-    height: 38,
+    sy: 1,
+    height: 42,
     cover: "canopy",
-    roof: { ox: -1, oy: -1, sx: 4, sy: 4, lift: 34 },
-    note: "market stall — counter blocks, canopy shades the ring around it",
+    roof: { ox: 0, oy: 0, sx: 2, sy: 2, lift: 38 },
+    note: "market stall — counter blocks, awning shades the row in front of it",
   },
   canopySpan: {
-    sx: 1,
+    sx: 2,
     sy: 1,
-    height: 36,
+    height: 40,
     cover: "canopy",
-    roof: { ox: -2, oy: -2, sx: 5, sy: 5, lift: 32 },
-    note: "canopy span — one column, 24 walkable cells under a ceiling",
+    roof: { ox: 0, oy: 0, sx: 2, sy: 2, lift: 38 },
+    note: "canopy span — bare shelter, walkable and shaded underneath",
   },
 };
 
@@ -213,7 +229,7 @@ export interface Prop {
 export const props: readonly Prop[] = [
   // --- perimeter, deepest ------------------------------------------------
   { id: "wall-n", kind: "blockWall", cx: 2, cy: 0, tone: "warm" },
-  { id: "wall-ne", kind: "blockWall", cx: 8, cy: 0, tone: "cool" },
+  { id: "wall-ne", kind: "blockWall", cx: 8, cy: 0, tone: "warm" },
   { id: "wall-e", kind: "blockWall", cx: 14, cy: 0, tone: "warm" },
   { id: "wall-nw", kind: "blockWall", cx: 0, cy: 4, tone: "cool" },
   { id: "wall-w", kind: "blockWall", cx: 0, cy: 10, tone: "warm" },
@@ -254,6 +270,15 @@ export const props: readonly Prop[] = [
   { id: "sandbag-se", kind: "sandbagLine", cx: 12, cy: 12, tone: "cool" },
   { id: "crate-se", kind: "crateStack", cx: 11, cy: 13, tone: "cool" },
   { id: "rubble-se", kind: "rubble", cx: 13, cy: 11, tone: "warm" },
+
+  // --- market dressing: warm cover the crowd can actually use -----------
+  { id: "crate-aisle-n", kind: "crateStack", cx: 9, cy: 6, tone: "warm" },
+  { id: "crate-aisle-s", kind: "crateStack", cx: 10, cy: 12, tone: "warm" },
+  { id: "sandbag-n", kind: "sandbagLine", cx: 8, cy: 3, tone: "warm" },
+  { id: "barrel-w", kind: "barrelPair", cx: 5, cy: 9, tone: "warm" },
+  { id: "spool-e", kind: "cableSpool", cx: 15, cy: 11, tone: "warm" },
+  { id: "crate-e", kind: "crateStack", cx: 17, cy: 6, tone: "warm" },
+  { id: "rail-ne", kind: "railing", cx: 9, cy: 9, tone: "warm" },
 
   // --- aisle furniture: the only things standing in the walkable lane ----
   { id: "lamp-n", kind: "lampPost", cx: 6, cy: 6, tone: "warm", signal: "amber" },

@@ -1,0 +1,189 @@
+{
+  "bands": {
+    "body": 0.8313715277777778,
+    "identity": 0.1643967013888889,
+    "emission": 0.004231770833333333,
+    "offPalette": 0
+  },
+  "zones": {
+    "backdrop": 0.2603255208333333,
+    "dressing": 0.2709331597222222,
+    "ground": 0.30639756944444446,
+    "unit": 0.16234375,
+    "unknown": 0
+  },
+  "spread": {
+    "p5": 14,
+    "p25": 23,
+    "median": 38,
+    "p75": 62,
+    "p95": 121,
+    "iqr": 39,
+    "span": 107,
+    "occupiedBuckets": 15
+  },
+  "units": 41,
+  "props": 45,
+  "coverClasses": [
+    "waist",
+    "screen",
+    "low",
+    "pole",
+    "full",
+    "canopy"
+  ],
+  "propKinds": 19,
+  "authoredCells": 359,
+  "shadedWalkableTiles": 21,
+  "shadedUnits": 4,
+  "edgesTotal": 3126,
+  "dissolveRate": 0.24664107485604606,
+  "contactRate": 0.33205374280230326,
+  "unitsCut": 35,
+  "unitsClear": 6,
+  "medianCutFraction": 0.24675324675324675,
+  "byCover": [
+    {
+      "id": "cover-awningStall",
+      "hidden": 0,
+      "shaded": true,
+      "by": []
+    },
+    {
+      "id": "cover-lampPost",
+      "hidden": 4,
+      "shaded": true,
+      "by": [
+        "pipe-nw"
+      ]
+    },
+    {
+      "id": "cover-signPylon",
+      "hidden": 41,
+      "shaded": false,
+      "by": [
+        "barrel-w"
+      ]
+    },
+    {
+      "id": "cover-canopySpan",
+      "hidden": 3,
+      "shaded": true,
+      "by": [
+        "crate-aisle-n"
+      ]
+    },
+    {
+      "id": "cover-dumpster",
+      "hidden": 33,
+      "shaded": false,
+      "by": [
+        "dumpster-sw"
+      ]
+    },
+    {
+      "id": "cover-pipeRack",
+      "hidden": 16,
+      "shaded": true,
+      "by": [
+        "pipe-nw"
+      ]
+    },
+    {
+      "id": "cover-chainFence",
+      "hidden": 60,
+      "shaded": false,
+      "by": [
+        "fence-ne"
+      ]
+    },
+    {
+      "id": "cover-sandbagLine",
+      "hidden": 25,
+      "shaded": false,
+      "by": [
+        "sandbag-sw-a"
+      ]
+    },
+    {
+      "id": "cover-railing",
+      "hidden": 10,
+      "shaded": false,
+      "by": [
+        "rail-sw"
+      ]
+    },
+    {
+      "id": "cover-vent",
+      "hidden": 16,
+      "shaded": false,
+      "by": [
+        "barrel-ne",
+        "vent-ne"
+      ]
+    },
+    {
+      "id": "cover-crateStack",
+      "hidden": 40,
+      "shaded": false,
+      "by": [
+        "crate-ne-a"
+      ]
+    },
+    {
+      "id": "cover-jerseyBarrier",
+      "hidden": 26,
+      "shaded": false,
+      "by": [
+        "jersey-sw"
+      ]
+    },
+    {
+      "id": "cover-barrelPair",
+      "hidden": 47,
+      "shaded": false,
+      "by": [
+        "barrel-ne"
+      ]
+    },
+    {
+      "id": "cover-pillar",
+      "hidden": 5,
+      "shaded": false,
+      "by": [
+        "pillar-ne"
+      ]
+    },
+    {
+      "id": "cover-container",
+      "hidden": 37,
+      "shaded": false,
+      "by": [
+        "container-ne"
+      ]
+    },
+    {
+      "id": "cover-rubble",
+      "hidden": 0,
+      "shaded": false,
+      "by": []
+    },
+    {
+      "id": "cover-cableSpool",
+      "hidden": 21,
+      "shaded": false,
+      "by": [
+        "rubble-sw",
+        "spool-sw"
+      ]
+    },
+    {
+      "id": "cover-hulk",
+      "hidden": 21,
+      "shaded": false,
+      "by": [
+        "crate-e"
+      ]
+    }
+  ]
+}

@@ -264,126 +264,108 @@ export function hangingWares(prop: Prop, lipX: number, lipY: number, span: numbe
 /* Prop builders — the cover kit                                       */
 /* ------------------------------------------------------------------ */
 
+function roofSlab(prop: Prop, roof: { lift: number; ox: number; oy: number; sx: number; sy: number }, cloth: RampName): Piece[] {
+  const { cx, cy } = prop;
+  return [
+    // The canopy itself, cantilevered forward off the frame behind it.
+    ...isoBox({
+      cx: cx + roof.ox - 0.35,
+      cy: cy + roof.oy - 0.35,
+      sx: roof.sx - 0.3,
+      sy: roof.sy - 0.3,
+      height: 3,
+      lift: roof.lift,
+      ramp: cloth,
+      tag: `${prop.id}-canopy`,
+    }),
+    // Hanging valance on the two camera-facing edges. This is what turns the
+    // roof from a floating shelf into something with an underside, and it is
+    // the edge a unit standing beneath has to be read as being *under*.
+    ...isoBox({
+      cx: cx + roof.ox - 0.35,
+      cy: cy + roof.oy + roof.sy - 0.75,
+      sx: roof.sx - 0.3,
+      sy: 0.1,
+      height: 5,
+      lift: roof.lift - 5,
+      ramp: cloth,
+      tag: `${prop.id}-valance`,
+    }),
+    ...isoBox({
+      cx: cx + roof.ox + roof.sx - 0.75,
+      cy: cy + roof.oy - 0.35,
+      sx: 0.1,
+      sy: roof.sy - 0.3,
+      height: 5,
+      lift: roof.lift - 5,
+      ramp: cloth,
+      tag: `${prop.id}-valance`,
+    }),
+  ];
+}
+
 function awningStall(prop: Prop): Piece[] {
   const { cx, cy } = prop;
   const spec = propSpecs.awningStall;
   const roof = spec.roof;
   const canopy = toneRamp(prop, "canvasWarm", "canvasCool");
-  const lift = roof?.lift ?? 34;
+  const lift = roof?.lift ?? 38;
   const pieces: Piece[] = [
-    contactShadow(cx, cy, 2, 2, prop.id),
-    ...isoBox({ cx, cy, sx: 2, sy: 1.5, height: 13, ramp: "wood", tag: `${prop.id}-counter` }),
-    ...isoBox({ cx: cx + 1.4, cy, sx: 0.6, sy: 1.5, height: 30, ramp: "steel", tag: `${prop.id}-shelf` }),
+    contactShadow(cx, cy, 2, 1, prop.id),
+    ...isoBox({ cx, cy, sx: 1.95, sy: 0.9, height: 13, ramp: "wood", tag: `${prop.id}-counter` }),
+    ...isoBox({ cx: cx + 1.35, cy, sx: 0.6, sy: 0.9, height: 26, ramp: "steel", tag: `${prop.id}-shelf` }),
   ];
 
-  // The frame posts stand on the counter's OWN tiles, not at the roof corners,
-  // so the roof is cantilevered and no walkable tile has a post buried in it.
-  // Round 2's first build put them under the roof corners and a unit posted
-  // behind the stall ended up standing inside a 37 px column.
-  const postCorners: [number, number][] = [
-    [cx, cy],
-    [cx + spec.sx - 1, cy],
-    [cx, cy + spec.sy - 1],
-    [cx + spec.sx - 1, cy + spec.sy - 1],
-  ];
-  for (const [px, py] of postCorners) {
-    pieces.push(...isoBox({ cx: px, cy: py, sx: 0.14, sy: 0.14, height: lift + 3, ramp: "steel", tag: `${prop.id}-post` }));
+  // The frame stands on the counter's OWN tiles, so no walkable tile has a
+  // post buried in it and the awning is carried forward on a cantilever.
+  for (const [px, py] of [[cx, cy], [cx + spec.sx - 1, cy]] as [number, number][]) {
+    pieces.push(...isoBox({ cx: px, cy: py, sx: 0.12, sy: 0.12, height: lift + 3, ramp: "steel", tag: `${prop.id}-post` }));
   }
 
-  if (roof !== undefined) {
-    pieces.push(...isoBox({
-      cx: cx + roof.ox - 0.4,
-      cy: cy + roof.oy - 0.4,
-      sx: roof.sx - 0.2,
-      sy: roof.sy - 0.2,
-      height: 4,
-      lift,
-      ramp: canopy,
-      tag: `${prop.id}-awning`,
-    }));
-    // Hanging valance on the two camera-facing edges, so the roof reads as
-    // fabric with a lip rather than as a floating shelf.
-    pieces.push(...isoBox({
-      cx: cx + roof.ox - 0.4,
-      cy: cy + roof.oy + roof.sy - 0.8,
-      sx: roof.sx - 0.2,
-      sy: 0.12,
-      height: 5,
-      lift: lift - 5,
-      ramp: canopy,
-      tag: `${prop.id}-valance`,
-    }));
-    pieces.push(...isoBox({
-      cx: cx + roof.ox + roof.sx - 0.8,
-      cy: cy + roof.oy - 0.4,
-      sx: 0.12,
-      sy: roof.sy - 0.2,
-      height: 5,
-      lift: lift - 5,
-      ramp: canopy,
-      tag: `${prop.id}-valance`,
-    }));
-  }
+  if (roof !== undefined) { pieces.push(...roofSlab(prop, roof, canopy)); }
 
-  const lip = project(cx + 0.5, cy + 1.2);
-  pieces.push(...hangingWares(prop, lip.x, lip.y - lift + 4, 34, 7));
-  pieces.push(rectPiece(lip.x - 10, lip.y - lift + 2, 20, 2, emissionFill(prop, "active"), `${prop.id}-signal`, false, "signal"));
+  const lip = project(cx + 0.5, cy + 1.3);
+  pieces.push(...hangingWares(prop, lip.x, lip.y - lift + 4, 30, 6));
+  pieces.push(rectPiece(lip.x - 9, lip.y - lift + 2, 18, 2, emissionFill(prop, "active"), `${prop.id}-signal`, false, "signal"));
   pieces.push(rectPiece(lip.x - 3, lip.y - lift + 2, 4, 2, emissionFill(prop, "hot"), `${prop.id}-signal`, false, "signal"));
   return pieces;
 }
 
 /**
- * A roof on a single column over open floor. This prop exists purely to make
+ * A bare shelter: a row of columns at the back and a shallow roof cantilevered
+ * over the walkable row in front of them. This prop exists purely to make
  * "under a ceiling" a thing the board can say without also saying "there is a
- * shop here": 24 of its 25 shaded tiles are walkable, so units stand under it.
+ * shop here", so every tile it shades except its own column row is walkable.
  */
 function canopySpan(prop: Prop): Piece[] {
   const { cx, cy } = prop;
-  const roof = propSpecs.canopySpan.roof;
+  const spec = propSpecs.canopySpan;
+  const roof = spec.roof;
   const cloth = toneRamp(prop, "canvasWarm", "canvasCool");
-  const lift = roof?.lift ?? 32;
-  const pieces: Piece[] = [
-    contactShadow(cx, cy, 1, 1, prop.id),
-    ...isoBox({ cx, cy, sx: 0.7, sy: 0.7, height: lift, ramp: "concrete", tag: `${prop.id}-column` }),
-  ];
-  if (roof === undefined) { return pieces; }
-
-  // Thin guy poles at the roof corners. Deliberately NOT in the footprint:
-  // they are 3 px wide, so a unit standing on that tile is clipped by a
-  // vertical sliver, which is a cheap and very legible occlusion cue.
-  for (const [px, py] of [
-    [cx + roof.ox, cy + roof.oy],
-    [cx + roof.ox + roof.sx - 1, cy + roof.oy],
-    [cx + roof.ox, cy + roof.oy + roof.sy - 1],
-    [cx + roof.ox + roof.sx - 1, cy + roof.oy + roof.sy - 1],
-  ] as [number, number][]) {
-    pieces.push(...isoBox({ cx: px, cy: py, sx: 0.1, sy: 0.1, height: lift + 2, ramp: "steel", tag: `${prop.id}-guy` }));
+  const lift = roof?.lift ?? 38;
+  const pieces: Piece[] = [contactShadow(cx, cy, spec.sx, 1, prop.id)];
+  for (let index = 0; index < spec.sx; index += 1) {
+    // Deliberately THIN. A shelter column drawn half a tile wide is a
+    // 14 px grey slab against a 22 px figure, and four shelters' worth of
+    // them turned the first pass into a forest of pillars with a crowd
+    // hiding somewhere behind it.
+    pieces.push(...isoBox({
+      cx: cx + index + 0.35,
+      cy: cy + 0.35,
+      sx: 0.18,
+      sy: 0.18,
+      height: lift,
+      ramp: "steel",
+      tag: `${prop.id}-column-${String(index)}`,
+    }));
   }
+  if (roof !== undefined) { pieces.push(...roofSlab(prop, roof, cloth)); }
 
-  pieces.push(...isoBox({
-    cx: cx + roof.ox - 0.4,
-    cy: cy + roof.oy - 0.4,
-    sx: roof.sx - 0.2,
-    sy: roof.sy - 0.2,
-    height: 4,
-    lift,
-    ramp: cloth,
-    tag: `${prop.id}-canopy`,
-  }));
-  pieces.push(...isoBox({
-    cx: cx + roof.ox - 0.4,
-    cy: cy + roof.oy + roof.sy - 0.8,
-    sx: roof.sx - 0.2,
-    sy: 0.12,
-    height: 6,
-    lift: lift - 6,
-    ramp: cloth,
-    tag: `${prop.id}-valance`,
-  }));
-
-  const lip = project(cx, cy + 1.6);
-  pieces.push(...hangingWares(prop, lip.x, lip.y - lift + 5, 40, 8));
-  pieces.push(rectPiece(lip.x - 8, lip.y - lift + 3, 16, 2, emissionFill(prop, "idle"), `${prop.id}-signal`, false, "signal"));
+  const lip = project(cx + 0.5, cy + 1.1);
+  pieces.push(...hangingWares(prop, lip.x, lip.y - lift + 4, 32, 6));
+  if (prop.signal !== undefined) {
+    pieces.push(rectPiece(lip.x - 7, lip.y - lift + 2, 14, 2, emissionFill(prop, "idle"), `${prop.id}-signal`, false, "signal"));
+  }
   return pieces;
 }
 
@@ -525,7 +507,7 @@ function pipeRack(prop: Prop): Piece[] {
       sy: 1.6,
       height: 4,
       lift: 5 + index * 5,
-      ramp: toneRamp(prop, "rust", "steel"),
+      ramp: "rust",
       tag: `${prop.id}-pipe-${String(index)}`,
     }));
   }
@@ -536,7 +518,7 @@ function dumpster(prop: Prop): Piece[] {
   const { cx, cy } = prop;
   return [
     contactShadow(cx, cy, 2, 1, prop.id),
-    ...isoBox({ cx, cy, sx: 1.8, sy: 0.9, height: 13, ramp: toneRamp(prop, "rust", "steel"), tag: `${prop.id}-body` }),
+    ...isoBox({ cx, cy, sx: 1.8, sy: 0.9, height: 13, ramp: "rust", tag: `${prop.id}-body` }),
     ...isoBox({ cx: cx - 0.05, cy: cy - 0.05, sx: 1.9, sy: 1, height: 3, lift: 13, ramp: "grate", tag: `${prop.id}-lid` }),
   ];
 }
@@ -581,7 +563,7 @@ function pillar(prop: Prop): Piece[] {
   return [
     contactShadow(cx, cy, 1, 1, prop.id),
     ...isoBox({ cx: cx + 0.1, cy: cy + 0.1, sx: 0.8, sy: 0.8, height: 4, ramp: "concrete", tag: `${prop.id}-plinth` }),
-    ...isoBox({ cx: cx + 0.2, cy: cy + 0.2, sx: 0.6, sy: 0.6, height: spec.height - 8, lift: 4, ramp: "concrete", tag: `${prop.id}-shaft` }),
+    ...isoBox({ cx: cx + 0.28, cy: cy + 0.28, sx: 0.44, sy: 0.44, height: spec.height - 8, lift: 4, ramp: "concrete", tag: `${prop.id}-shaft` }),
     ...isoBox({ cx: cx + 0.1, cy: cy + 0.1, sx: 0.8, sy: 0.8, height: 4, lift: spec.height - 4, ramp: "concrete", tag: `${prop.id}-capital` }),
   ];
 }

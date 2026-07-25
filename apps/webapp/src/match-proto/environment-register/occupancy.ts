@@ -139,11 +139,11 @@ export function coverPost(prop: Prop, lane: "north" | "west"): { cx: number; cy:
     // Offset along ONE axis only, so the post is under the roof but not on the
     // column's screen line — a canopy's claim is shade, not occlusion, and a
     // unit erased by the column proves neither.
-    candidates.push(
-      { cx: roof.x0, cy: roof.y0 + 2 },
-      { cx: roof.x0 + 1, cy: roof.y0 + 2 },
-      { cx: roof.x0 + 2, cy: roof.y0 },
-    );
+    // The FRONT row under the roof. It is the only row where the canopy's near
+    // edge still clears the figure's crown, and it is walkable by design.
+    for (let step = 0; step < roof.x1 - roof.x0; step += 1) {
+      candidates.push({ cx: roof.x0 + step, cy: roof.y1 - 1 });
+    }
   }
   if (tall) {
     candidates.push({ cx: rect.x1 - 1, cy: rect.y0 - 1 }, { cx: rect.x1 - 1, cy: rect.y0 - 2 });
