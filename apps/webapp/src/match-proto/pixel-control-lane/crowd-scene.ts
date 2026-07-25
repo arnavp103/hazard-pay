@@ -126,6 +126,14 @@ export interface PlacedUnit {
   mirrored: boolean;
   /** Deterministic animation phase so the crowd is not in lockstep. */
   phaseMs: number;
+  /**
+   * Per-unit idle amplitude and direction. A shared cycle length keeps the
+   * capture loop closing cleanly; varying how FAR and which WAY each unit
+   * leans is what stops the formation reaching its extremes on one clock -
+   * the "synchronized toys" failure the baked lane could not escape.
+   */
+  amplitude: number;
+  flip: 1 | -1;
 }
 
 /** Cheap deterministic hash -> [0,1). Keeps captures byte-reproducible. */
@@ -169,7 +177,9 @@ export function buildRoster(config: CrowdConfig): PlacedUnit[] {
         x: baseX + jitterX,
         y: baseY + jitterY,
         mirrored: side.dir === -1,
-        phaseMs: Math.round(hash01(seed + 211) * 1400),
+        phaseMs: Math.round(hash01(seed + 211) * CROWD_CYCLE_MS),
+        amplitude: 0.6 + hash01(seed + 313) * 0.7,
+        flip: hash01(seed + 557) < 0.5 ? -1 : 1,
       });
     });
   });
@@ -204,11 +214,89 @@ export function buildLineup(config: CrowdConfig): PlacedUnit[] {
         y: config.originY + config.halfH * 4 + sideIndex * 2,
         mirrored: side.dir === -1,
         phaseMs: index * 380,
+        amplitude: 1,
+        flip: 1,
       });
     });
   });
   return units;
 }
+
+// --- hero marking (approved 2026-07-25) --------------------------------
+
+/**
+ * Ring offsets around a posed silhouette, by Chebyshev distance.
+ *
+ * Rounds 1-3 ran with marking deliberately withheld so size + detail
+ * density could be tested on their own; the cofounder has since ruled that
+ * a "thick border or highlight" is in. This grows one from the sprite's
+ * own outline rather than stamping a decal, so it tracks every pose and
+ * every facing for free and costs no authored cells.
+ *
+ * Offsets are relative to the sprite's top-left blit origin and may be
+ * negative or past the canvas edge - the marking is allowed to grow
+ * outside the authored box.
+ */
+export function markingOffsets(
+  rows: string[],
+  width: number,
+  radius: number,
+): { dx: number; dy: number; ring: number }[] {
+  const height = rows.length;
+  const pad = radius;
+  const w = width + pad * 2;
+  const h = height + pad * 2;
+  const filled = new Uint8Array(w * h);
+  rows.forEach((row, y) => {
+    [...row].forEach((ch, x) => {
+      if (ch !== TRANSPARENT && x < width) { filled[(y + pad) * w + (x + pad)] = 1; }
+    });
+  });
+
+  const distance = new Int16Array(w * h).fill(-1);
+  let front: number[] = [];
+  for (let index = 0; index < filled.length; index += 1) {
+    if (filled[index] === 1) {
+      distance[index] = 0;
+      front.push(index);
+    }
+  }
+  for (let ring = 1; ring <= radius; ring += 1) {
+    const next: number[] = [];
+    for (const index of front) {
+      const cy = Math.floor(index / w);
+      const cx = index % w;
+      for (let oy = -1; oy <= 1; oy += 1) {
+        for (let ox = -1; ox <= 1; ox += 1) {
+          const ny = cy + oy;
+          const nx = cx + ox;
+          if (ny < 0 || ny >= h || nx < 0 || nx >= w) { continue; }
+          const at = ny * w + nx;
+          if (distance[at] !== -1) { continue; }
+          distance[at] = ring;
+          next.push(at);
+        }
+      }
+    }
+    front = next;
+  }
+
+  const out: { dx: number; dy: number; ring: number }[] = [];
+  for (let index = 0; index < distance.length; index += 1) {
+    const ring = distance[index] ?? -1;
+    if (ring <= 0) { continue; }
+    out.push({ dx: (index % w) - pad, dy: Math.floor(index / w) - pad, ring });
+  }
+  return out;
+}
+
+/** Palette role painted at each ring: two bright bands seated on ink. */
+export function markingRole(ring: number): string {
+  return ring <= 2 ? "i" : "k";
+}
+
+/** How thick the hero border is, per config - it must scale with the unit. */
+export const MARKING_RADIUS: Record<ConfigKey, number> = { small: 2, large: 3 };
 
 // --- generic grid transforms (any width/height) -----------------------
 
@@ -283,14 +371,20 @@ export interface PosedUnit {
  * the mass over planted feet and a 1px bob carries the breath. Two grid
  * transforms per unit per frame; this is what a crowd can afford.
  */
-export function poseFodder(grid: CrowdGrid, clockMs: number, phaseMs: number): PosedUnit {
+export function poseFodder(
+  grid: CrowdGrid,
+  clockMs: number,
+  phaseMs: number,
+  amplitude = 1,
+  flip: 1 | -1 = 1,
+): PosedUnit {
   const t = phase(clockMs + phaseMs, CROWD_CYCLE_MS);
-  const wave = Math.sin(t * Math.PI * 2);
+  const wave = Math.sin(t * Math.PI * 2) * flip;
   const pivot = Math.round(grid.bottomRow - (grid.bottomRow - grid.topRow) * 0.35);
   const kneeY = Math.round(grid.bottomRow - (grid.bottomRow - grid.topRow) * 0.18);
-  let rows = leanRows(grid.rows, pivot, 0.1 * wave);
-  if (wave < -0.45) { rows = crouchRows(rows, kneeY, 1); }
-  return { rows, bob: wave > 0.4 ? -1 : 0 };
+  let rows = leanRows(grid.rows, pivot, 0.11 * amplitude * wave);
+  if (wave < -0.45 * amplitude) { rows = crouchRows(rows, kneeY, 1); }
+  return { rows, bob: wave > 0.55 / amplitude ? -1 : 0 };
 }
 
 /**
@@ -299,9 +393,15 @@ export function poseFodder(grid: CrowdGrid, clockMs: number, phaseMs: number): P
  * on the inhale. More authored motion per unit, affordable because there
  * are two of them per side rather than sixteen.
  */
-export function poseHero(grid: CrowdGrid, clockMs: number, phaseMs: number): PosedUnit {
+export function poseHero(
+  grid: CrowdGrid,
+  clockMs: number,
+  phaseMs: number,
+  amplitude = 1,
+  flip: 1 | -1 = 1,
+): PosedUnit {
   const t = phase(clockMs + phaseMs, CROWD_CYCLE_MS);
-  const wave = Math.sin(t * Math.PI * 2);
+  const wave = Math.sin(t * Math.PI * 2) * flip * amplitude;
   const kneeY = Math.round(grid.bottomRow - (grid.bottomRow - grid.topRow) * 0.22);
   const pivot = Math.round(grid.bottomRow - (grid.bottomRow - grid.topRow) * 0.45);
   let rows = leanRows(grid.rows, pivot, 0.05 * wave);
@@ -312,8 +412,8 @@ export function poseHero(grid: CrowdGrid, clockMs: number, phaseMs: number): Pos
 export function poseUnit(unit: PlacedUnit, clockMs: number): PosedUnit {
   const grid = getGrid(unit.gridKey);
   return unit.tier === "hero"
-    ? poseHero(grid, clockMs, unit.phaseMs)
-    : poseFodder(grid, clockMs, unit.phaseMs);
+    ? poseHero(grid, clockMs, unit.phaseMs, unit.amplitude, unit.flip)
+    : poseFodder(grid, clockMs, unit.phaseMs, unit.amplitude, unit.flip);
 }
 
 /** Top-left blit origin for a unit's grid, given its anchor. */

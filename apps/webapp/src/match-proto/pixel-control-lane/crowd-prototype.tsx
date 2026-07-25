@@ -28,11 +28,14 @@ import {
   CROWD_CYCLE_MS,
   STAGE_H,
   STAGE_W,
+  MARKING_RADIUS,
   blitOrigin,
   buildLineup,
   buildRoster,
   crowdConfigs,
   footprintWidth,
+  markingOffsets,
+  markingRole,
   poseUnit,
 } from "./crowd-scene.ts";
 import {
@@ -52,6 +55,11 @@ function readParam(name: string): string | null {
 
 function isLineup(): boolean {
   return readParam("lineup") === "1";
+}
+
+/** Hero marking, on by default; `?marking=0` captures the control. */
+function isMarked(): boolean {
+  return readParam("marking") !== "0";
 }
 
 export function readCrowdConfig(): ConfigKey {
@@ -76,6 +84,7 @@ function paintStage(
   configKey: ConfigKey,
   clockMs: number,
   lineup: boolean,
+  marked: boolean,
 ): void {
   context.imageSmoothingEnabled = false;
   context.fillStyle = "#120b10";
@@ -99,11 +108,34 @@ function paintStage(
   }
 
   const frame = context.getImageData(0, 0, STAGE_W, STAGE_H);
+  const write = (px: number, py: number, hex: string | undefined) => {
+    if (hex === undefined) { return; }
+    if (px < 0 || px >= STAGE_W || py < 0 || py >= STAGE_H) { return; }
+    const value = Number.parseInt(hex.slice(1), 16);
+    const to = (py * STAGE_W + px) * 4;
+    frame.data[to] = (value >> 16) & 0xff;
+    frame.data[to + 1] = (value >> 8) & 0xff;
+    frame.data[to + 2] = value & 0xff;
+    frame.data[to + 3] = 255;
+  };
+
   for (const unit of roster) {
     const grid = getGrid(unit.gridKey);
     const posed = poseUnit(unit, clockMs);
     const rgba = crowdRowsToRgba(posed.rows, grid.width, teamPalettes[unit.team]);
     const origin = blitOrigin(unit, grid, posed.bob);
+    const palette = teamPalettes[unit.team];
+
+    // The marking goes down first so the sprite always sits on top of its
+    // own border - the border thickens the unit, it never eats into it.
+    if (marked && unit.tier === "hero") {
+      const offsets = markingOffsets(posed.rows, grid.width, MARKING_RADIUS[configKey]);
+      for (const offset of offsets) {
+        const sx = unit.mirrored ? grid.width - 1 - offset.dx : offset.dx;
+        write(origin.x + sx, origin.y + offset.dy, palette[markingRole(offset.ring)]);
+      }
+    }
+
     for (let y = 0; y < grid.height; y += 1) {
       for (let x = 0; x < grid.width; x += 1) {
         const at = (y * grid.width + x) * 4;
@@ -149,7 +181,7 @@ export function CrowdPrototype() {
     if (canvas === null) { return; }
     const context = canvas.getContext("2d", { willReadFrequently: true });
     if (context === null) { return; }
-    paintStage(context, board, configKey, clockMs, isLineup());
+    paintStage(context, board, configKey, clockMs, isLineup(), isMarked());
   }, [board, configKey, clockMs]);
 
   const config = crowdConfigs[configKey];
@@ -213,9 +245,9 @@ export function CrowdPrototype() {
               {`fodder ${String(meleeFigure)}px · hero ${String(heroFigure)}px · boost ${(heroFigure / meleeFigure).toFixed(2)}×`}
             </div>
             <div>
-              Tier separation is size + detail density only — no rim light, no banner,
-              no ground decal, no hero-only hue. Both sides share one palette except
-              three livery entries.
+              {isMarked()
+                ? "Tier separation: slight size boost + higher detail density + a thick hero border grown from the posed silhouette."
+                : "Control capture — marking off. Tier separation by size + detail density alone."}
             </div>
           </section>
         </div>

@@ -9,8 +9,8 @@ estimated. Every number below is derived by the module's own
 
 | Config | Unit | Canvas | Grid cells | Inked cells | Figure height | Palette roles used |
 | --- | --- | ---: | ---: | ---: | ---: | ---: |
-| SMALL | Breaker (melee fodder) | 16×24 | 384 | 225 | 22 px | 11 |
-| SMALL | Stinger (ranged fodder) | 16×24 | 384 | 183 | 22 px | 12 |
+| SMALL | Breaker (melee fodder) | 16×24 | 384 | 225 | 22 px | 13 |
+| SMALL | Stinger (ranged fodder) | 16×24 | 384 | 183 | 22 px | 15 |
 | SMALL | **Mara Voss (hero)** | 20×30 | **600** | **326** | **28 px** | **18** |
 | LARGE | Breaker (melee fodder) | 24×36 | 864 | 451 | 34 px | 11 |
 | LARGE | Stinger (ranged fodder) | 24×36 | 864 | 350 | 34 px | 13 |
@@ -24,7 +24,8 @@ between them is the absolute register.
 Two facts worth reading off this table:
 
 - The hero's *detail budget* is 1.56× the fodder's at SMALL and 1.74× at
-  LARGE. That is the entire "higher detail density" lever, in cells.
+  LARGE. That is the entire "higher detail density" lever, in cells — and
+  §5 records what the artifact says about whether it is enough.
 - The canon 48×64 sprite is **5.1×** the SMALL hero's canvas. Round 1 and 2
   were drawn in a register neither of these configs can afford.
 
@@ -93,13 +94,35 @@ pixels), which is a different look, not the same look bigger.
 This is the sprite runtime's structural tax and it is unrelated to how
 good the art is. A 3D runtime pays none of it.
 
+
+## 5. The hero marking costs nothing
+
+Marking was withheld while this round tested size + detail density on their
+own; the cofounder has since approved a "thick border or highlight". It is
+implemented as a **runtime dilation of the posed silhouette** — two bright
+rings in the unit's own livery-highlight entry, seated on one ring of
+plum-black — not as an authored decal.
+
+That matters for this report: it adds **0 authored cells**, at any config,
+for any unit, in any pose or facing, forever. It is the only tier-separation
+lever measured here that does not multiply with the roster, and it survives
+grayscale, which the detail-density lever did not.
+
+Runtime cost is one multi-source dilation per hero per frame over the
+sprite's own bounding box plus the ring radius — 2 px at SMALL, 3 px at
+LARGE. With 1–2 heroes a side that is nothing; it would matter if every
+unit were marked, which is exactly why only heroes are.
+
 ## 4. What this round actually cost to author
 
 6 grids, **4 600 authored cells**, hand-typed as text grids in one session,
-including two full revision passes (the first pass had fodder in
+including three revision passes: the first pass had fodder in
 livery-dominant colour, which broke the 70/25/5 budget and — worse — would
 have let colour composition smuggle in a tier read the experiment was
-supposed to exclude).
+supposed to exclude; the last put the SMALL fodder on an ink diet after the
+cold critic measured plum-black eating 54–68 % of those sprites (interior
+ink was demoted to the darkest value of its surrounding material, leaving
+the outer contour untouched: 103→77 and 85→69 ink cells).
 
 Extrapolated at that rate, a 20-unit roster is 68 k–167 k authored cells.
 That is the number to weigh against a 3D lane where a zoom step, a facing
