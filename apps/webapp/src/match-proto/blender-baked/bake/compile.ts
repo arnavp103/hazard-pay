@@ -76,11 +76,19 @@ export interface AtlasCost {
   indexedPngBytes: number;
   paletteEntriesUsed: number;
   /**
-   * Flat-colour islands per body pixel, before and after consolidation. The
-   * density reference the art board names sits near 0.21; a straight
-   * palette-quantized render measures roughly double that.
+   * Flat-colour islands per body pixel. `quantized` is the palette-locked
+   * render before any drawing passes; `shipped` is the pixels that are
+   * actually in the atlas, contour and seams included. Reporting the
+   * mid-pipeline number as if it described the artifact is how a pipeline
+   * lies to its own gallery, so both are published and the shipped one is
+   * the headline.
    */
-  clusterDensity: { before: number; after: number; singletonShareBefore: number; singletonShareAfter: number };
+  clusterDensity: {
+    quantized: number;
+    shipped: number;
+    singletonShareQuantized: number;
+    singletonShareShipped: number;
+  };
 }
 
 export interface CompileResult {
@@ -135,6 +143,11 @@ export function compileFrames(
     // and must not be eaten by the same rule that removes 1-px confetti.
     consolidate(quantized, width, height, minIsland);
     const finished = inkSprite(quantized, ids, width, height, ink);
+    // …and again after inking. The seam pass can strand a lone darkened pixel
+    // where two parts touch across three cells; measured, the drawing passes
+    // were re-introducing more confetti than they were worth. Ink is protected,
+    // so the contour survives while orphan seams are folded back.
+    consolidate(finished, width, height, minIsland);
 
     const trim = alphaBounds(finished, width, height);
     if (trim === null) {
@@ -243,24 +256,22 @@ export function compile(
     for (const name of paletteCoverage(frame.finished)) { used.add(name); }
   }
 
-  // Cluster density, measured on the raw quantized frames versus what shipped.
-  let before = { islands: 0, pixels: 0, singletons: 0 };
-  let after = { islands: 0, pixels: 0, singletons: 0 };
+  // Cluster density: the palette-locked render, and the pixels that ship.
+  let quantizedTotals = { islands: 0, pixels: 0, singletons: 0 };
+  let shippedTotals = { islands: 0, pixels: 0, singletons: 0 };
+  const accumulate = (
+    into: { islands: number; pixels: number; singletons: number },
+    stats: { islands: number; pixels: number; singletonShare: number },
+  ): { islands: number; pixels: number; singletons: number } => ({
+    islands: into.islands + stats.islands,
+    pixels: into.pixels + stats.pixels,
+    singletons: into.singletons + stats.singletonShare * stats.islands,
+  });
   for (const frame of frames) {
-    const rawQuantized = new Uint8Array(frame.raw);
-    quantizeToPalette(rawQuantized, cell.width, cell.height);
-    const b = islandStats(rawQuantized, cell.width, cell.height);
-    const a = islandStats(frame.quantized, cell.width, cell.height);
-    before = {
-      islands: before.islands + b.islands,
-      pixels: before.pixels + b.pixels,
-      singletons: before.singletons + b.singletonShare * b.islands,
-    };
-    after = {
-      islands: after.islands + a.islands,
-      pixels: after.pixels + a.pixels,
-      singletons: after.singletons + a.singletonShare * a.islands,
-    };
+    const straight = new Uint8Array(frame.raw);
+    quantizeToPalette(straight, cell.width, cell.height);
+    quantizedTotals = accumulate(quantizedTotals, islandStats(straight, cell.width, cell.height));
+    shippedTotals = accumulate(shippedTotals, islandStats(frame.finished, cell.width, cell.height));
   }
 
   const perFacing = manifest.clips.reduce((sum, clip) => sum + clip.frames, 0);
@@ -300,10 +311,14 @@ export function compile(
       indexedPngBytes: encoded.byteLength,
       paletteEntriesUsed: used.size,
       clusterDensity: {
-        before: Number((before.islands / Math.max(1, before.pixels)).toFixed(4)),
-        after: Number((after.islands / Math.max(1, after.pixels)).toFixed(4)),
-        singletonShareBefore: Number((before.singletons / Math.max(1, before.islands)).toFixed(4)),
-        singletonShareAfter: Number((after.singletons / Math.max(1, after.islands)).toFixed(4)),
+        quantized: Number((quantizedTotals.islands / Math.max(1, quantizedTotals.pixels)).toFixed(4)),
+        shipped: Number((shippedTotals.islands / Math.max(1, shippedTotals.pixels)).toFixed(4)),
+        singletonShareQuantized: Number(
+          (quantizedTotals.singletons / Math.max(1, quantizedTotals.islands)).toFixed(4),
+        ),
+        singletonShareShipped: Number(
+          (shippedTotals.singletons / Math.max(1, shippedTotals.islands)).toFixed(4),
+        ),
       },
     },
   };

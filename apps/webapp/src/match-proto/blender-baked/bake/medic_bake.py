@@ -110,13 +110,13 @@ BAND_STOPS = (0.0, 9.0 / 16.0, 13.0 / 16.0)
 # (deep cool shadow, clear mid, warm lit) with the top pulled just under
 # saturation, widening the ramp instead of blowing it out.
 BAND_MULTIPLIERS = ((0.62, 0.52, 0.66), (1.70, 1.58, 1.50), (3.00, 2.75, 2.40))
-BAND_GAIN = max(max(band) for band in BAND_MULTIPLIERS)
+BAND_GAIN = 3.10
 BAND_COLORS = tuple(
     tuple(channel / BAND_GAIN for channel in band) for band in BAND_MULTIPLIERS
 )
 
 
-def band_headroom(base_linear):
+def band_headroom(base_linear, top=None):
     """Per-material gain that puts the LIT band exactly at saturation, no higher.
 
     A flat gain would clip the rust livery's lit band and drag its hue toward
@@ -125,7 +125,7 @@ def band_headroom(base_linear):
     gets, and — the part that matters downstream — stops several saturated
     materials from collapsing onto the same near-white palette entry.
     """
-    peak = max(base * band for base, band in zip(base_linear, BAND_MULTIPLIERS[2]))
+    peak = max(base * band for base, band in zip(base_linear, top or BAND_MULTIPLIERS[2]))
     return 1.0 if peak <= 1.0 else 1.0 / peak
 
 
@@ -136,11 +136,38 @@ _ID_MATS = []
 _PARTS = []
 
 
-def cel_material(hex_color: str):
+# Cloth and metal have to part on VALUE, not hue. The i1/i2 critiques both
+# measured the nearest pair across the material boundary at two luminance
+# levels apart -- the same grey twice -- because both families were riding the
+# same band multipliers over base colours only a hue rotation apart. Giving
+# each family its own band range puts a clear stop between the brightest cloth
+# and the darkest metal, which is the only separation that survives a 22-px
+# figure.
+# Per-band warm/cool tint, kept identical across families so only the VALUE
+# range differs: the two materials must part on luminance, not on a new hue.
+BAND_TINT = tuple(
+    tuple(channel / band[0] for channel in band) for band in BAND_MULTIPLIERS
+)
+
+
+def band_range(shadow, mid, lit):
+    """Turn a scalar shadow/mid/lit range into tinted per-channel bands."""
+    return tuple(
+        tuple(level * channel for channel in tint)
+        for level, tint in zip((shadow, mid, lit), BAND_TINT)
+    )
+
+
+CLOTH_BANDS = band_range(0.64, 1.58, 2.58)
+METAL_BANDS = band_range(1.50, 2.35, 3.10)
+
+
+def cel_material(hex_color: str, bands=None):
     """Hard three-band cel emission. Cached per colour so parts share nodes."""
     existing = _MATS.get(hex_color)
     if existing is not None:
         return existing
+    multipliers = bands or BAND_MULTIPLIERS
 
     mat = bpy.data.materials.new(f"cel_{hex_color.lstrip('#')}")
     mat.use_nodes = True
@@ -163,9 +190,10 @@ def cel_material(hex_color: str):
     ramp.color_ramp.interpolation = "CONSTANT"
     while len(ramp.color_ramp.elements) > 1:
         ramp.color_ramp.elements.remove(ramp.color_ramp.elements[-1])
+    normalised = tuple(tuple(c / BAND_GAIN for c in band) for band in multipliers)
     ramp.color_ramp.elements[0].position = BAND_STOPS[0]
-    ramp.color_ramp.elements[0].color = (*BAND_COLORS[0], 1.0)
-    for stop, band in zip(BAND_STOPS[1:], BAND_COLORS[1:]):
+    ramp.color_ramp.elements[0].color = (*normalised[0], 1.0)
+    for stop, band in zip(BAND_STOPS[1:], normalised[1:]):
         element = ramp.color_ramp.elements.new(stop)
         element.color = (*band, 1.0)
     tree.links.new(remap.outputs["Value"], ramp.inputs["Fac"])
@@ -178,7 +206,9 @@ def cel_material(hex_color: str):
 
     emit = tree.nodes.new("ShaderNodeEmission")
     # Gain lives on Strength, not in the ramp: ColorRamp stops clamp at 1.0.
-    emit.inputs["Strength"].default_value = BAND_GAIN * band_headroom(hex_to_linear(hex_color))
+    emit.inputs["Strength"].default_value = BAND_GAIN * band_headroom(
+        hex_to_linear(hex_color), multipliers[2],
+    )
     tree.links.new(tint.outputs["Color"], emit.inputs["Color"])
     out = tree.nodes.new("ShaderNodeOutputMaterial")
     tree.links.new(emit.outputs["Emission"], out.inputs["Surface"])
@@ -282,13 +312,13 @@ def cylinder(name, radius, length, at, mat, parent, axis="z"):
 
 def build_leg(side, root):
     hip = empty(f"hip{side}", root, (side * 0.13, 0.0, 0.84))
-    box("thigh", (0.17, 0.36, 0.19), (0, -0.2, 0), cel_material(PANTS), hip)
+    box("thigh", (0.17, 0.36, 0.19), (0, -0.2, 0), cel_material(PANTS, CLOTH_BANDS), hip)
     knee = empty(f"knee{side}", hip, (0.0, 0.0, -0.38))
-    box("shin", (0.15, 0.3, 0.16), (0, -0.16, 0), cel_material(SHIN), knee)
+    box("shin", (0.15, 0.3, 0.16), (0, -0.16, 0), cel_material(SHIN, CLOTH_BANDS), knee)
     if side == -1:
         box("shin_tape", feat(0.175, 0.06, 0.185), (0, -0.12, 0.005), flat_material(TAPE), knee)
-    box("boot", (0.24, 0.15, 0.42), (0, -0.385, 0.09), cel_material(BOOT), knee)
-    box("toe", (0.245, 0.11, 0.13), (0, -0.41, 0.28), cel_material(TOE_METAL), knee)
+    box("boot", (0.24, 0.15, 0.42), (0, -0.385, 0.09), cel_material(BOOT, CLOTH_BANDS), knee)
+    box("toe", (0.245, 0.11, 0.13), (0, -0.41, 0.28), cel_material(METAL, METAL_BANDS), knee)
     # Chip-led wear: a notched, scuffed heel block (the r2 critique's lesson).
     box("boot_scuff", feat(0.09, 0.05, 0.1), (side * 0.07, -0.325, -0.115), flat_material(SCUFF), knee)
     return hip, knee
@@ -296,16 +326,16 @@ def build_leg(side, root):
 
 def build_arm(side, cyber, torso):
     shoulder = empty(f"shoulder{side}", torso, (side * 0.31, 0.0, 0.44))
-    box("sleeve", (0.14, 0.3, 0.15), (0, -0.17, 0), cel_material(COAT), shoulder)
+    box("sleeve", (0.14, 0.3, 0.15), (0, -0.17, 0), cel_material(COAT, CLOTH_BANDS), shoulder)
     elbow = empty(f"elbow{side}", shoulder, (0.0, 0.0, -0.34))
     if cyber:
-        box("forearm", (0.14, 0.27, 0.15), (0, -0.15, 0), cel_material(METAL), elbow)
+        box("forearm", (0.14, 0.27, 0.15), (0, -0.15, 0), cel_material(METAL, METAL_BANDS), elbow)
     else:
-        box("forearm", (0.13, 0.26, 0.14), (0, -0.15, 0), cel_material(COAT_DARK), elbow)
+        box("forearm", (0.13, 0.26, 0.14), (0, -0.15, 0), cel_material(COAT_DARK, CLOTH_BANDS), elbow)
         box("wrist_wrap", feat(0.155, 0.07, 0.165), (0, -0.03, 0.005), flat_material(TAPE), elbow)
     hand = empty(f"hand{side}", elbow, (0.0, 0.0, -0.33))
     if cyber:
-        box("fist", (0.2, 0.16, 0.18), (0, -0.06, 0), cel_material(METAL), hand)
+        box("fist", (0.2, 0.16, 0.18), (0, -0.06, 0), cel_material(METAL, METAL_BANDS), hand)
     else:
         box("fist", (0.19, 0.15, 0.17), (0, -0.06, 0), cel_material(SKIN), hand)
     return shoulder, elbow, hand
@@ -320,10 +350,10 @@ def cross_plate(width, at, parent, flip=False):
 
 def build_injector(hand):
     tool = empty("tool", hand, (0.0, -0.04, -0.08))
-    cylinder("inj_body", 0.065, 0.4, (0, -0.02, 0.16), cel_material(METAL), tool)
+    cylinder("inj_body", 0.065, 0.4, (0, -0.02, 0.16), cel_material(METAL, METAL_BANDS), tool)
     box("inj_gleam", feat(0.03, 0.03, 0.34), (0, 0.055, 0.16), flat_material(METAL_HI), tool)
     box("inj_tank", (0.1, 0.1, 0.14), (0, 0.07, 0.05), cel_material(LIVERY), tool)
-    box("inj_grip", (0.06, 0.12, 0.07), (0, -0.1, 0.02), cel_material(BOOT), tool)
+    box("inj_grip", (0.06, 0.12, 0.07), (0, -0.1, 0.02), cel_material(BOOT, CLOTH_BANDS), tool)
     tip = empty("tip", tool, (0.0, -0.4, -0.02))
     needle = cylinder("inj_needle", 0.042, 0.12, (0, 0, 0), flat_material(SIGNAL), tip)
     burst = empty("burst", tool, (0.0, -0.52, -0.02))
@@ -335,7 +365,7 @@ def build_injector(hand):
 def build_medic():
     root = empty("root")
     pelvis = empty("pelvis", root, (0.0, 0.0, 0.9))
-    box("hem", (0.46, 0.26, 0.32), (0, 0.02, 0), cel_material(COAT_DARK), pelvis)
+    box("hem", (0.46, 0.26, 0.32), (0, 0.02, 0), cel_material(COAT_DARK, CLOTH_BANDS), pelvis)
     box("holster", (0.12, 0.18, 0.1), (0.26, -0.04, 0.06), cel_material(HOLSTER), pelvis)
     # Slung medkit. The r1 critique found no medic in any of eight facings —
     # a cross the size of three pixels is a colour patch, not an identity. This
@@ -344,10 +374,11 @@ def build_medic():
     box("kit", (0.26, 0.24, 0.20), (-0.31, 0.02, 0.05), cel_material(LIVERY), pelvis)
     box("kit_lid", feat(0.26, 0.06, 0.20), (-0.31, 0.15, 0.05), cel_material(LIVERY_DK), pelvis)
     cross_plate(0.14, (-0.31, 0.02, 0.16), pelvis)
+    cross_plate(0.14, (-0.31, 0.02, -0.06), pelvis)
     box("kit_sling", feat(0.07, 0.5, 0.07), (-0.22, 0.32, 0.11), flat_material(STRAP), pelvis, rot=(0, 0, -0.5))
 
     torso = empty("torso", pelvis, (0.0, 0.0, 0.12))
-    box("chest", (0.5, 0.44, 0.34), (0, 0.28, 0), cel_material(COAT), torso)
+    box("chest", (0.5, 0.44, 0.34), (0, 0.28, 0), cel_material(COAT, CLOTH_BANDS), torso)
     box("pocket", feat(0.16, 0.13, 0.03), (-0.16, 0.15, 0.185), flat_material(COAT_DARK), torso)
     # Chest rig + cross plate + strap + steel buckle.
     box("chest_rig", (0.33, 0.30, 0.08), (0.05, 0.235, 0.19), cel_material(LIVERY), torso)
@@ -355,7 +386,7 @@ def build_medic():
     box("strap", feat(0.56, 0.085, 0.03), (-0.02, 0.3, 0.19), flat_material(STRAP), torso, rot=(0, 0, 0.55))
     box("buckle", (0.09, 0.08, 0.035), (-0.14, 0.36, 0.2), flat_material(METAL), torso)
     # Field pack.
-    box("pack", (0.40, 0.46, 0.30), (0, 0.22, -0.32), cel_material(PACK), torso)
+    box("pack", (0.40, 0.46, 0.30), (0, 0.22, -0.32), cel_material(PACK, CLOTH_BANDS), torso)
     box("pack_plate", (0.26, 0.30, 0.05), (-0.02, 0.22, -0.47), cel_material(LIVERY), torso)
     cross_plate(0.15, (-0.02, 0.25, -0.505), torso, flip=True)
     # The rival's three-tick unit stencil is 0.3 art px per tick — dropped, and
@@ -366,7 +397,7 @@ def build_medic():
 
     head = empty("head", torso, (0.0, 0.0, 0.46))
     box("neck", (0.14, 0.1, 0.13), (0, 0.02, 0), cel_material(SKIN), head)
-    box("hood", (0.36, 0.34, 0.34), (0, 0.17, -0.02), cel_material(HOOD), head)
+    box("hood", (0.36, 0.34, 0.34), (0, 0.17, -0.02), cel_material(HOOD, CLOTH_BANDS), head)
     box("face", (0.24, 0.18, 0.08), (0, 0.13, 0.15), cel_material(SKIN), head)
     box("brow", (0.27, 0.09, 0.1), (0, 0.205, 0.15), flat_material(BROW), head)
     box("visor", feat(0.2, 0.055, 0.025), (0, 0.155, 0.205), flat_material(SIGNAL), head)

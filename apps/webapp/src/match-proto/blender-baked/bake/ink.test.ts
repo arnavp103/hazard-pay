@@ -33,7 +33,7 @@ function at(buf: Uint8Array, x: number, y: number): string {
 }
 
 describe("inkSprite contour", () => {
-  it("grows the contour OUTWARD so it never eats the sprite's own pixels", () => {
+  it("grows a CLOSED contour outward, never eating the sprite's own pixels", () => {
     const { color, ids } = blank();
     put(color, 3, 3, "#4c5752");
     putId(ids, 3, 3, 1);
@@ -45,8 +45,13 @@ describe("inkSprite contour", () => {
       expect(at(out, x, y)).toBe(INK);
       expect(out[(y * W + x) * 4 + 3]).toBe(0xff);
     }
-    // Diagonals stay clear: a 4-neighbour contour, not an 8-neighbour blob.
-    expect(out[(2 * W + 2) * 4 + 3]).toBe(0);
+    // Diagonals are inked too. A 4-neighbour contour breaks at every diagonal
+    // step of a silhouette, leaving a chain of orphan pixels instead of one
+    // closed line; the closed ring is what keeps a 31-px figure a figure.
+    expect(at(out, 2, 2)).toBe(INK);
+    expect(at(out, 4, 4)).toBe(INK);
+    // …and nothing two cells away is touched.
+    expect(out[(1 * W + 1) * 4 + 3]).toBe(0);
   });
 
   it("leaves the buffer alone when the contour is disabled", () => {

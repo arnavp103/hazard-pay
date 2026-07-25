@@ -103,14 +103,31 @@ export function inkSprite(
   }
 
   if (options.contour) {
+    // Eight-neighbour dilation, not four. A four-neighbour contour leaves the
+    // ring broken at every diagonal step of the silhouette: the corner ink
+    // pixels only touch each other diagonally, so the outline is a chain of
+    // orphans rather than one closed line. Measured on this rig it turned a
+    // consolidated 0.14 islands/px into 0.38 with half the islands single
+    // pixels — the contour pass was undoing the consolidation pass. Closing
+    // the diagonals costs one pixel at each corner and buys a contour that is
+    // actually continuous.
     for (let y = 0; y < height; y += 1) {
       for (let x = 0; x < width; x += 1) {
         const i = y * width + x;
         if (opaque(i)) { continue; }
-        const touching = (x > 0 && opaque(i - 1))
-          || (x < width - 1 && opaque(i + 1))
-          || (y > 0 && opaque(i - width))
-          || (y < height - 1 && opaque(i + width));
+        let touching = false;
+        for (let dy = -1; dy <= 1 && !touching; dy += 1) {
+          for (let dx = -1; dx <= 1; dx += 1) {
+            if (dx === 0 && dy === 0) { continue; }
+            const nx = x + dx;
+            const ny = y + dy;
+            if (nx < 0 || ny < 0 || nx >= width || ny >= height) { continue; }
+            if (opaque(ny * width + nx)) {
+              touching = true;
+              break;
+            }
+          }
+        }
         if (!touching) { continue; }
         out[i * 4] = ir;
         out[i * 4 + 1] = ig;

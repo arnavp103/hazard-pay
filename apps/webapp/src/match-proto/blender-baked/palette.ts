@@ -128,10 +128,19 @@ export function paletteForQuantizer(subset?: readonly PaletteEntry[]): utils.Pal
  * touching the shared board art the three lanes are all being judged on.
  */
 export function deepenBoard(rgba: Uint8ClampedArray | Uint8Array): void {
+  // An S-curve, not a straight gamma. Deepening alone bought the near-black
+  // massing the grime register wants and then took the board's only light with
+  // it: the play field ended up with 0.01% of pixels above L180 in a world
+  // whose budget allows ~5% for focal light. Shadows go down, the lit trim and
+  // window strips come back up, and the midtone plums stay where they were.
   for (let i = 0; i < rgba.length; i += 4) {
     for (let c = 0; c < 3; c += 1) {
       const value = (rgba[i + c] ?? 0) / 255;
-      rgba[i + c] = Math.round(255 * value ** 1.25 * 0.94);
+      const deep = value ** 1.22 * 0.93;
+      const lit = value ** 0.68;
+      const t = Math.min(1, Math.max(0, (value - 0.42) / 0.33));
+      const blend = t * t * (3 - 2 * t);
+      rgba[i + c] = Math.round(255 * (deep * (1 - blend) + lit * blend));
     }
   }
 }

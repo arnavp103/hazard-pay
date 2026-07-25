@@ -237,6 +237,10 @@ async function main(): Promise<void> {
     + `(${(cost.rgbaPngBytes / 1024).toFixed(1)} KiB as truecolour)\n`
     + `  palette ${String(cost.paletteEntriesUsed)}/${String(DIRECTION_B_PALETTE.length)} entries used · `
     + `atlas round-trip exact\n`
+    + `  cluster density ${cost.clusterDensity.quantized.toFixed(3)} quantized -> `
+    + `${cost.clusterDensity.shipped.toFixed(3)} SHIPPED islands/px `
+    + `(singletons ${(cost.clusterDensity.singletonShareQuantized * 100).toFixed(0)}% -> `
+    + `${(cost.clusterDensity.singletonShareShipped * 100).toFixed(0)}%)\n`
     + `  bake wall clock ${wallClockSeconds.toFixed(2)}s\n`,
   );
 

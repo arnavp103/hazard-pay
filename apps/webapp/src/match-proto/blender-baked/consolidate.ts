@@ -20,7 +20,9 @@
  * something.
  */
 
-const PROTECTED = new Set([0x2f9e96, 0xa8f0e4]);
+// The scarce signal colours, plus the ink: a 2-px visor slit is deliberate and
+// the contour is load-bearing structure, so neither may be absorbed.
+const PROTECTED = new Set([0x2f9e96, 0xa8f0e4, 0x120b10]);
 
 function key(rgba: Uint8Array | Uint8ClampedArray, i: number): number {
   return ((rgba[i * 4] ?? 0) << 16) | ((rgba[i * 4 + 1] ?? 0) << 8) | (rgba[i * 4 + 2] ?? 0);
