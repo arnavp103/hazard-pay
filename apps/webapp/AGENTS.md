@@ -39,6 +39,14 @@ live data; every surface renders honestly without it.
   `MatchStageHandle` mount/teardown in `match-proto/stage.ts` is the
   reference pattern for the future real match view; sprite data and
   animation math live in pure TS modules tested in Node
+- `src/routes/combat-sandbox.tsx` + `src/match-proto/combat-sandbox/` —
+  #96: throwaway scaffolding the combat-vocabulary prototypes on map #95
+  share. **Three.js**, not Pixi — map #64 admits Three/R3F for the 3D
+  lanes, and the two prototypes stay separate rather than being unified.
+  Its `README.md` is the entry point: the slice API (`battleAt`,
+  `sliceBattle`) and three extension points (a new animation state, unit
+  archetype, or combat behaviour), each owned by one file. Not an
+  art-direction commitment, and not the home for real assets (#71)
 - `src/lib/api.ts` — the typed oRPC client over `@hazard-pay/api/contract`
 - `src/lib/use-tick-stream.ts` — THE client half of the transport seam
   (ADR 0004 §2): EventSource + `Last-Event-ID` resume, parses the envelope,
@@ -67,9 +75,14 @@ live data; every surface renders honestly without it.
 - `pnpm --filter @hazard-pay/webapp test` — Vitest, node environment by
   default; DOM-dependent suites opt in per file with a
   `@vitest-environment jsdom` pragma.
-- Canvas/WebGL never runs in tests: pixi.js is mocked and the tests assert
-  our lifecycle contract (mount/unmount/remount, StrictMode init race).
-  Keep renderable state in pure modules so it tests without a renderer.
+- Canvas/WebGL never runs in tests: the renderer is mocked and the tests
+  assert our lifecycle contract (mount/unmount/remount, StrictMode init
+  race). Keep renderable state in pure modules so it tests without a
+  renderer — `match-proto/stage.test.ts` mocks pixi.js,
+  `combat-sandbox/combat-sandbox-prototype.test.ts` mocks its own
+  `scene.ts` rather than Three.
+- `vitest.config.ts` includes `src/**/*.test.ts` only — a `.test.tsx`
+  file is silently not run. Write DOM tests with `createElement`.
 
 ## Query conventions
 
