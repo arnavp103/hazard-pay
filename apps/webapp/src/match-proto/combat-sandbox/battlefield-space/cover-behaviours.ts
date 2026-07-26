@@ -8,13 +8,24 @@
  * any of this.
  *
  * ```
- *  acquire  seekCoverCell      choose the tile to fight from, on retarget steps
+ *  acquire  seekCoverCell      RANGED: the tile to fight from, on retarget steps
+ *  acquire  seekApproach       MELEE:  the next tile on a covered approach
  *  steer    readSightline      how hidden is my target from me, right now
  *  steer    holdCover          walk to the chosen tile
+ *  steer    followApproach     walk the approach waypoint
  *  steer    avoidFootprints    push out of prop footprints, slide along faces
  *  act      blockedFire        a shot into cover is held or degraded
  *  act      clampToFootprints  a body never ends a step inside a prop
  * ```
+ *
+ * ## Round 3: both archetypes want cover, for different reasons
+ *
+ * Rounds 1 and 2 zeroed melee's cover appetite (see `coverAppetite` below) and
+ * the archetype comparison was therefore never run. Round 3 gives melee cover
+ * as a **route** rather than a destination, over the *same* field a shooter
+ * point-evaluates to pick a firing position. The field, the two resistance
+ * vectors and the anti-clustering machinery live in `approach-field.ts`; the
+ * two behaviours that spend them are `seekApproach` and `followApproach` here.
  *
  * ## What "cover" is modelled to do, and what it is not
  *
@@ -63,6 +74,14 @@ import { clamp, nextRandom } from "../procedural.ts";
 import type { SimUnit } from "../state.ts";
 import { heightOf } from "../units.ts";
 import {
+  approachFor,
+  descend,
+  EXPOSED_AT,
+  exposureFor,
+  postureOf,
+  RESISTANCES,
+} from "./approach-field.ts";
+import {
   blockedAt,
   bodyRadius,
   boardFor,
@@ -97,18 +116,37 @@ export const COVER_SWEET = 0.55;
 const COVER_PULL = 4.5;
 
 /**
- * How badly an archetype wants cover, read off its standoff.
+ * How badly an archetype wants a firing *position*, read off its standoff.
  *
- * **Zero for melee and the medic, by construction.** The first build gave
- * everyone a small appetite and the fight stopped happening: forty bodies with
- * a weak pull toward the same handful of good tiles converge on those tiles,
- * so nobody reaches anybody and attacks fell 78 %. Swords charge. Shooters use
- * cover. That reads at 28 px; a crowd all drifting slightly toward the middle
- * does not.
+ * Still zero for melee and the medic — but round 3 changes what that means.
+ * Through rounds 1 and 2 it meant melee ignored cover entirely, which is why
+ * the archetype comparison this ticket exists to run was never actually run.
+ * It now means melee does not want a **destination**: it wants a *route*, and
+ * that is `seekApproach` below, over the same field. Two postures, one field.
+ *
+ * The original reasoning for zeroing it stands and is worth keeping visible:
+ * a weak pull toward the same handful of good tiles converges forty bodies on
+ * those tiles and attacks fell 78 %. Round 3 does not re-introduce that pull.
+ * It gives melee an appetite for *cheap ground on the way in*, which the crowd
+ * term and the lane offset in `approach-field.ts` keep from stacking.
  */
 function coverAppetite(standoff: number): number {
   return clamp((standoff - 2.5) / 2.5, 0, 1);
 }
+
+/**
+ * World units of walking a fully-exposed tile is worth avoiding, for a shooter
+ * choosing where to stand.
+ *
+ * This is the *point-evaluated* half of the shared field. A shooter already
+ * scored posts by occlusion-to-its-target; what it could not see was whether
+ * the post was in the open with respect to everyone *else*. Same numbers melee
+ * integrates along a route, spent one tile at a time.
+ */
+const EXPOSURE_PULL = 2.4;
+
+/** Occlusion at or above which a unit counts as standing in cover, for metrics. */
+export const IN_COVER_AT = 0.3;
 
 function isOn(ctx: BehaviourContext): boolean {
   return ctx.state.coverMode === 1;
@@ -159,6 +197,10 @@ export const seekCoverCell: Behaviour = {
     const board = boardOf(ctx);
     const height = heightOf(unit.tier);
     const threatEye = eyeHeightOf(target.tier);
+    // The shared field, point-evaluated. Round 2's post score knew only about
+    // the unit's own target; a post can be perfectly covered from that one body
+    // and stand in the open with respect to the other nineteen.
+    const seen = exposureFor(board, ctx.state, unit.side).exposure;
     let bestScore = Infinity;
     let bestCell = -1;
     for (let index = 0; index < board.props.length; index += 1) {
@@ -180,15 +222,108 @@ export const seekCoverCell: Behaviour = {
       const sight = sightBetween(board, target.x, target.z, threatEye, at.x, at.z, height);
       if (sight.occlusion < 0.2) { continue; }
       const value = Math.max(0, 1 - Math.abs(sight.occlusion - COVER_SWEET) / COVER_SWEET);
-      const score = walk - value * COVER_PULL;
+      const cell = post.cy * GRID + post.cx;
+      const score = walk - value * COVER_PULL + (seen[cell] ?? 0) * EXPOSURE_PULL;
       if (score < bestScore) {
         bestScore = score;
-        bestCell = post.cy * GRID + post.cx;
+        bestCell = cell;
       }
     }
     unit.coverCell = bestCell;
   },
 };
+
+/**
+ * Melee's half of the field: the next tile on a covered approach.
+ *
+ * The one thing round 3 exists to build. A shooter scores a tile; a swordsman
+ * cannot, because what it wants — "get to contact without crossing the open" —
+ * is a property of a *path* and only exists as a sum of edge costs. So this
+ * descends the flood in `approach-field.ts` a couple of hops and stores the
+ * result, and `followApproach` walks it.
+ *
+ * Three things keep round 1's clustering from coming back, and none of them is
+ * "turn the appetite off":
+ *
+ *   - **crowd resistance** in the field, so a tile your own side already fills
+ *     is expensive — Rain World's packmate term, which is what makes its
+ *     lizards appear to flank with no formation system at all;
+ *   - **lane offset** by `unit.id`, the same deterministic spreader round 1
+ *     used to slot shooters along a prop's face;
+ *   - **breakout**: inside `RESISTANCES.assault.breakout` the field is dropped
+ *     entirely and the unit charges. Cover is a route, not a destination, and a
+ *     swordsman that will not cross the last two units of open ground is not
+ *     using cover, it is hiding.
+ *
+ * Runs on retarget steps for the same reason `seekCoverCell` does — and the
+ * flood is memoised per side per step, so forty bodies pay for one.
+ */
+export const seekApproach: Behaviour = {
+  doc: "descend the shared cost field toward contact — melee's covered approach",
+  name: "seekApproach",
+  phase: "acquire",
+  step(unit, ctx) {
+    if (!isOn(ctx)) { return; }
+    const posture = postureOf(ctx.profile.standoff, ctx.profile.attackRange);
+    const target = targetOf(unit, ctx);
+    if (posture === "firing" || target === undefined) {
+      unit.approachCell = -1;
+      return;
+    }
+    const gap = Math.hypot(target.x - unit.x, target.z - unit.z);
+    // Broken out already: stop paying for cover and go.
+    if (gap <= RESISTANCES[posture].breakout) {
+      unit.approachCell = -1;
+      return;
+    }
+    const board = boardOf(ctx);
+    const cx = cellIndexAt(unit.x);
+    const cy = cellIndexAt(unit.z);
+    if (cx < 0 || cy < 0 || cx >= GRID || cy >= GRID) {
+      unit.approachCell = -1;
+      return;
+    }
+    const approach = approachFor(board, ctx.state, unit.side);
+    unit.approachCell = descend(board, approach, cy * GRID + cx, unit.id, APPROACH_HOPS);
+  },
+};
+
+/** Tiles of lookahead per waypoint. One reads as a shuffle at 28 px. */
+export const APPROACH_HOPS = 2;
+
+/**
+ * Walk the approach waypoint.
+ *
+ * Deliberately *added to* the built-in drive toward the target rather than
+ * replacing it: a unit that only follows the field stops fighting the moment
+ * the field is stale, and the sum is what produces the read the cofounder
+ * described — a body angling toward the next prop while still facing the enemy.
+ */
+export const followApproach: Behaviour = {
+  doc: "steer along the covered approach, fading out near the waypoint",
+  name: "followApproach",
+  phase: "steer",
+  step(unit, ctx) {
+    if (!isOn(ctx) || unit.approachCell < 0) { return; }
+    const at = cellCentre(unit.approachCell % GRID, Math.floor(unit.approachCell / GRID));
+    const dx = at.x - unit.x;
+    const dz = at.z - unit.z;
+    const span = Math.hypot(dx, dz);
+    if (span < 0.25) { return; }
+    const drive = clamp((span - 0.25) * 2.2, 0, 1) * APPROACH_DRIVE;
+    ctx.desiredVx += (dx / span) * drive * ctx.profile.maxSpeed;
+    ctx.desiredVz += (dz / span) * drive * ctx.profile.maxSpeed;
+  },
+};
+
+/**
+ * How hard the approach pulls, against the built-in drive toward the target.
+ *
+ * Under 1 on purpose. At 1 the field wins outright and bodies visibly detour
+ * away from a target that is already in front of them; this is a lean, not a
+ * command.
+ */
+const APPROACH_DRIVE = 0.75;
 
 /**
  * How much of this unit's target is hidden from it, this step.
@@ -219,6 +354,12 @@ export const readSightline: Behaviour = {
       heightOf(target.tier),
     );
     unit.sightOcclusion = sight.occlusion;
+    // Round 3's headline metric, counted for free rather than by re-flooding the
+    // board every step. Cover here is symmetric by construction — `blockedFire`
+    // reads the same number in both directions — so a clear line *out* is a
+    // clear line *in*, and a step spent with one is a step spent exposed. It is
+    // the same threshold the shared field uses, so the two agree.
+    if (sight.occlusion < EXPOSED_AT) { unit.exposedSteps += 1; }
     // Slide around whatever is in the way rather than grinding into it. The
     // side is the short way round, from the sign of the cross product — no
     // extra sightline evaluation and no per-unit coin to remember.
@@ -483,8 +624,10 @@ export function isInsideFootprint(board: CoverBoard, unit: SimUnit): boolean {
  */
 BEHAVIOURS.push(
   seekCoverCell,
+  seekApproach,
   readSightline,
   holdCover,
+  followApproach,
   avoidFootprints,
   blockedFire,
   clampToFootprints,

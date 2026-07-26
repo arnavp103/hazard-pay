@@ -73,6 +73,15 @@ export interface SimUnit {
   // --- #100 battlefield space: only read when `SimState.coverMode` is 1 ----
   /** Chosen cover tile as `cy * GRID + cx`, or -1 for none. */
   coverCell: number;
+  /**
+   * Round 3: the next tile on this unit's covered approach, as `cy * GRID + cx`,
+   * or -1 for none. A waypoint descended from the shared cost field, re-picked
+   * on retarget steps — the field itself is scratch, this is the only part of it
+   * that has to survive a slice boundary.
+   */
+  approachCell: number;
+  /** Steps this unit has spent on a tile its enemies can see. Round 3 metric. */
+  exposedSteps: number;
   /** 0..1 of this unit's target hidden from it by a prop, this step. */
   sightOcclusion: number;
   /** Attacks this unit has held or spoiled because the line was covered. */
