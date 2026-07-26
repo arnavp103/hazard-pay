@@ -19,6 +19,30 @@ function isLaneNotFound(err: unknown): boolean {
 }
 
 /**
+ * A burst of more new lane events than one page (`LANE_EVENTS_DEFAULT_LIMIT`)
+ * inside a single 5s window would otherwise come back `hasMore: true` from
+ * the tail query itself — flipping `hasNextPage` back on and silently
+ * disabling the tail poll until the user re-catches-up by hand via "load
+ * next page". Looping here keeps the tail poll self-contained: it always
+ * returns fully caught up (in realistic bursts — a wake batches at most
+ * `maxTurnsPerWake` turns, capped at 32), bounded so a truly pathological
+ * volume degrades to a stated `hasMore: true` rather than hanging.
+ */
+const MAX_TAIL_CATCHUP_PAGES = 25;
+
+async function fetchTailCatchUp(laneId: string, after: number): Promise<LaneTracePage> {
+  let cursor = after;
+  let page = await api.lanes.events({ laneId, after: cursor });
+  const events = [...page.events];
+  for (let pagesFetched = 1; page.hasMore && pagesFetched < MAX_TAIL_CATCHUP_PAGES; pagesFetched += 1) {
+    cursor = page.events.at(-1)?.seq ?? cursor;
+    page = await api.lanes.events({ laneId, after: cursor });
+    events.push(...page.events);
+  }
+  return { lane: page.lane, events, hasMore: page.hasMore };
+}
+
+/**
  * The transcript view (#24): one lane's full log as progressive-disclosure
  * chips — summaries by default, one deep-dive at a time (#11 rider).
  * Overworld-tier polling, no realtime transport (per the ticket).
@@ -59,7 +83,7 @@ function LaneTraceScreen() {
 
   const { data: tailPage } = useQuery({
     queryKey: ["admin", "lanes", laneId, "trace-tail"],
-    queryFn: () => api.lanes.events({ laneId, after: lastSeenSeq }),
+    queryFn: () => fetchTailCatchUp(laneId, lastSeenSeq),
     enabled: caughtUpWithBacklog,
     refetchInterval: 5_000,
     retry: retryOnceUnlessNotFound,
