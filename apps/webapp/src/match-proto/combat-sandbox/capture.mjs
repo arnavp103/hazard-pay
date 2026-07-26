@@ -169,15 +169,41 @@ function writeDataUrl(dataUrl, path) {
  * wherever the live loop happens to be, not at the times requested. Callers
  * that drive `renderAt` themselves must pass `freeze`.
  */
+/**
+ * Cache buster, unique per process and per shot (#100).
+ *
+ * Two failure modes, both silent, both fixed by making every navigation go to
+ * a URL the browser has never seen:
+ *
+ *  - `open` returns before the new document has loaded, so polling for
+ *    `typeof window.__combatSandbox === 'object'` passes instantly against the
+ *    page being left. Every shot after the first then wrote the PREVIOUS
+ *    shot's pixels, at the previous shot's canvas size — shots differing only
+ *    in query string came out byte-identical.
+ *  - Re-opening the URL the page is already on does not navigate at all, so a
+ *    bridge cleared before the open never comes back and every subsequent
+ *    `renderAt` throws `Cannot read properties of undefined`.
+ *
+ * The parameter is ignored by the route, so it changes navigation and nothing
+ * else; the same command still produces the same pixels.
+ */
+const RUN = Date.now().toString(36);
+let shotOrdinal = 0;
+
 function openShot(base, query, scale, extra = "") {
   const separator = query.includes("scale=") || scale === 1 ? "" : `&scale=${scale}`;
   const url = `${base}/combat-sandbox?capture=1&${query}${separator}${extra}`;
-  browser(["open", url], { quiet: true });
-  for (let attempt = 0; attempt < 60; attempt += 1) {
-    if (evaluate("typeof window.__combatSandbox === 'object'") === true) {
+  shotOrdinal += 1;
+  const stamp = `${RUN}-${shotOrdinal}`;
+  browser(["open", `${url}&_shot=${stamp}`], { quiet: true });
+  // The readiness test asks for THIS shot's page, not just any page with a
+  // bridge on it. Testing the bridge alone passes against the page being left.
+  const ready = `location.search.includes("_shot=${stamp}") && typeof window.__combatSandbox === "object"`;
+  for (let attempt = 0; attempt < 80; attempt += 1) {
+    execFileSync("agent-browser", ["wait", "250"], { stdio: "ignore" });
+    if (evaluate(ready) === true) {
       return url;
     }
-    execFileSync("agent-browser", ["wait", "250"], { stdio: "ignore" });
   }
   throw new Error(`page never published window.__combatSandbox: ${url}`);
 }
