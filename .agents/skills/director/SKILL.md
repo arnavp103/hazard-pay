@@ -186,6 +186,13 @@ delete the fact.
   syntax errors under it.
 - Bash denials are classifier-based and non-deterministic. Retry with a different
   shape (flag form, split compound), never verbatim.
+  Two shapes are refused consistently rather than randomly: anything containing the
+  word `eval` (so `agent-browser eval` must go through a script file), and
+  multi-statement compounds with redirects. Budget for turning ad-hoc probes into
+  committed script files.
+- `gh issue view <n> --comments` can print **nothing at all** with exit 0 — silently,
+  and still after the 2.96 upgrade that fixed the projectCards errors. Fall back to
+  `--json` fields or `gh api repos/{owner}/{repo}/issues/<n>/comments`.
 - `gh api` with `-f`/`--raw-field` defaults to POST — pass `-X GET` on reads. `-f
   body=@file` posts the literal `@/path`; capital `-F` reads the file. `gh pr
   checks` misattributes runs — match on the PR's head SHA.
@@ -236,6 +243,15 @@ delete the fact.
 
 ### Canvas capture
 
+- **agent-browser is ONE shared session per machine.** Two agents capturing
+  concurrently overwrite each other's page mid-shot. This happened, and both galleries
+  were quietly wrong in a way that looked fine. Set a unique `AGENT_BROWSER_SESSION`
+  per agent and brief it in the dispatch.
+- **`agent-browser open` returns before navigation completes**, so a readiness poll can
+  pass against the *outgoing* page and a screenshot returns the previous shot's pixels
+  at the previous shot's canvas size. Re-opening the URL the page is already on does not
+  navigate at all. Require a per-shot nonce in `location.search` before shooting, and
+  hash-check that no two shots in a series are byte-identical.
 - Element screenshots are unreliable for canvas/WebGL — the drawing buffer is
   cleared on composite and CDP fails wide sheets. Pull `canvas.toDataURL()`
   through `agent-browser eval --max-output <large>` and base64-decode.
