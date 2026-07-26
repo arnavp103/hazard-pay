@@ -39,6 +39,7 @@
     "lint-staged": "^16.2.7",
     "only-allow": "^1.2.2",
     "syncpack": "^14.3.1",
+    "tsx": "^4.21.0",
     "turbo": "^2.9.6",
     "typescript-eslint": "^8.56.1"
   }
