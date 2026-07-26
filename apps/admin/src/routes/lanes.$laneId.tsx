@@ -1,7 +1,9 @@
+import type { LaneTracePage } from "@hazard-pay/api/contract";
 import { Button, Panel, StatReadout, StatusChip } from "@hazard-pay/ui";
 import { ORPCError } from "@orpc/client";
-import { useInfiniteQuery } from "@tanstack/react-query";
+import { type InfiniteData, useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect } from "react";
 
 import { LaneEventChip } from "../components/lane-event-chip.tsx";
 import { api } from "../lib/api.ts";
@@ -19,27 +21,78 @@ function isLaneNotFound(err: unknown): boolean {
 /**
  * The transcript view (#24): one lane's full log as progressive-disclosure
  * chips — summaries by default, one deep-dive at a time (#11 rider).
- * Overworld-tier polling, no realtime transport (per the ticket). Honest
- * caveat: "load next page" advances a `seq > lastSeen` cursor, but the 5s
- * interval refetch re-runs every loaded page (TanStack infinite-query
- * semantics) — fine at dev scale; a true tail-poll is follow-up material.
+ * Overworld-tier polling, no realtime transport (per the ticket).
+ *
+ * Tail-only polling (#58): backlog pagination ("load next page") and the
+ * live poll are two different queries against the same `seq > lastSeen`
+ * route, not one infinite query re-fetching every loaded page. The infinite
+ * query above only paginates the backlog (no `refetchInterval`); once it's
+ * caught up (`!hasNextPage`), a plain `useQuery` below polls `after:
+ * lastSeenSeq` every 5s and a `useEffect` manually appends whatever comes
+ * back onto the infinite query's last page — the poll payload is bounded by
+ * what's new, not by how much of the lane has been loaded.
  */
 function LaneTraceScreen() {
   const { laneId } = Route.useParams();
+  const queryClient = useQueryClient();
+  const traceQueryKey = ["admin", "lanes", laneId, "trace"];
+  const retryOnceUnlessNotFound = (failureCount: number, err: unknown): boolean =>
+    // A 404 is an answer (no such lane), not a flake — don't retry it.
+    failureCount < 1 && !isLaneNotFound(err);
+
   const { data, error, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
-    queryKey: ["admin", "lanes", laneId, "trace"],
+    queryKey: traceQueryKey,
     queryFn: ({ pageParam }) => api.lanes.events({ laneId, after: pageParam }),
     initialPageParam: 0,
     getNextPageParam: (lastPage) =>
       lastPage.hasMore ? lastPage.events.at(-1)?.seq ?? null : null,
-    refetchInterval: 5_000,
-    // A 404 is an answer (no such lane), not a flake — don't retry it.
-    retry: (failureCount, err) => failureCount < 1 && !isLaneNotFound(err),
+    retry: retryOnceUnlessNotFound,
   });
 
   const pages = data?.pages ?? [];
   const lane = pages.at(-1)?.lane;
   const events = pages.flatMap((page) => page.events);
+  const lastSeenSeq = events.at(-1)?.seq ?? 0;
+  // Only once every already-recorded page is loaded — otherwise the tail
+  // poll's cursor would race the backlog pagination and skip the gap.
+  const caughtUpWithBacklog = data !== undefined && !hasNextPage;
+
+  const { data: tailPage } = useQuery({
+    queryKey: ["admin", "lanes", laneId, "trace-tail"],
+    queryFn: () => api.lanes.events({ laneId, after: lastSeenSeq }),
+    enabled: caughtUpWithBacklog,
+    refetchInterval: 5_000,
+    retry: retryOnceUnlessNotFound,
+  });
+
+  // Manual cache append (#58): fold the tail page's new lane events onto the
+  // infinite query's last cached page instead of letting a refetch re-run
+  // every page. A no-op when the poll comes back idle (same reference, per
+  // TanStack Query's structural sharing — the effect only fires on change).
+  useEffect(() => {
+    if (tailPage === undefined || tailPage.events.length === 0) {
+      return;
+    }
+    queryClient.setQueryData<InfiniteData<LaneTracePage, number>>(traceQueryKey, (prev) => {
+      if (prev === undefined) {
+        return prev;
+      }
+      const lastIndex = prev.pages.length - 1;
+      const last = prev.pages[lastIndex];
+      if (last === undefined) {
+        return prev;
+      }
+      const pages = [...prev.pages];
+      pages[lastIndex] = {
+        lane: tailPage.lane,
+        events: [...last.events, ...tailPage.events],
+        hasMore: tailPage.hasMore,
+      };
+      return { ...prev, pages };
+    });
+    // Keyed on `laneId`, not `traceQueryKey` — that array is rebuilt fresh
+    // every render, which would re-run this effect on every render too.
+  }, [tailPage, laneId, queryClient]);
 
   return (
     <main className="hp-noise min-h-screen p-8">
@@ -51,7 +104,7 @@ function LaneTraceScreen() {
               <span className="ml-3 text-ink-dim">{shortId(laneId)}</span>
             </h1>
             <p className="mt-1 font-data text-[10px] tracking-[0.1em] text-ink-dim uppercase">
-              /// transcript · seq-ordered lane events · poll 5s
+              /// transcript · seq-ordered lane events · tail poll 5s
             </p>
           </div>
           <Link
@@ -102,6 +155,12 @@ function LaneTraceScreen() {
                     {shortHash(lane.configHash)}
                     …
                   </dd>
+                  {lane.model !== null && (
+                    <>
+                      <dt className="tracking-[0.08em] text-ink-dim uppercase">model</dt>
+                      <dd className="text-ink">{lane.model}</dd>
+                    </>
+                  )}
                   <dt className="tracking-[0.08em] text-ink-dim uppercase">created</dt>
                   <dd className="text-ink tabular-nums">{formatTime(lane.createdAt)}</dd>
                   {lane.wokeAt !== null && (
