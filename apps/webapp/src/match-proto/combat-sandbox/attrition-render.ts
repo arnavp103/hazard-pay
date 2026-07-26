@@ -29,7 +29,7 @@
 
 import * as THREE from "three";
 
-import { type AttritionTreatment, isDead } from "./attrition.ts";
+import { type AttritionTreatment, deathAge, isDead } from "./attrition.ts";
 import type { UnitRig } from "./figure.ts";
 import { emitMaterial, litMaterial, MARK_MATERIALS } from "./flat.ts";
 import { clamp } from "./procedural.ts";
@@ -117,7 +117,7 @@ class CorpseView implements AttritionView {
         materials = detach(body.rig, this.treatment.corpse !== "prone");
         this.detached.set(unit.id, materials);
       }
-      this.paint(materials, step - unit.deathStep);
+      this.paint(materials, deathAge(unit, step));
     }
   }
 
