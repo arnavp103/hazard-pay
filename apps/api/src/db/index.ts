@@ -14,9 +14,10 @@ export {
   findLaneById,
   listLaneEventsAfter,
   listLaneRows,
+  listLatestModelPerLane,
   tallyLaneEvents,
 } from "./lanes.ts";
-export type { LaneEventTally } from "./lanes.ts";
+export type { LaneEventTally, LaneModelRow } from "./lanes.ts";
 export {
   latestTick,
   recordDueTicks,

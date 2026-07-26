@@ -71,8 +71,8 @@ const os = implement(contract).$context<RequestCtx>();
 export const router = os.router({
   health: os.health.handler(({ context }) => respond(context.log, checkHealth({ db: context.db }))),
   lanes: {
-    list: os.lanes.list.handler(({ context }) =>
-      respond(context.log, listLanes({ db: context.db }))),
+    list: os.lanes.list.handler(({ context, input }) =>
+      respond(context.log, listLanes({ db: context.db }, input))),
     events: os.lanes.events.handler(({ context, input }) =>
       respond(context.log, getLaneTrace({ db: context.db }, input))),
   },

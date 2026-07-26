@@ -80,7 +80,33 @@ export const laneSummarySchema = z.object({
   wokeAt: z.iso.datetime().nullable(),
   lastEventAt: z.iso.datetime().nullable(),
   eventCounts: laneEventCountsSchema,
+  /**
+   * The `modelId` of the lane's most recent model turn (#58) — null when the
+   * lane has none yet (a freshly spawned mission, seeded by its input only).
+   * Unlike `configHash`, no model identity is stamped on the `lane` row: a
+   * leader config carries no model reference (ADR 0003 §3 hashes name,
+   * system prompt, and toolset only — the model is injected into
+   * `createRuntime` independently), so this is derived from the log, not the
+   * row.
+   */
+  model: z.string().nullable(),
 });
+
+/**
+ * `GET /lanes` filters (#58), every field optional so the whole object can
+ * be omitted — existing callers keep working unchanged. `leader` matches
+ * `leaderName` and `configHash` matches the stamped hash exactly; `model`
+ * matches a lane's most recent model turn (see `laneSummarySchema.model`).
+ */
+export const laneListFilterSchema = z.object({
+  leader: z.string().min(1).optional(),
+  kind: z.enum(["foreground", "mission"]).optional(),
+  status: z.enum(["open", "waking", "closed"]).optional(),
+  configHash: z.string().min(1).optional(),
+  model: z.string().min(1).optional(),
+});
+
+export type LaneListFilter = z.infer<typeof laneListFilterSchema>;
 
 export const laneEventRecordSchema = z.object({
   /** 1-based, gapless per lane — the client's `after` cursor. */
@@ -150,6 +176,10 @@ export const contract = {
   lanes: {
     list: oc
       .route({ method: "GET", path: "/lanes" })
+      // Optional at the top level (not just per-field): `undefined` is a
+      // valid input, so `api.lanes.list()` keeps compiling with zero args
+      // (#58 additivity check — see the PR description).
+      .input(laneListFilterSchema.optional())
       .errors({ SERVICE_UNAVAILABLE: { status: 503 } })
       .output(z.object({ lanes: z.array(laneSummarySchema) })),
     events: oc
