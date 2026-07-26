@@ -3,16 +3,35 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import { printSummary } from "./output.ts";
 
-/** Where `worktree new` creates agent worktrees (repo-relative). */
+/**
+ * Where `worktree new` creates worktrees for humans and non-isolated agents
+ * (repo-relative). The harness's own dispatch isolation creates its
+ * worktrees under `.claude/worktrees/` instead — see `MANAGED_WORKTREE_DIRS`.
+ */
 export const WORKTREES_DIR = ".worktrees";
 
 /**
- * All roots `worktree clean` sweeps. `.claude/worktrees/` is the legacy
- * location (still used by the harness's own auto-isolation); `.worktrees/`
- * is the current one — the `.claude/` tree is deny-listed for agent file
- * tools, so worktrees now live outside it.
+ * All roots `worktree clean` sweeps. Two locations, one rule: the harness
+ * owns `.claude/worktrees/` (auto-created when an agent is dispatched with
+ * harness worktree isolation — Claude Code hard-gates *entering* any
+ * worktree outside this path with an unsuppressable approval prompt, so the
+ * harness places its own worktrees there to skip the gate entirely; this has
+ * nothing to do with file-tool access, which works the same in both
+ * locations). Humans and the CLI own `.worktrees/` — what `WORKTREES_DIR`
+ * points at above. Neither location is legacy; both are swept here.
  */
 export const MANAGED_WORKTREE_DIRS = [".worktrees", ".claude/worktrees"] as const;
+
+/**
+ * Whether `worktreePath` falls under one of the managed worktree roots
+ * relative to `root`. Pure — exported so `worktree clean`'s handling of both
+ * locations is covered by a real test, not just read by inspection.
+ */
+export function isManagedWorktreePath(root: string, worktreePath: string): boolean {
+  const managedPrefixes = MANAGED_WORKTREE_DIRS.map((dir) => path.join(root, dir) + path.sep);
+  const resolved = path.resolve(worktreePath);
+  return managedPrefixes.some((prefix) => resolved.startsWith(prefix));
+}
 
 /**
  * Validate a branch/worktree name. Full branch names are accepted as-is
@@ -207,7 +226,6 @@ export function worktreeClean(options: { dryRun: boolean }): void {
   const remoteHeads = parseRemoteHeads(git(["ls-remote", "--heads", "origin"], root));
 
   const entries = parseWorktreeList(git(["worktree", "list", "--porcelain"], root));
-  const managedPrefixes = MANAGED_WORKTREE_DIRS.map((dir) => path.join(root, dir) + path.sep);
   const currentTop = tryGit(["rev-parse", "--show-toplevel"]);
   let removed = 0;
   let kept = 0;
@@ -218,7 +236,7 @@ export function worktreeClean(options: { dryRun: boolean }): void {
 
   for (const entry of entries) {
     const worktreePath = path.resolve(entry.path);
-    if (!managedPrefixes.some((prefix) => worktreePath.startsWith(prefix))) {
+    if (!isManagedWorktreePath(root, worktreePath)) {
       continue; // never the main checkout, never anything outside the managed roots
     }
     const label = path.relative(root, worktreePath);

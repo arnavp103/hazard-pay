@@ -39,9 +39,13 @@ Every brief must contain, explicitly:
 - **Context list**: the ticket + comments, the map's Notes, the specific ADRs and
   decision tickets it implements, relevant `research/*` branches. Name them;
   agents don't reliably go looking.
-- **Workflow**: follow `/implement` (worktree → draft PR first → incremental
-  pushes → green gate → /code-review → `gh pr ready`). Agents never merge, never
-  close issues, never remove their own worktree.
+- **Workflow**: follow `/implement`. Agents dispatched with harness worktree
+  isolation are ALREADY in a worktree under `.claude/worktrees/` — brief them
+  not to create a second one, and to push with `git push origin
+  HEAD:<ticket-branch>` since the harness assigns an auto-named branch.
+  From there: draft PR first → incremental pushes → green gate →
+  /code-review → `gh pr ready`. Agents never merge, never close issues, never
+  remove their own worktree.
 - **Scope fence**: which dirs are theirs, which shared files they may touch, who
   else is flying concurrently and where conflicts will be resolved (by the
   director, at merge time — agents don't coordinate laterally).
@@ -143,10 +147,25 @@ Be tactical per dispatch — the model is a dial, not an identity:
 
 Environment facts agents keep rediscovering; brief them or fix them:
 
-- `.claude/` is deny-listed for Read/Edit/Write file tools (Bash mostly works).
-  Consequence: worktrees live at `<repo>/.worktrees/<branch>`, not
-  `.claude/worktrees/` — file tools work normally there. Skills are readable at
-  `.agents/skills/<name>/SKILL.md` (the `.claude/skills` symlinks are not).
+- **Corrected 2026-07-26 (was wrong, and the wrongness cost a whole ticket,
+  #106): `.claude/` is NOT deny-listed for Read/Edit/Write file tools.**
+  Verified: the Read tool reads `.claude/settings.json` in the main checkout
+  with no denial, and the #98 research agent wrote and committed a
+  1,171-line file across six commits from inside
+  `.claude/worktrees/agent-a7bbd87aa215fb4ca`. What's actually gated is
+  different and unrelated to file tools: Claude Code hard-gates *entering* a
+  worktree outside `.claude/worktrees/` — an approval prompt that no
+  permission rule or setting can suppress (only `bypassPermissions`, which is
+  rejected; verified against https://code.claude.com/docs/en/worktrees). The
+  fix isn't a permission grant, it's placement: agents dispatched with the
+  harness's own worktree isolation already land under `.claude/worktrees/`
+  and never see the prompt at all. **The rule: the harness owns
+  `.claude/worktrees/`, humans own `.worktrees/`.** An isolated agent must
+  never call `EnterWorktree` with a model-supplied path and must never create
+  a second worktree of its own — it is already in one; brief it to push with
+  `git push origin HEAD:<ticket-branch>` since its branch is auto-named, not
+  the ticket branch. Skills are readable at `.agents/skills/<name>/SKILL.md`
+  either way (the `.claude/skills` symlinks are not, regardless of location).
 - Skills carrying `disable-model-invocation: true` are invisible to agents'
   Skill tool. `/implement` deliberately dropped the flag; keep it dropped.
 - Subagent cwd is pinned: `cd <dir> && cmd` compounds get denied
@@ -167,8 +186,9 @@ Environment facts agents keep rediscovering; brief them or fix them:
   a port mapping changed.
 - The harness's `isolation: worktree` auto-creates `agent-*` worktrees on
   auto-named branches under `.claude/worktrees/`; work pushed from there must
-  target the ticket branch explicitly (`git push origin HEAD:<branch>`). Prefer
-  skill-managed worktrees.
+  target the ticket branch explicitly (`git push origin HEAD:<branch>`). This
+  is expected and correct — do not create a second worktree on top of it; see
+  the relocation-gate fact above for why the harness places it there.
 - Secrets: the root `.env` is loaded via `@hazard-pay/env`'s checkout-root
   resolution (worktree-safe). Agents never read or print `.env` contents;
   presence checks only.
