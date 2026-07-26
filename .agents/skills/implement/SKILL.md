@@ -12,55 +12,22 @@ Implement the work described by the user in the spec or tickets. All implementat
 work happens in a dedicated git worktree and lands as a pull request — never commit
 to `main` directly.
 
-## 1. Worktree first — check isolation BEFORE creating anything
+## 1. Worktree first
 
-**Step zero, before any other step:** were you dispatched with harness
-worktree isolation? If your working directory is already under
-`.claude/worktrees/` (check `git rev-parse --show-toplevel`), the answer is
-yes — **you are already in a worktree. Do not create another one.** Do not
-call `EnterWorktree`, do not run `hazard-pay worktree new`, do not run
-`git worktree add`. Creating a second worktree on top of your isolated one is
-the exact failure mode that produced issue #106 — skip straight past this
-whole section to confirming your branch (`git branch --show-current` — it
-will be auto-named, not the ticket branch) and go to step 2. When you push,
-target the ticket branch explicitly: `git push origin HEAD:<ticket-branch>`.
+You are dispatched already inside an isolated worktree under
+`.claude/worktrees/`, on an auto-named branch. **Do not create another
+worktree.** Never call `EnterWorktree` with a model-supplied path, never run
+`hazard-pay worktree new`, never run `git worktree add`.
 
-**Only if you were NOT dispatched isolated** (no `.claude/worktrees/` in your
-path, and `git rev-parse --git-common-dir` equals `.git` — i.e. you're in the
-main checkout) do you set up a worktree yourself. Preferred path — the dev CLI
-does fetch, branch off `origin/main`, worktree add, and `pnpm install` in one
-step, then prints the PR-flow checklist:
+Name your ticket branch `issue-<n>-<short-slug>` when working a ticket (e.g.
+`issue-14-scaffold-db`), otherwise `<type>/<short-slug>` matching the commit
+type you expect to lead with. Push there explicitly, since your worktree's
+own branch is auto-named, not the ticket branch:
+`git push origin HEAD:<ticket-branch>`.
 
-```bash
-./apps/cli/bin/hazard-pay worktree new <branch>
-cd .worktrees/<branch>
-```
-
-Fallback (manual git), if the CLI is unavailable:
-
-```bash
-git fetch origin
-git worktree add .worktrees/<branch> -b <branch> origin/main
-cd .worktrees/<branch>
-pnpm install
-```
-
-Branch naming: `issue-<n>-<short-slug>` when working a ticket (e.g.
-`issue-14-scaffold-db`), otherwise `<type>/<short-slug>` matching the commit type
-you expect to lead with. `.worktrees/` is gitignored; never commit anything
-under it from the parent checkout.
-
-Two locations, one rule: **the harness owns `.claude/worktrees/`** (where
-dispatched-isolated agents already land — never create worktrees there
-yourself), **humans and the CLI own `.worktrees/`** (self-created worktrees go
-here). This split exists because Claude Code hard-gates *entering* a worktree
-outside `.claude/worktrees/` with an approval prompt no permission setting can
-suppress — placing dispatched agents inside `.claude/worktrees/` from the
-start avoids the prompt entirely; it has nothing to do with file-tool access,
-which works the same in both locations. Lifecycle: `hazard-pay worktree clean`
-removes worktrees in both `.worktrees/` and `.claude/worktrees/` whose branch
-is merged into `origin/main` or whose remote branch is gone — the orchestrator
-runs it, not you.
+Lifecycle: `hazard-pay worktree clean` removes worktrees under
+`.claude/worktrees/` whose branch is merged into `origin/main` or whose
+remote branch is gone — the orchestrator runs it, not you.
 
 ## Agent constraints
 

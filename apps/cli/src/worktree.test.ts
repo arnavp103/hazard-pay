@@ -123,18 +123,17 @@ test("parseRemoteHeads returns an empty set for empty output", () => {
   assert.equal(parseRemoteHeads("").size, 0);
 });
 
-test("isManagedWorktreePath recognizes both managed roots — this is what `worktree clean` sweeps", () => {
+test("isManagedWorktreePath recognizes the managed worktree root", () => {
   const root = "/repo";
-  assert.ok(isManagedWorktreePath(root, "/repo/.worktrees/issue-9-thing"));
   assert.ok(isManagedWorktreePath(root, "/repo/.claude/worktrees/agent-abc123"));
 });
 
-test("isManagedWorktreePath rejects the main checkout and anything outside the managed roots", () => {
+test("isManagedWorktreePath rejects the main checkout and anything outside the managed root", () => {
   const root = "/repo";
   assert.equal(isManagedWorktreePath(root, "/repo"), false);
   assert.equal(isManagedWorktreePath(root, "/repo/apps/cli"), false);
-  assert.equal(isManagedWorktreePath(root, "/elsewhere/.worktrees/thing"), false);
+  assert.equal(isManagedWorktreePath(root, "/elsewhere/.claude/worktrees/thing"), false);
   // a sibling directory that merely starts with the same prefix string
   // must not be misclassified as managed
-  assert.equal(isManagedWorktreePath(root, "/repo/.worktrees-backup/thing"), false);
+  assert.equal(isManagedWorktreePath(root, "/repo/.claude/worktrees-backup/thing"), false);
 });

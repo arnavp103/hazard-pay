@@ -4,33 +4,18 @@ import path from "node:path";
 import { printSummary } from "./output.ts";
 
 /**
- * Where `worktree new` creates worktrees for humans and non-isolated agents
- * (repo-relative). The harness's own dispatch isolation creates its
- * worktrees under `.claude/worktrees/` instead — see `MANAGED_WORKTREE_DIRS`.
+ * Where `worktree new` creates worktrees, and the root `worktree clean`
+ * sweeps (repo-relative).
  */
-export const WORKTREES_DIR = ".worktrees";
+export const WORKTREES_DIR = ".claude/worktrees";
 
 /**
- * All roots `worktree clean` sweeps. Two locations, one rule: the harness
- * owns `.claude/worktrees/` (auto-created when an agent is dispatched with
- * harness worktree isolation — Claude Code hard-gates *entering* any
- * worktree outside this path with an unsuppressable approval prompt, so the
- * harness places its own worktrees there to skip the gate entirely; this has
- * nothing to do with file-tool access, which works the same in both
- * locations). Humans and the CLI own `.worktrees/` — what `WORKTREES_DIR`
- * points at above. Neither location is legacy; both are swept here.
- */
-export const MANAGED_WORKTREE_DIRS = [".worktrees", ".claude/worktrees"] as const;
-
-/**
- * Whether `worktreePath` falls under one of the managed worktree roots
- * relative to `root`. Pure — exported so `worktree clean`'s handling of both
- * locations is covered by a real test, not just read by inspection.
+ * Whether `worktreePath` falls under the managed worktree root relative to
+ * `root`. Pure — exported for tests.
  */
 export function isManagedWorktreePath(root: string, worktreePath: string): boolean {
-  const managedPrefixes = MANAGED_WORKTREE_DIRS.map((dir) => path.join(root, dir) + path.sep);
-  const resolved = path.resolve(worktreePath);
-  return managedPrefixes.some((prefix) => resolved.startsWith(prefix));
+  const prefix = path.join(root, WORKTREES_DIR) + path.sep;
+  return path.resolve(worktreePath).startsWith(prefix);
 }
 
 /**
@@ -179,7 +164,7 @@ function upstreamRef(root: string, branch: string): string | undefined {
 
 /**
  * `hazard-pay worktree new <branch>`: fetch origin, create `<branch>` off
- * `origin/main`, add a worktree at `.worktrees/<branch>`, install
+ * `origin/main`, add a worktree at `.claude/worktrees/<branch>`, install
  * dependencies, and print the PR-flow checklist.
  */
 export function worktreeNew(name: string | undefined): void {
@@ -212,11 +197,11 @@ export function worktreeNew(name: string | undefined): void {
 }
 
 /**
- * `hazard-pay worktree clean`: remove worktrees under the managed roots
- * (`.worktrees/`, `.claude/worktrees/`) whose branch is merged into
- * `origin/main` or whose remote branch is gone, then delete their local
- * branches and prune. Skips (with a warning) the main checkout, the current
- * worktree, and anything dirty, locked, or detached.
+ * `hazard-pay worktree clean`: remove worktrees under `.claude/worktrees/`
+ * whose branch is merged into `origin/main` or whose remote branch is gone,
+ * then delete their local branches and prune. Skips (with a warning) the
+ * main checkout, the current worktree, and anything dirty, locked, or
+ * detached.
  */
 export function worktreeClean(options: { dryRun: boolean }): void {
   const { dryRun } = options;
@@ -237,7 +222,7 @@ export function worktreeClean(options: { dryRun: boolean }): void {
   for (const entry of entries) {
     const worktreePath = path.resolve(entry.path);
     if (!isManagedWorktreePath(root, worktreePath)) {
-      continue; // never the main checkout, never anything outside the managed roots
+      continue; // never the main checkout, never anything outside the managed root
     }
     const label = path.relative(root, worktreePath);
     if (entry.detached || entry.branch === undefined) {
