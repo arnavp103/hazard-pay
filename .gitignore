@@ -29,12 +29,7 @@ dist/
 # Ephemeral local scratch space (handoffs, local-only notes)
 .scratch/
 
-# Two locations, one rule: the harness owns .claude/worktrees/ (auto-created
-# for dispatched-isolated agents — Claude Code hard-gates entering a worktree
-# outside it, so placement here is what avoids the prompt, not a file-tool
-# restriction), humans and the CLI own .worktrees/ (see
-# .agents/skills/implement and apps/cli/src/worktree.ts).
-.worktrees/
+# Agent worktrees (see .agents/skills/implement, apps/cli/src/worktree.ts)
 .claude/worktrees/
 
 # Local telemetry JSONL (see packages/observability; clean with `pnpm telemetry:clean`)
