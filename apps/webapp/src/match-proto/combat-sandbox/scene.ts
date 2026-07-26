@@ -37,22 +37,25 @@
 
 import * as THREE from "three";
 
-import { ALL_LAYERS, type LayerFlags, NO_LAYERS, UnitAnimator } from "./animator.ts";
+import { ALL_LAYERS, type LayerFlags, UnitAnimator } from "./animator.ts";
 import { ARCHETYPE_NAMES } from "./archetypes.ts";
 import { authoredKeyTotal, BASE_KEY_COUNT, type BaseDensity } from "./authored.ts";
 import { buildBoard } from "./board.ts";
 import { buildUnit, HERO_HEIGHT, LEG_LENGTH, type UnitRig } from "./figure.ts";
-import { emitMaterial, flatLights, INK, litMaterial, MARK_LAYER } from "./flat.ts";
+import { flatLights, INK, MARK_LAYER } from "./flat.ts";
 import {
+  advanceBattle,
   ATTACK_STEPS,
   createBattle,
   FIXED_STEP,
   RELEASE_AT,
   type SimState,
   type SimUnit,
+  soloUnit,
   stepBattle,
+  stepsFor,
 } from "./sim.ts";
-import { factionOf, MARK_PIXELS, SIGNAL, type Tier } from "./units.ts";
+import { factionOf, MARK_PIXELS, SIGNAL, sideOf, type Tier } from "./units.ts";
 
 export const STAGE_WIDTH = 480;
 export const STAGE_HEIGHT = 270;
@@ -102,6 +105,12 @@ export const LINEUP_ZOOM = Math.min(
   0.95,
   STAGE_WIDTH / (2 * PX_PER_UNIT * (((LINEUP_COLUMNS - 1) / 2) * LINEUP_SPACING + 1.2)),
 );
+
+/** The framing each view opens at. Shared so the surface cannot disagree. */
+export function defaultZoom(view: SceneView): number {
+  if (view === "crowd") { return CROWD_ZOOM; }
+  return view === "lineup" ? LINEUP_ZOOM : COMBAT_ZOOM;
+}
 
 export interface CostReport {
   view: SceneView;
@@ -286,31 +295,15 @@ class ShadowField {
   }
 }
 
+/**
+ * A unit for the scripted views. Built by `sim.ts` so `SimUnit` has exactly
+ * one constructor — a hand-written literal here would silently miss any field
+ * a prototype adds for a new animation state.
+ */
 function makeDrive(id: number): SimUnit {
-  return {
-    aimX: 0,
-    aimY: 1.1,
-    aimZ: 4,
-    angularVelocity: 0,
-    archetype: "medic",
-    attackStep: -1,
-    ax: 0,
-    az: 0,
-    cooldownSteps: 0,
-    facing: 0,
-    firedAtStep: -1,
-    hitAtStep: -1,
-    id,
-    randomState: id,
-    side: 0,
-    speed: 0,
-    targetId: -1,
-    tier: "hero",
-    vx: 0,
-    vz: 0,
-    x: 0,
-    z: 0,
-  };
+  const unit = soloUnit(id);
+  unit.aimY = 1.1;
+  return unit;
 }
 
 /** Eight held facings with deliberately uneven dwells — a turn, not a turntable. */
@@ -457,8 +450,7 @@ export function mountCombatSandbox(host: HTMLElement, options: MountOptions = {}
   const layers = options.layers ?? ALL_LAYERS;
   const scale = options.scale ?? 1;
   const marking = options.mark ?? true;
-  const zoom = options.zoom
-    ?? (view === "crowd" ? CROWD_ZOOM : (view === "lineup" ? LINEUP_ZOOM : COMBAT_ZOOM));
+  const zoom = options.zoom ?? defaultZoom(view);
   const width = Math.round(STAGE_WIDTH * scale);
   const height = Math.round(STAGE_HEIGHT * scale);
   const pxPerUnit = PX_PER_UNIT * scale;
@@ -499,7 +491,7 @@ export function mountCombatSandbox(host: HTMLElement, options: MountOptions = {}
       const depth = ((rows - 1) / 2 - row) * LINEUP_ROW_GAP;
       drive.archetype = entry.archetype;
       drive.tier = entry.tier;
-      drive.side = entry.faction === "crew" ? 0 : 1;
+      drive.side = sideOf(entry.faction);
       drive.x = RIGHT.x * across + FORWARD.x * depth;
       drive.z = RIGHT.z * across + FORWARD.z * depth;
       return drive;
@@ -665,6 +657,9 @@ export function mountCombatSandbox(host: HTMLElement, options: MountOptions = {}
     };
   };
 
+  /** Steps of real animation run before a fast-forwarded opening frame. */
+  const ANIMATOR_WARMUP = 45;
+
   const stepOnce = (at: number, dt: number): void => {
     if (battle !== undefined) {
       stepBattle(battle);
@@ -680,8 +675,11 @@ export function mountCombatSandbox(host: HTMLElement, options: MountOptions = {}
     }
   };
 
+  // `stepsFor`, not a local rounding rule: after `renderAt(t)` the battle must
+  // be on exactly the step `battleAt(t)` would have reached, or a capture does
+  // not show the frame it claims to.
   const advanceTo = (to: number): void => {
-    const wanted = Math.min(Math.floor(to / FIXED_STEP + 1e-9), simSteps + 40000);
+    const wanted = Math.min(stepsFor(to), simSteps + 40000);
     while (simSteps < wanted) {
       simSteps += 1;
       simTime = simSteps * FIXED_STEP;
@@ -689,11 +687,34 @@ export function mountCombatSandbox(host: HTMLElement, options: MountOptions = {}
     }
   };
 
-  // Pose everything once at t=0. Without this the first rendered frame shows
-  // the bind rigs still stacked at the world origin, which is invisible in a
-  // one-unit view and unmistakable in a lineup or a crowd.
-  stepOnce(0, FIXED_STEP);
-  if (options.startAt !== undefined && options.startAt > 0) { advanceTo(options.startAt); }
+  // Pose everything at t=0 WITHOUT consuming a step. Without a pose the first
+  // frame shows the bind rigs stacked at the world origin; with a step, the
+  // battle would sit permanently one step ahead of `simSteps`.
+  if (view === "hero") {
+    const drive = drives[0];
+    if (drive !== undefined) { driveHero(drive, anim, 0); }
+  } else if (view === "lineup") {
+    for (const drive of drives) { driveLineup(drive, anim, 0); }
+  }
+  for (const drive of drives) {
+    bodies.get(drive.id)?.animator.update(drive, 0, FIXED_STEP);
+  }
+
+  if (options.startAt !== undefined && options.startAt > 0) {
+    // Open mid-fight the way a slice resolution would: resume the battle
+    // straight to the boundary and only run the last `ANIMATOR_WARMUP` steps
+    // through the animators, which need a little history for their springs and
+    // stride clocks to settle. Skipping 8 seconds costs one battle replay
+    // instead of 480 crowd-wide animator updates.
+    const target = stepsFor(options.startAt);
+    if (battle !== undefined && target > ANIMATOR_WARMUP) {
+      advanceBattle(battle, target - ANIMATOR_WARMUP);
+      drives = battle.units;
+      simSteps = target - ANIMATOR_WARMUP;
+      simTime = simSteps * FIXED_STEP;
+    }
+    advanceTo(options.startAt);
+  }
   const sliceEnd = options.sliceSeconds === undefined
     ? undefined
     : (options.startAt ?? 0) + options.sliceSeconds;
@@ -811,5 +832,3 @@ export function mountCombatSandbox(host: HTMLElement, options: MountOptions = {}
     renderAt: bridge.renderAt,
   };
 }
-
-export { ALL_LAYERS, emitMaterial, litMaterial, NO_LAYERS };

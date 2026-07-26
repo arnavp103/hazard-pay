@@ -14,7 +14,7 @@ import {
   type Tier,
   type UnitRig,
 } from "./figure.ts";
-import type { SimUnit } from "./sim.ts";
+import { type SimUnit, soloUnit } from "./sim.ts";
 
 const KINDS: Archetype[] = ["medic", "melee", "ranged"];
 const FACTIONS: Faction[] = ["crew", "opfor"];
@@ -35,30 +35,11 @@ const VIEW = new THREE.Vector3(0.61237, 0.5, 0.61237).normalize();
 const UP = new THREE.Vector3(-0.35355, 0.86603, -0.35355);
 
 function standingDrive(): SimUnit {
-  return {
-    aimX: 0,
-    aimY: 1.1,
-    aimZ: 4,
-    angularVelocity: 0,
-    archetype: "melee",
-    attackStep: -1,
-    ax: 0,
-    az: 0,
-    cooldownSteps: 0,
-    facing: 0,
-    firedAtStep: -1,
-    hitAtStep: -1,
-    id: 3,
-    randomState: 3,
-    side: 0,
-    speed: 0,
-    targetId: -1,
-    tier: "hero",
-    vx: 0,
-    vz: 0,
-    x: 0,
-    z: 0,
-  };
+  const drive = soloUnit(3, { archetype: "melee", tier: "hero" });
+  drive.aimX = 0;
+  drive.aimY = 1.1;
+  drive.aimZ = 4;
+  return drive;
 }
 
 /**

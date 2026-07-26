@@ -58,7 +58,7 @@ const DEFAULT_SHOTS = [
 ];
 
 const DEFAULT_GIFS = [
-  ["crowd-motion", "view=crowd"],
+  ["crowd-motion", "view=crowd&start=6"],
 ];
 
 const USAGE = `node capture.mjs [options]
@@ -159,10 +159,19 @@ function writeDataUrl(dataUrl, path) {
   writeFileSync(path, Buffer.from(dataUrl.slice(comma + 1), "base64"));
 }
 
-/** Opens a sandbox URL and waits for the page to publish its capture bridge. */
-function openShot(base, query, scale) {
+/**
+ * Opens a sandbox URL and waits for the page to publish its capture bridge.
+ *
+ * `freeze` matters more than it looks. Without it the page runs a
+ * requestAnimationFrame loop, and since `renderAt` only ever moves the
+ * fixed-step clock FORWARD, every frame a GIF asks for is already in the past
+ * by the time the eval lands — so the frames come out at eval-latency spacing
+ * wherever the live loop happens to be, not at the times requested. Callers
+ * that drive `renderAt` themselves must pass `freeze`.
+ */
+function openShot(base, query, scale, extra = "") {
   const separator = query.includes("scale=") || scale === 1 ? "" : `&scale=${scale}`;
-  const url = `${base}/combat-sandbox?capture=1&${query}${separator}`;
+  const url = `${base}/combat-sandbox?capture=1&${query}${separator}${extra}`;
   browser(["open", url], { quiet: true });
   for (let attempt = 0; attempt < 60; attempt += 1) {
     if (evaluate("typeof window.__combatSandbox === 'object'") === true) {
@@ -182,11 +191,16 @@ function still(base, out, name, query, scale) {
 }
 
 function gif(base, out, name, query, options) {
-  const url = openShot(base, query, options.scale);
+  // Freeze the page so the clock only moves when we move it.
+  const url = openShot(base, query, options.scale, query.includes("freeze=") ? "" : "&freeze=0");
+  // A shot may open mid-fight with `start=`; the clock cannot rewind, so the
+  // first frame is whichever is later, the requested --from or where we are.
+  const opened = evaluate("window.__combatSandbox.simTime()");
+  const base0 = Math.max(options.from, opened);
   const frameDir = join(out, `.frames-${name}`);
   mkdirSync(frameDir, { recursive: true });
   for (let i = 0; i < options.frames; i += 1) {
-    const at = options.from + i / options.fps;
+    const at = base0 + i / options.fps;
     writeDataUrl(
       evaluate(`(() => { window.__combatSandbox.renderAt(${at}); return window.__combatSandbox.png(); })()`),
       join(frameDir, `${String(i).padStart(4, "0")}.png`),
@@ -207,7 +221,7 @@ function gif(base, out, name, query, options) {
   if (!options.keepFrames) {
     rmSync(frameDir, { force: true, recursive: true });
   }
-  console.log(`  ${name}.gif  <-  ${url}  (${options.frames} frames @ ${options.fps} fps)`);
+  console.log(`  ${name}.gif  <-  ${url}  (${options.frames} frames @ ${options.fps} fps from ${base0.toFixed(2)}s)`);
 }
 
 async function main() {

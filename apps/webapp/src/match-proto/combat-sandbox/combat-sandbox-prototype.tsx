@@ -31,13 +31,10 @@ import { StatusChip } from "@hazard-pay/ui";
 import { ALL_LAYERS, type LayerFlags, NO_LAYERS } from "./animator.ts";
 import { BASE_DENSITIES, BASE_KEY_COUNT, type BaseDensity } from "./authored.ts";
 import {
-  COMBAT_ZOOM,
   type CostReport,
-  CROWD_ZOOM,
+  defaultZoom,
   type HeroAnim,
-  LINEUP_ZOOM,
   mountCombatSandbox,
-  type SandboxHandle,
   type SceneView,
   STAGE_HEIGHT,
   STAGE_WIDTH,
@@ -123,18 +120,18 @@ function readOptional(name: string, low: number, high: number): number | undefin
   return Number.isFinite(parsed) && parsed >= low && parsed <= high ? parsed : undefined;
 }
 
-function isCapture(): boolean {
+/** `?capture=1` — hide the dev chrome. The route reads this too. */
+export function isCaptureMode(): boolean {
   return params().get("capture") === "1";
 }
 
 export function CombatSandboxPrototype() {
   const hostRef = useRef<HTMLDivElement | null>(null);
-  const handleRef = useRef<SandboxHandle | null>(null);
   const [cost, setCost] = useState<CostReport | null>(null);
   const [view] = useState<SceneView>(readView);
   const [anim] = useState<HeroAnim>(readAnim);
   const [base] = useState<BaseDensity>(readBase);
-  const capture = isCapture();
+  const capture = isCaptureMode();
   const animInfo = heroAnimations.find((item) => item.key === anim) ?? heroAnimations[0];
 
   useEffect(() => {
@@ -156,12 +153,7 @@ export function CombatSandboxPrototype() {
       motion: params().get("motion") === "1",
       scale: readNumber("scale", 1, 1, 3),
       view: currentView,
-      zoom: readNumber(
-        "zoom",
-        currentView === "crowd" ? CROWD_ZOOM : (currentView === "lineup" ? LINEUP_ZOOM : COMBAT_ZOOM),
-        0.2,
-        4,
-      ),
+      zoom: readNumber("zoom", defaultZoom(currentView), 0.2, 4),
       ...(freeze === undefined ? {} : { freezeMs: freeze }),
       ...(seed === undefined ? {} : { seed }),
       ...(startAt === undefined ? {} : { startAt }),
@@ -177,12 +169,10 @@ export function CombatSandboxPrototype() {
           }
         : {}),
     });
-    handleRef.current = handle;
     const timer = globalThis.setInterval(() => { setCost(handle.cost()); }, 500);
     setCost(handle.cost());
     return () => {
       globalThis.clearInterval(timer);
-      handleRef.current = null;
       handle.destroy();
     };
   }, []);

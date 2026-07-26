@@ -2,7 +2,10 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 
 import { StatusChip } from "@hazard-pay/ui";
 
-import { CombatSandboxPrototype } from "../match-proto/combat-sandbox/combat-sandbox-prototype.tsx";
+import {
+  CombatSandboxPrototype,
+  isCaptureMode,
+} from "../match-proto/combat-sandbox/combat-sandbox-prototype.tsx";
 
 export const Route = createFileRoute("/combat-sandbox")({
   component: CombatSandboxScreen,
@@ -17,8 +20,7 @@ export const Route = createFileRoute("/combat-sandbox")({
  * questions and nothing is served by unifying them.
  */
 function CombatSandboxScreen() {
-  const capture = globalThis.location !== undefined
-    && new URLSearchParams(globalThis.location.search).get("capture") === "1";
+  const capture = isCaptureMode();
 
   if (capture) {
     return (

@@ -83,3 +83,7 @@ export type Side = 0 | 1;
 export function factionOf(side: Side): Faction {
   return side === 0 ? "crew" : "opfor";
 }
+
+export function sideOf(faction: Faction): Side {
+  return faction === "crew" ? 0 : 1;
+}

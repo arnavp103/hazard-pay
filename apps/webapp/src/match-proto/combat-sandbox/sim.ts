@@ -65,7 +65,7 @@
  * is an art-direction commitment. See `README.md`.
  */
 
-import { type Archetype, profileOf } from "./archetypes.ts";
+import type { Archetype } from "./archetypes.ts";
 import {
   type Behaviour,
   type BehaviourContext,
@@ -116,10 +116,6 @@ function defaultHeroArchetype(side: Side, heroIndex: number): Archetype {
 function defaultFodderArchetype(rank: number, index: number): Archetype {
   if (rank === 0) { return index % 3 === 2 ? "ranged" : "melee"; }
   return index % 3 === 2 ? "melee" : "ranged";
-}
-
-export function profileFor(unit: SimUnit) {
-  return profileOf(unit.archetype, unit.tier);
 }
 
 function makeUnit(
@@ -224,6 +220,39 @@ export function createBattle(options: BattleOptions = {}): SimState {
   }
 
   return state;
+}
+
+export interface SoloUnitSpec {
+  archetype?: Archetype;
+  tier?: Tier;
+  side?: Side;
+  x?: number;
+  z?: number;
+  facing?: number;
+}
+
+/**
+ * One unit outside a battle — what the scene's scripted `hero` and `lineup`
+ * views drive, and what a rig test poses.
+ *
+ * It exists so `SimUnit` is built in exactly one place: adding a field is then
+ * one edit in `state.ts` plus one in `makeUnit`, and every caller inherits it.
+ * A hand-written `SimUnit` literal elsewhere is a latent bug.
+ */
+export function soloUnit(id: number, spec: SoloUnitSpec = {}): SimUnit {
+  const unit = makeUnit(
+    id,
+    spec.side ?? 0,
+    spec.tier ?? "hero",
+    spec.archetype ?? "medic",
+    spec.x ?? 0,
+    spec.z ?? 0,
+    spec.facing ?? 0,
+    id,
+  );
+  // No battle means no cooldown pressure; the scripted clips set the beat.
+  unit.cooldownSteps = 0;
+  return unit;
 }
 
 /**

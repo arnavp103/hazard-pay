@@ -86,6 +86,13 @@ export interface SimState {
   retargetAtStep: number;
 }
 
+/**
+ * Note the two roster hooks are functions, so `BattleOptions` — unlike
+ * `SimState` — does not survive `JSON.stringify`. A battle is still fully
+ * reproducible from `(seed, options, steps)`, but a caller that has to ship a
+ * battle *specification* over a wire should stay on the data-only fields and
+ * agree the roster out of band.
+ */
 export interface BattleOptions {
   seed?: number;
   fodderPerSide?: number;
