@@ -48,6 +48,9 @@ vi.mock("./scene.ts", () => {
     COMBAT_ZOOM: 0.82,
     CROWD_ZOOM: 0.55,
     defaultZoom: () => 0.55,
+    // #100 round 4. The surface reads `camera=fit|pan` through this guard, so
+    // the mock has to carry it or every mount test fails on a missing export.
+    isCameraMode: (value: string | null) => value === "fit" || value === "pan",
     LINEUP_ZOOM: 0.7,
     mountCombatSandbox: vi.fn(makeHandle),
     STAGE_HEIGHT: 270,

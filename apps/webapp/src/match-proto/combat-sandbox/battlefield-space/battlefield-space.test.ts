@@ -37,12 +37,18 @@ import {
   usableFaces,
 } from "./directional-cover.ts";
 import {
+  BOARD_SIZES,
   boardFor,
   type BoardProp,
   bodyRadius,
+  cellCentre,
+  cellIndexAt,
   COVER_DENSITIES,
   densityReport,
-  GRID,
+  DENSITY_PROPS,
+  LATTICE,
+  onBoard,
+  SIZE_CELLS,
   overlappingRetrofits,
   RETROFIT_PROPS,
   sightBetween,
@@ -57,8 +63,20 @@ import {
   createSpaceBattle,
   type RosterMode,
   unitsInsideFootprints,
+  unitsOffBoard,
   unitsOnWalkableTiles,
 } from "./space.ts";
+import {
+  CAMERA_MODES,
+  CROWD_ZOOM,
+  FIT_BAND_FLOOR_CELLS,
+  fodderPixels,
+  LEGIBLE_PX,
+  PAN_PERIOD,
+  panAmplitude,
+  panOffset,
+  zoomFor,
+} from "../scene.ts";
 
 /** Round 1's board — the density every round-1 claim was measured against. */
 const DENSE = boardFor("dense");
@@ -84,8 +102,9 @@ describe("the port of lane 5's occupancy model", () => {
 
   it("leaves a walkable board rather than a maze", () => {
     const walkables = walkableCells(DENSE).length;
-    expect(walkables).toBeGreaterThan(GRID * GRID * 0.6);
-    expect(walkables).toBeLessThan(GRID * GRID);
+    const tiles = DENSE.cells * DENSE.cells;
+    expect(walkables).toBeGreaterThan(tiles * 0.6);
+    expect(walkables).toBeLessThan(tiles);
   });
 
   it("never overlaps two tile-authored footprints", () => {
@@ -494,7 +513,7 @@ describe("round 3 — the shared cost field", () => {
     const state = advanceBattle(createSpaceBattle("cover", { density: "spread" }), stepsFor(4));
     for (const unit of state.units) {
       if (unit.approachCell < 0) { continue; }
-      expect(walkable(board, unit.approachCell % GRID, Math.floor(unit.approachCell / GRID)))
+      expect(walkable(board, unit.approachCell % LATTICE, Math.floor(unit.approachCell / LATTICE)))
         .toBe(true);
     }
   });
@@ -599,5 +618,154 @@ describe("round 3 — the three exposure states", () => {
   it("leaves every body in the open in the plaza — nothing to duck behind", () => {
     const state = advanceBattle(createSpaceBattle("plaza"), stepsFor(20));
     expect(state.units.every((unit) => unit.coverState === OPEN)).toBe(true);
+  });
+});
+
+describe("round 4: the board is a window on a fixed lattice", () => {
+  it("reproduces rounds 1-3's board exactly at `compact`", () => {
+    // The whole round rests on this. If the lattice refactor moved a single
+    // prop, every round-4 number is measured against a different board than
+    // rounds 1-3 and the comparison is worthless.
+    for (const density of COVER_DENSITIES) {
+      const board = boardFor(density, "compact");
+      expect(board.cells).toBe(20);
+      expect(board.authored.length).toBe(DENSITY_PROPS[density]);
+      expect(densityReport(board).authoredPer400).toBeCloseTo(DENSITY_PROPS[density], 6);
+    }
+  });
+
+  it("holds prop density per unit of floor across the area axis", () => {
+    // Round 4's methodological precondition: if this drifts, the round tested
+    // prop count again by accident and nothing measured on it means anything.
+    for (const size of BOARD_SIZES) {
+      const report = densityReport(boardFor("spread", size));
+      expect(report.authoredPer400).toBeGreaterThan(15);
+      expect(report.authoredPer400).toBeLessThan(17);
+    }
+  });
+
+  it("scales floor per unit with area, not with side", () => {
+    const compact = densityReport(boardFor("spread", "compact")).floorPerUnit;
+    const vast = densityReport(boardFor("spread", "vast")).floorPerUnit;
+    expect(vast / compact).toBeCloseTo(4, 5);
+  });
+
+  it("keeps a cell index meaning the same tile at every board size", () => {
+    // The reason the lattice is fixed rather than per-board. `SimUnit.coverCell`
+    // is a plain number that has to survive a slice boundary, so it may not
+    // decode to a different tile depending on a second field.
+    for (const size of BOARD_SIZES) {
+      const board = boardFor("spread", size);
+      const cell = cellIndexAt(0.4);
+      expect(onBoard(board, cell, cell)).toBe(true);
+      const centre = cellCentre(cell, cell);
+      expect(cellIndexAt(centre.x)).toBe(cell);
+    }
+  });
+
+  it("never places a prop whose footprint leaves the board", () => {
+    // A clipped footprint is a prop whose silhouette and occupancy disagree,
+    // which is the one thing the two-contract schema exists to prevent.
+    for (const size of BOARD_SIZES) {
+      const board = boardFor("spread", size);
+      for (const prop of board.authored) {
+        expect(prop.cells.cx0).toBeGreaterThanOrEqual(board.lo);
+        expect(prop.cells.cy0).toBeGreaterThanOrEqual(board.lo);
+        expect(prop.cells.cx1).toBeLessThanOrEqual(board.hi);
+        expect(prop.cells.cy1).toBeLessThanOrEqual(board.hi);
+      }
+    }
+  });
+
+  it("keeps every body on the board it was deployed onto", () => {
+    for (const size of BOARD_SIZES) {
+      const board = boardFor("spread", size);
+      const state = advanceBattle(
+        createSpaceBattle("cover", { density: "spread", size }),
+        stepsFor(20),
+      );
+      expect(unitsOffBoard(board, state)).toBe(0);
+      expect(unitsInsideFootprints(board, state)).toBe(0);
+    }
+  });
+
+  it("still resumes a slice bit-for-bit at every board size", () => {
+    // Resumability is asserted for the compact board elsewhere; round 4 added a
+    // state field, so it has to keep holding at every size.
+    for (const size of BOARD_SIZES) {
+      const straight = advanceBattle(
+        createSpaceBattle("cover", { density: "spread", size }),
+        stepsFor(8),
+      );
+      const boundary = advanceBattle(
+        createSpaceBattle("cover", { density: "spread", size }),
+        stepsFor(3),
+      );
+      const resumed = advanceBattle(
+        JSON.parse(JSON.stringify(boundary)) as SimState,
+        stepsFor(8) - stepsFor(3),
+      );
+      expect(resumed.units.map((unit) => [unit.x, unit.z]))
+        .toEqual(straight.units.map((unit) => [unit.x, unit.z]));
+    }
+  });
+
+  it("spreads the army with the board rather than resizing it", () => {
+    // Round 4's fence: vary the floor, never the army.
+    for (const size of BOARD_SIZES) {
+      expect(createSpaceBattle("cover", { density: "spread", size }).units.length).toBe(40);
+    }
+    const spanOf = (state: SimState): number => {
+      const along = state.units.map((unit) => (unit.x - unit.z) / Math.SQRT2);
+      return Math.max(...along) - Math.min(...along);
+    };
+    const compact = spanOf(createSpaceBattle("plaza", { size: "compact" }));
+    const vast = spanOf(createSpaceBattle("plaza", { size: "vast" }));
+    expect(vast / compact).toBeCloseTo(2, 0);
+  });
+});
+
+describe("round 4: the camera collision", () => {
+  it("puts the crossover below the first step up the area axis", () => {
+    // The number the choice turns on: past this board side, pulling back drops
+    // a fodder figure out of the 22-48 px band every finding was measured in,
+    // so panning stops being a preference.
+    expect(FIT_BAND_FLOOR_CELLS).toBeGreaterThan(SIZE_CELLS.compact);
+    expect(FIT_BAND_FLOOR_CELLS).toBeLessThan(SIZE_CELLS.broad);
+  });
+
+  it("keeps `compact` in the band under both treatments", () => {
+    for (const camera of CAMERA_MODES) {
+      const px = fodderPixels(zoomFor(camera, "compact"));
+      expect(px).toBeGreaterThanOrEqual(LEGIBLE_PX.low);
+      expect(px).toBeLessThanOrEqual(LEGIBLE_PX.high);
+    }
+  });
+
+  it("drops every bigger board out of the band under `fit`", () => {
+    for (const size of ["broad", "vast"] as const) {
+      expect(fodderPixels(zoomFor("fit", size))).toBeLessThan(LEGIBLE_PX.low);
+    }
+  });
+
+  it("holds the figure size at every board size under `pan`", () => {
+    for (const size of BOARD_SIZES) {
+      expect(fodderPixels(zoomFor("pan", size))).toBeCloseTo(fodderPixels(CROWD_ZOOM), 9);
+    }
+  });
+
+  it("traverses the board once per half period, linearly", () => {
+    const sweep = panAmplitude("vast", CROWD_ZOOM);
+    expect(sweep).toBeGreaterThan(0);
+    expect(panOffset(0, sweep)).toBeCloseTo(-sweep, 9);
+    expect(panOffset(PAN_PERIOD / 2, sweep)).toBeCloseTo(sweep, 9);
+    expect(panOffset(PAN_PERIOD, sweep)).toBeCloseTo(-sweep, 9);
+    // Linear rather than eased, so the middle of a traverse is the middle of
+    // the board and a 4-second filmstrip is not two shots of one edge.
+    expect(panOffset(PAN_PERIOD / 4, sweep)).toBeCloseTo(0, 9);
+  });
+
+  it("holds the camera still when the board already fits", () => {
+    expect(panOffset(3, 0)).toBe(0);
   });
 });

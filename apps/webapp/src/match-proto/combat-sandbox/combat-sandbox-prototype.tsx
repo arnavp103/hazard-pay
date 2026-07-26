@@ -31,6 +31,17 @@
  *                            used cover. Default on.
  *   roster=mixed|ranged|split    #100 round 2: composition — the bake-off mix,
  *                            all shooters, or shooters vs swords
+ *   size=compact|broad|vast  #100 round 4: how much floor, at a fixed 40
+ *                            bodies — 20x20 / 28x28 / 40x40 tiles, which is
+ *                            13.3 / 26.1 / 53.2 world units squared per body.
+ *                            The army spreads with the board. Default compact,
+ *                            which is rounds 1-3's fight unchanged
+ *   camera=fit|pan           #100 round 4: how the fixed dimetric camera
+ *                            absorbs a bigger board. `fit` pulls back and the
+ *                            figures shrink out of the 22-48 px band every
+ *                            legibility finding was measured in; `pan`
+ *                            translates instead and the whole board is never
+ *                            on screen. Ignored if `zoom` is set
  *   fire=none|hitscan|bolt   #100 round 2: how a ranged attack is drawn.
  *                            Default none, the status quo of every art lane.
  *                            A PROTOTYPE STAND-IN, not an art proposal — read
@@ -46,7 +57,12 @@ import { StatusChip } from "@hazard-pay/ui";
 
 import { ALL_LAYERS, type LayerFlags, NO_LAYERS } from "./animator.ts";
 import { BASE_DENSITIES, BASE_KEY_COUNT, type BaseDensity } from "./authored.ts";
-import { type CoverDensity, isCoverDensity } from "./battlefield-space/cover-model.ts";
+import {
+  type BoardSize,
+  type CoverDensity,
+  isBoardSize,
+  isCoverDensity,
+} from "./battlefield-space/cover-model.ts";
 import { type FireMode, isFireMode } from "./battlefield-space/fire-render.ts";
 import {
   isRosterMode,
@@ -55,9 +71,11 @@ import {
   type SpaceMode,
 } from "./battlefield-space/space.ts";
 import {
+  type CameraMode,
   type CostReport,
   defaultZoom,
   type HeroAnim,
+  isCameraMode,
   mountCombatSandbox,
   type SceneView,
   STAGE_HEIGHT,
@@ -118,6 +136,16 @@ function readSpace(): SpaceMode {
 
 function readDensity(): CoverDensity {
   return isCoverDensity(params().get("density")) ? params().get("density") as CoverDensity : "dense";
+}
+
+function readSize(): BoardSize {
+  const value = params().get("size");
+  return isBoardSize(value) ? value : "compact";
+}
+
+function readCamera(): CameraMode {
+  const value = params().get("camera");
+  return isCameraMode(value) ? value : "fit";
 }
 
 function readRoster(): RosterMode {
@@ -200,8 +228,10 @@ export function CombatSandboxPrototype() {
       layers: readLayers(),
       mark: params().get("mark") !== "0",
       motion: params().get("motion") === "1",
+      camera: readCamera(),
       roster: readRoster(),
       scale: readNumber("scale", 1, 1, 3),
+      size: readSize(),
       space: readSpace(),
       view: currentView,
       zoom: readNumber("zoom", defaultZoom(currentView), 0.2, 4),

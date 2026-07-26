@@ -48,7 +48,13 @@ import { buildCoverBoard } from "./battlefield-space/cover-board.ts";
 // Registers the duck/peek silhouettes at module scope. Imported for the side
 // effect, exactly as `cover-behaviours.ts` registers its behaviours.
 import "./battlefield-space/cover-poses.ts";
-import type { CoverDensity } from "./battlefield-space/cover-model.ts";
+import {
+  BASE_GRID,
+  boardExtent,
+  type BoardSize,
+  type CoverDensity,
+  sizeScale,
+} from "./battlefield-space/cover-model.ts";
 import {
   type FireMode,
   FireField,
@@ -70,7 +76,7 @@ import {
   stepBattle,
   stepsFor,
 } from "./sim.ts";
-import { factionOf, MARK_PIXELS, SIGNAL, sideOf, type Tier } from "./units.ts";
+import { factionOf, FODDER_HEIGHT, MARK_PIXELS, SIGNAL, sideOf, type Tier } from "./units.ts";
 
 export const STAGE_WIDTH = 480;
 export const STAGE_HEIGHT = 270;
@@ -127,6 +133,111 @@ export function defaultZoom(view: SceneView): number {
   return view === "lineup" ? LINEUP_ZOOM : COMBAT_ZOOM;
 }
 
+/* ------------------------------------------------------------------ */
+/* #100 round 4: the camera collision                                  */
+/* ------------------------------------------------------------------ */
+
+/**
+ * What a bigger board does to a fixed 2:1 dimetric, translate-only camera.
+ *
+ * There are exactly two options and this type is both of them. Neither is a
+ * default in any meaningful sense — the point of round 4 is that a bigger board
+ * forces the choice, so the choice is named in the code rather than emerging
+ * from a zoom number somebody typed.
+ *
+ *   fit  pull back. The whole board keeps the same share of frame it has at
+ *        20x20, and the figures shrink with it.
+ *   pan  hold the figure size and translate across the board instead, so the
+ *        whole fight is never on screen at once.
+ */
+export type CameraMode = "fit" | "pan";
+
+export const CAMERA_MODES: readonly CameraMode[] = ["fit", "pan"];
+
+export function isCameraMode(value: string | null): value is CameraMode {
+  return value === "fit" || value === "pan";
+}
+
+/**
+ * Screen height of a standing fodder figure, in pixels, at a given zoom.
+ *
+ * The band **every** legibility finding on this map was measured in is 22-48 px:
+ * marking, tier separation, silhouette reads, and the duck/peek height
+ * difference the directional-cover ruling turns on. So this is the number that
+ * decides whether a camera treatment is admissible at all, and it is computed
+ * rather than eyeballed off a capture.
+ */
+export function fodderPixels(zoom: number): number {
+  return FODDER_HEIGHT * UP.y * PX_PER_UNIT * zoom;
+}
+
+/** The band every legibility finding on this map was measured in. */
+export const LEGIBLE_PX = { high: 48, low: 22 } as const;
+
+/**
+ * The zoom a camera treatment implies at a given board size.
+ *
+ * `fit` keeps the board's share of the frame constant, so zoom falls with the
+ * board's *side* — which is also exactly what keeps the deployed army framed
+ * the way it is at 20x20, because `deploymentFor` scales the army by the side
+ * too. `pan` does not move the zoom at all; that is its whole proposition.
+ */
+export function zoomFor(camera: CameraMode, size: BoardSize): number {
+  return camera === "pan" ? CROWD_ZOOM : CROWD_ZOOM / sizeScale(size);
+}
+
+/**
+ * The largest board whose `fit` treatment still lands a fodder figure inside
+ * the legibility band, in cells a side. **The crossover** — past this, pulling
+ * back is no longer an option that preserves any finding on this map, and
+ * panning stops being a preference.
+ *
+ * Solved rather than searched, so it is a real number and not the nearest of
+ * three sampled boards.
+ */
+export const FIT_BAND_FLOOR_CELLS
+  = BASE_GRID * (fodderPixels(CROWD_ZOOM) / LEGIBLE_PX.low);
+
+/**
+ * Half-width of the pan sweep, in world units.
+ *
+ * Zero when the board already fits the frame, so `camera=pan` at 20x20 is a
+ * still camera and the round-4 compact captures stay directly comparable to
+ * rounds 1-3. Otherwise it is however far the camera must travel for the
+ * board's screen-horizontal extent to have passed through the frame.
+ *
+ * Screen-horizontal is the right axis and not an arbitrary one: `RIGHT` is the
+ * rank axis, so it is the axis each line of battle spreads along, and the axis
+ * that grows when the deployment is spread.
+ */
+export function panAmplitude(size: BoardSize, zoom: number): number {
+  // A world square axis-aligned to x/z projects to a diamond; its half-width on
+  // screen is the half-diagonal, hence the sqrt(2).
+  const boardHalfWidth = (boardExtent(size) / 2) * Math.SQRT2;
+  const frameHalfWidth = STAGE_WIDTH / (2 * PX_PER_UNIT * zoom);
+  return Math.max(0, boardHalfWidth - frameHalfWidth);
+}
+
+/**
+ * Seconds for one there-and-back sweep. The bake-off scripted a **4-second**
+ * pan, so a 4-second window of this shows one complete one-way traverse — which
+ * is what a filmstrip has to contain for "can you see who is winning" to be a
+ * fair question of a panning camera.
+ */
+export const PAN_PERIOD = 8;
+
+/** Pan offset along `RIGHT` at time `t`: a linear traverse, not a sine ease. */
+export function panOffset(t: number, amplitude: number): number {
+  if (amplitude === 0) { return 0; }
+  const phase = ((t % PAN_PERIOD) + PAN_PERIOD) % PAN_PERIOD;
+  const half = PAN_PERIOD / 2;
+  // Linear, because an eased sweep spends most of a 4-second window near the
+  // turnaround and the filmstrip then shows one end of the board twice.
+  return phase < half
+    ? -amplitude + (2 * amplitude * phase) / half
+    : amplitude - (2 * amplitude * (phase - half)) / half;
+}
+
 export interface CostReport {
   view: SceneView;
   base: BaseDensity;
@@ -160,6 +271,22 @@ export interface CostReport {
   trianglesPerHero: number;
   trianglesPerFodder: number;
   stage: { width: number; height: number; zoom: number; pixelRatio: number };
+  /** #100 round 4: how much floor, and how the camera paid for it. */
+  board: {
+    size: BoardSize;
+    camera: CameraMode;
+    /** Board side and area in world units. */
+    extent: number;
+    area: number;
+    /** World units squared of floor per body — the transferable unit. */
+    floorPerUnit: number;
+    /** Standing fodder figure height on screen, in pixels, at this framing. */
+    fodderPx: number;
+    /** Whether that lands in the 22-48 px band every finding was measured in. */
+    inBand: boolean;
+    /** Half-sweep of the pan, in world units. 0 means the camera is still. */
+    panAmplitude: number;
+  };
   frameMs: { mean: number; p95: number; max: number; samples: number };
   fps: number;
   /** Where the fixed-step clock is, in sim seconds. */
@@ -209,6 +336,18 @@ export interface MountOptions {
   density?: CoverDensity;
   /** #100 round 2. Composition: the mixed roster, all shooters, or ranged vs melee. */
   roster?: RosterMode;
+  /**
+   * #100 round 4. How much floor, at a fixed 40 bodies. Default `compact` —
+   * rounds 1-3's 20x20 board. Applies in the plaza too: the plaza has no board
+   * to grow but it does have an army to spread.
+   */
+  size?: BoardSize;
+  /**
+   * #100 round 4. Which way the camera absorbs a bigger board — `fit` pulls
+   * back and shrinks the figures, `pan` holds the figure size and translates.
+   * Ignored when an explicit `zoom` is given.
+   */
+  camera?: CameraMode;
   /**
    * #100 round 3. Melee's covered approach. Default on; `false` reproduces
    * rounds 1 and 2, where only shooters used cover.
@@ -502,7 +641,12 @@ export function mountCombatSandbox(host: HTMLElement, options: MountOptions = {}
   const layers = options.layers ?? ALL_LAYERS;
   const scale = options.scale ?? 1;
   const marking = options.mark ?? true;
-  const zoom = options.zoom ?? defaultZoom(view);
+  const size: BoardSize = options.size ?? "compact";
+  const cameraMode: CameraMode = options.camera ?? "fit";
+  // `fit` and `pan` only mean anything for the crowd; the hero and lineup views
+  // frame a subject, not a board.
+  const zoom = options.zoom
+    ?? (view === "crowd" ? zoomFor(cameraMode, size) : defaultZoom(view));
   const width = Math.round(STAGE_WIDTH * scale);
   const height = Math.round(STAGE_HEIGHT * scale);
   const pxPerUnit = PX_PER_UNIT * scale;
@@ -527,7 +671,7 @@ export function mountCombatSandbox(host: HTMLElement, options: MountOptions = {}
   // The cover layer is variant B only, and its cost folds into the board's so
   // the report keeps saying "what does the environment cost" in one number.
   const cover = space === "cover"
-    ? buildCoverBoard({ density, grid: options.grid ?? false })
+    ? buildCoverBoard({ density, grid: options.grid ?? false, size })
     : undefined;
   if (cover !== undefined) { scene.add(cover.group); }
 
@@ -541,6 +685,7 @@ export function mountCombatSandbox(host: HTMLElement, options: MountOptions = {}
       fodderPerSide: options.fodderPerSide ?? 18,
       heroesPerSide: options.heroesPerSide ?? 2,
       roster,
+      size,
       ...(options.seed === undefined ? {} : { seed: options.seed }),
     });
     drives = battle.units;
@@ -669,10 +814,22 @@ export function mountCombatSandbox(host: HTMLElement, options: MountOptions = {}
     }
   }
 
+  const sweep = view === "crowd" ? panAmplitude(size, zoom) : 0;
+  const fodderPx = fodderPixels(zoom);
   let report: CostReport = {
     authoredKeysPerClip: BASE_KEY_COUNT[base],
     authoredKeysTotal: authoredKeyTotal(base),
     base,
+    board: {
+      area: boardExtent(size) ** 2,
+      camera: cameraMode,
+      extent: boardExtent(size),
+      floorPerUnit: boardExtent(size) ** 2 / Math.max(1, drives.length),
+      fodderPx,
+      inBand: fodderPx >= LEGIBLE_PX.low && fodderPx <= LEGIBLE_PX.high,
+      panAmplitude: sweep,
+      size,
+    },
     boardMeshes: board.cost.meshes + (cover?.cost.meshes ?? 0),
     boardTriangles: Math.round(board.cost.triangles + (cover?.cost.triangles ?? 0)),
     coverProps: cover?.drawn ?? 0,
@@ -843,10 +1000,16 @@ export function mountCombatSandbox(host: HTMLElement, options: MountOptions = {}
     advanceTo(t);
     syncShadows();
     syncFire();
+    // Two things translate this camera and they are not the same thing.
+    // `motion` is #96's scripted look-around, unchanged. `camera=pan` is round
+    // 4's answer to a board that no longer fits the frame, and its amplitude is
+    // derived from the board rather than chosen.
     if (options.motion === true) {
       const cycle = (t % 8) / 8;
-      const sweep = Math.sin(cycle * Math.PI * 2) * 2.6;
-      pan.set(0, 0, 0).addScaledVector(RIGHT, sweep);
+      pan.set(0, 0, 0).addScaledVector(RIGHT, Math.sin(cycle * Math.PI * 2) * 2.6);
+      camera.position.copy(basePosition).add(pan);
+    } else if (cameraMode === "pan" && sweep > 0) {
+      pan.set(0, 0, 0).addScaledVector(RIGHT, panOffset(t, sweep));
       camera.position.copy(basePosition).add(pan);
     }
     const before = performance.now();

@@ -156,6 +156,17 @@ export interface SimState {
    * is 0 — there is nothing to route around in the plaza.
    */
   approachMode: number;
+  /**
+   * #100 round 4: how much floor the fight is on — an index into
+   * `battlefield-space/cover-model.ts`'s `BOARD_SIZES`
+   * (`0 compact | 1 broad | 2 vast`).
+   *
+   * Unlike `coverDensity` this is read in the **plaza** as well, because the
+   * plaza's army spreads with it even though there is no board to grow. 0 is
+   * rounds 1-3's board, so an existing caller that never sets it gets its old
+   * fight back bit-for-bit.
+   */
+  boardSize: number;
 }
 
 /**
@@ -202,4 +213,11 @@ export interface BattleOptions {
    * `false` to get rounds 1 and 2 back for the A/B.
    */
   approachMode?: boolean;
+  /**
+   * #100 round 4: board size, as an index into `BOARD_SIZES`. Default 0
+   * (compact) — rounds 1-3's 20x20 board. An index for the same reason
+   * `coverDensity` is one; `space.ts` owns the string-to-index mapping and the
+   * deployment that goes with it.
+   */
+  boardSize?: number;
 }

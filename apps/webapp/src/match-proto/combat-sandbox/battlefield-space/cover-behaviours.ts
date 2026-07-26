@@ -101,8 +101,9 @@ import {
   coverFaceCells,
   densityAt,
   eyeHeightOf,
-  GRID,
   isUsableCover,
+  LATTICE,
+  onBoard,
   sightBetween,
   walkable,
   worldRectOf,
@@ -239,7 +240,7 @@ export const seekCoverCell: Behaviour = {
       const sight = sightBetween(board, target.x, target.z, threatEye, at.x, at.z, height);
       if (sight.occlusion < 0.2) { continue; }
       const value = Math.max(0, 1 - Math.abs(sight.occlusion - COVER_SWEET) / COVER_SWEET);
-      const cell = post.cy * GRID + post.cx;
+      const cell = post.cy * LATTICE + post.cx;
       const score = walk - value * COVER_PULL + (seen?.[cell] ?? 0) * EXPOSURE_PULL;
       if (score < bestScore) {
         bestScore = score;
@@ -299,12 +300,12 @@ export const seekApproach: Behaviour = {
     const board = boardOf(ctx);
     const cx = cellIndexAt(unit.x);
     const cy = cellIndexAt(unit.z);
-    if (cx < 0 || cy < 0 || cx >= GRID || cy >= GRID) {
+    if (!onBoard(board, cx, cy)) {
       unit.approachCell = -1;
       return;
     }
     const approach = approachFor(board, ctx.state, unit.side);
-    unit.approachCell = descend(board, approach, cy * GRID + cx, unit.id, APPROACH_HOPS);
+    unit.approachCell = descend(board, approach, cy * LATTICE + cx, unit.id, APPROACH_HOPS);
   },
 };
 
@@ -325,7 +326,7 @@ export const followApproach: Behaviour = {
   phase: "steer",
   step(unit, ctx) {
     if (!isOn(ctx) || unit.approachCell < 0) { return; }
-    const at = cellCentre(unit.approachCell % GRID, Math.floor(unit.approachCell / GRID));
+    const at = cellCentre(unit.approachCell % LATTICE, Math.floor(unit.approachCell / LATTICE));
     const dx = at.x - unit.x;
     const dz = at.z - unit.z;
     const span = Math.hypot(dx, dz);
@@ -416,7 +417,7 @@ export const holdCover: Behaviour = {
   phase: "steer",
   step(unit, ctx) {
     if (!isOn(ctx) || unit.coverCell < 0) { return; }
-    const at = cellCentre(unit.coverCell % GRID, Math.floor(unit.coverCell / GRID));
+    const at = cellCentre(unit.coverCell % LATTICE, Math.floor(unit.coverCell / LATTICE));
     const dx = at.x - unit.x;
     const dz = at.z - unit.z;
     const span = Math.hypot(dx, dz);
@@ -627,7 +628,7 @@ export function clampUnitOutOfProps(board: CoverBoard, unit: SimUnit): boolean {
     for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]] as const) {
       const nx = cx + dx;
       const ny = cy + dy;
-      if (blockedAt(board, nx, ny) || !onBoard(nx, ny)) { continue; }
+      if (blockedAt(board, nx, ny) || !onBoard(board, nx, ny)) { continue; }
       const edge = dx !== 0
         ? Math.abs(unit.x - cellEdge(dx < 0 ? cx : cx + 1))
         : Math.abs(unit.z - cellEdge(dy < 0 ? cy : cy + 1));
@@ -684,10 +685,6 @@ export function clampUnitOutOfProps(board: CoverBoard, unit: SimUnit): boolean {
   }
   if (moved) { unit.speed = Math.hypot(unit.vx, unit.vz); }
   return moved;
-}
-
-function onBoard(cx: number, cy: number): boolean {
-  return cx >= 0 && cy >= 0 && cx < GRID && cy < GRID;
 }
 
 /** Nearest walkable tile by expanding ring, in a fixed scan order. */

@@ -58,13 +58,23 @@ import {
   cellCentre,
   cellIndexAt,
   eyeHeightOf,
-  GRID,
+  LATTICE,
+  onBoard,
   sightBetween,
   walkable,
 } from "./cover-model.ts";
 
-/** Cells on the board. The graph is small — 400 nodes — and that is the point. */
-const CELLS = GRID * GRID;
+/**
+ * Nodes in the graph: the whole shared lattice, not the current board's window.
+ *
+ * Round 4 made the board a window on a fixed lattice (see `cover-model.ts`), so
+ * a cell index means the same tile at every board size. The arrays are sized for
+ * the lattice rather than the window so an index can be used unshifted; the
+ * flood still only visits walkable cells, which are the window's. 1600 nodes at
+ * 8 bytes is 13 kB of scratch a step — the graph is still small, and that is
+ * still the point.
+ */
+const CELLS = LATTICE * LATTICE;
 
 /** Occlusion below which a tile counts as *seen* by a threat. */
 export const EXPOSED_AT = 0.35;
@@ -174,14 +184,14 @@ export function buildExposure(board: CoverBoard, state: SimState, side: number):
     if (enemy !== undefined) { threats.push(enemy); }
   }
   for (const enemy of enemies) {
-    const cell = cellOf(enemy);
+    const cell = cellOf(board, enemy);
     if (cell >= 0) { goals.push(cell); }
   }
   goals.sort((a, b) => a - b);
 
   for (const unit of state.units) {
     if (unit.side !== side) { continue; }
-    const cell = cellOf(unit);
+    const cell = cellOf(board, unit);
     if (cell >= 0) { occupancy[cell] = (occupancy[cell] ?? 0) + 1; }
   }
 
@@ -191,8 +201,8 @@ export function buildExposure(board: CoverBoard, state: SimState, side: number):
   // per unit would be forty floods a step for a difference smaller than the
   // sampling error already accepted above.
   const standing = heightOf("fodder");
-  for (let cy = 0; cy < GRID; cy += 1) {
-    for (let cx = 0; cx < GRID; cx += 1) {
+  for (let cy = board.lo; cy < board.hi; cy += 1) {
+    for (let cx = board.lo; cx < board.hi; cx += 1) {
       if (!walkable(board, cx, cy)) { continue; }
       const at = cellCentre(cx, cy);
       let seen = 0;
@@ -208,17 +218,17 @@ export function buildExposure(board: CoverBoard, state: SimState, side: number):
         );
         if (sight.occlusion < EXPOSED_AT) { seen += 1; }
       }
-      exposure[cy * GRID + cx] = seen / threats.length;
+      exposure[cy * LATTICE + cx] = seen / threats.length;
     }
   }
   return { exposure, goals, occupancy };
 }
 
-function cellOf(unit: SimUnit): number {
+function cellOf(board: CoverBoard, unit: SimUnit): number {
   const cx = cellIndexAt(unit.x);
   const cy = cellIndexAt(unit.z);
-  if (cx < 0 || cy < 0 || cx >= GRID || cy >= GRID) { return -1; }
-  return cy * GRID + cx;
+  if (!onBoard(board, cx, cy)) { return -1; }
+  return cy * LATTICE + cx;
 }
 
 /* ------------------------------------------------------------------ */
@@ -268,8 +278,8 @@ export function buildApproach(
     const at = heap.pop();
     if (at < 0 || done[at] === 1) { continue; }
     done[at] = 1;
-    const cx = at % GRID;
-    const cy = Math.floor(at / GRID);
+    const cx = at % LATTICE;
+    const cy = Math.floor(at / LATTICE);
     const here = cost[at] ?? Infinity;
     for (const [dx, dy] of ORTHOGONAL) {
       relax(cx + dx, cy + dy, here, 1);
@@ -284,7 +294,7 @@ export function buildApproach(
 
   function relax(nx: number, ny: number, here: number, span: number): void {
     if (!walkable(board, nx, ny)) { return; }
-    const to = ny * GRID + nx;
+    const to = ny * LATTICE + nx;
     if (done[to] === 1) { return; }
     const seen = field.exposure[to] ?? 0;
     const crowd = field.occupancy[to] ?? 0;
@@ -335,8 +345,8 @@ function stepDown(
 ): number {
   const here = approach.cost[at] ?? Infinity;
   if (!Number.isFinite(here) || here === 0) { return -1; }
-  const cx = at % GRID;
-  const cy = Math.floor(at / GRID);
+  const cx = at % LATTICE;
+  const cy = Math.floor(at / LATTICE);
   const options: { cell: number; cost: number }[] = [];
   for (const [dx, dy] of [...ORTHOGONAL, ...DIAGONAL]) {
     const nx = cx + dx;
@@ -344,7 +354,7 @@ function stepDown(
     if (!walkable(board, nx, ny)) { continue; }
     if (dx !== 0 && dy !== 0
       && (!walkable(board, nx, cy) || !walkable(board, cx, ny))) { continue; }
-    const cell = ny * GRID + nx;
+    const cell = ny * LATTICE + nx;
     const value = approach.cost[cell] ?? Infinity;
     if (value >= here) { continue; }
     options.push({ cell, cost: value });

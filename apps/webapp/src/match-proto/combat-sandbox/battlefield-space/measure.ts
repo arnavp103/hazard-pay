@@ -51,10 +51,22 @@ import { join } from "node:path";
 
 import { profileOf } from "../archetypes.ts";
 import { FODDER_HEIGHT, heightOf, HERO_HEIGHT } from "../units.ts";
-import { advanceBattle, FIXED_STEP, type SimState, type SimUnit, stepsFor } from "../sim.ts";
+import {
+  advanceBattle,
+  FIXED_STEP,
+  SEPARATION_RADIUS,
+  type SimState,
+  type SimUnit,
+  stepsFor,
+} from "../sim.ts";
 import {
   type BoardProp,
+  BASE_GRID,
+  boardArea,
+  BOARD_SIZES,
+  boardExtent,
   boardFor,
+  type BoardSize,
   cellEdge,
   type CoverBoard,
   COVER_DENSITIES,
@@ -66,6 +78,7 @@ import {
   retrofitSightBetween,
   sightBetween,
   silhouetteRect,
+  SIZE_CELLS,
   snapReport,
   TILE,
   walkableCells,
@@ -286,6 +299,36 @@ interface Sample {
   bboxW: number;
   bboxH: number;
   meanNearest: number;
+  /**
+   * Round 4's headline: the share of bodies with **no personal space left** —
+   * nearest neighbour of either side inside `SEPARATION_RADIUS`.
+   *
+   * This is "scrum", made mechanical. Round 3's central negative was that both
+   * armies collapse into one by t=8 s and the covered approach becomes
+   * invisible inside it, but that was an eye judgement off a filmstrip. The
+   * threshold is the sandbox's own personal-space constant rather than a number
+   * picked for round 4, and it is an absolute world distance, so it means the
+   * same thing on a 20x20 board and a 40x40 one. That is what makes the sizes
+   * comparable at all.
+   */
+  crowded: number;
+  /**
+   * Round 4's scrum metric: the share of bodies whose **nearest** neighbour is
+   * an enemy rather than a comrade.
+   *
+   * Crowding alone turned out not to measure the scrum. The deployment is
+   * already tight — 32.5 % of bodies are inside `SEPARATION_RADIUS` at t=0 on
+   * the compact board, before anyone has moved — so a crowding threshold fires
+   * on the *formation* and says nothing about the fight. Interpenetration does
+   * not have that problem: at deployment it is near zero, because every body is
+   * surrounded by its own line, and it can only rise by the two armies
+   * interleaving.
+   *
+   * It is also the thing that makes a covered approach unreadable. Melee
+   * bounding prop to prop is invisible precisely when you can no longer tell
+   * which mass is which, and 0.5 is the fully-mixed asymptote.
+   */
+  mixing: number;
   /** Units whose target is >=25 % hidden by the props that exist in THIS variant. */
   coveredFraction: number;
   /** The same, counting only `board.ts`'s existing free-placed set dressing. */
@@ -390,6 +433,8 @@ function sampleOf(
   let y0 = Infinity;
   let y1 = -Infinity;
   let nearestSum = 0;
+  let crowded = 0;
+  let mixing = 0;
   for (const unit of units) {
     const rect = unitRect(unit);
     x0 = Math.min(x0, rect.x0);
@@ -397,11 +442,18 @@ function sampleOf(
     y0 = Math.min(y0, rect.y0);
     y1 = Math.max(y1, rect.y1);
     let nearest = Infinity;
+    let nearestIsEnemy = false;
     for (const other of units) {
       if (other.id === unit.id) { continue; }
-      nearest = Math.min(nearest, Math.hypot(other.x - unit.x, other.z - unit.z));
+      const gap = Math.hypot(other.x - unit.x, other.z - unit.z);
+      if (gap < nearest) {
+        nearest = gap;
+        nearestIsEnemy = other.side !== unit.side;
+      }
     }
     nearestSum += Number.isFinite(nearest) ? nearest : 0;
+    if (nearest < SEPARATION_RADIUS) { crowded += 1; }
+    if (nearestIsEnemy) { mixing += 1; }
   }
 
   const byId = new Map(units.map((unit) => [unit.id, unit]));
@@ -517,6 +569,8 @@ function sampleOf(
     bboxW: Math.round(x1 - x0),
     coveredByBoardArt: coveredByArt / count,
     coveredFraction: covered / count,
+    crowded: crowded / count,
+    mixing: mixing / count,
     depthSd: standardDeviation(depth),
     inReach,
     meanNearest: nearestSum / count,
@@ -535,7 +589,13 @@ function sampleOf(
   };
 }
 
-const SAMPLE_AT = [0, 2, 4, 6, 8, 10, 14, 20];
+/**
+ * Rounds 1-3 ran to 20 s. Round 4 runs to 32 s because a `vast` board doubles
+ * the walk to contact, and a window that ends before the fight resolves would
+ * report "no scrum" for a scrum that simply had not happened yet — which is the
+ * most flattering possible artefact for round 4's own hypothesis.
+ */
+const SAMPLE_AT = [0, 2, 4, 6, 8, 10, 14, 20, 26, 32];
 
 interface Variant {
   key: string;
@@ -545,6 +605,8 @@ interface Variant {
   roster: RosterMode;
   /** Round 3's variable. `false` is rounds 1–2: only shooters used cover. */
   approach?: boolean;
+  /** Round 4's variable. Default `compact` — rounds 1-3's board. */
+  size?: BoardSize;
 }
 
 interface Run extends Variant {
@@ -560,6 +622,23 @@ interface Run extends Variant {
    * question about the army. Measured every step, not at the sample times.
    */
   meleeContactT: number;
+  /**
+   * Seconds until **half** the army has lost its personal space — the scrum,
+   * timed. -1 if it never happens inside the window.
+   */
+  scrumT: number;
+  /**
+   * Seconds of fighting between first contact and the scrum: `scrumT -
+   * meleeContactT`.
+   *
+   * The number that actually answers round 4's question. A bigger board also
+   * means a longer walk, so `scrumT` alone would rise with board size for a
+   * reason that has nothing to do with crowding. This subtracts the walk out,
+   * and what is left is how long the fight stays legible once it has started.
+   */
+  legibleWindow: number;
+  /** Floor per body, world units squared — the transferable unit. */
+  floorPerUnit: number;
 }
 
 /**
@@ -570,12 +649,14 @@ interface Run extends Variant {
  * the loop overhead and nothing else — the same `stepBattle` runs either way.
  */
 function run(variant: Variant): Run {
-  const board = boardFor(variant.density);
+  const size = variant.size ?? "compact";
+  const board = boardFor(variant.density, size);
   const world = occludersOf(board, variant.space);
   const open = (): SimState => createSpaceBattle(variant.space, {
     approach: variant.approach ?? true,
     density: variant.density,
     roster: variant.roster,
+    size,
   });
   const state = open();
   const samples: Sample[] = [];
@@ -584,12 +665,14 @@ function run(variant: Variant): Run {
   if (wanted.has(0)) { samples.push(sampleOf(state, board, variant.space, world, 0)); }
   const last = Math.max(...SAMPLE_AT.map(stepsFor));
   let contactStep = -1;
+  let scrumStep = -1;
   for (let step = 0; step < last; step += 1) {
     advanceBattle(state, 1);
     for (const unit of state.units) {
       if (unit.firedAtStep === state.step) { shots += 1; }
     }
     if (contactStep < 0 && halfTheSwordsAreInReach(state)) { contactStep = state.step; }
+    if (scrumStep < 0 && theArmiesHaveInterleaved(state)) { scrumStep = state.step; }
     if (wanted.has(state.step)) {
       samples.push(sampleOf(state, board, variant.space, world, shots));
     }
@@ -597,13 +680,53 @@ function run(variant: Variant): Run {
   const timed = open();
   const started = performance.now();
   advanceBattle(timed, stepsFor(4));
+  const contactT = contactStep < 0 ? -1 : Number((contactStep * FIXED_STEP).toFixed(2));
+  const scrumT = scrumStep < 0 ? -1 : Number((scrumStep * FIXED_STEP).toFixed(2));
   return {
     ...variant,
-    meleeContactT: contactStep < 0 ? -1 : Number((contactStep * FIXED_STEP).toFixed(2)),
+    floorPerUnit: Number((boardArea(size) / Math.max(1, state.units.length)).toFixed(1)),
+    legibleWindow: contactT < 0 || scrumT < 0
+      ? Number.NaN
+      : Number((scrumT - contactT).toFixed(2)),
+    meleeContactT: contactT,
     msPerSlice: Number((performance.now() - started).toFixed(1)),
     samples,
+    scrumT,
+    size,
   };
 }
+
+/**
+ * The scrum predicate, checked every step rather than at sample times.
+ *
+ * Fires when `SCRUM_MIXING` of the army has an enemy for its nearest neighbour
+ * — the two masses have interleaved and can no longer be told apart. See
+ * `Sample.mixing` for why this and not a crowding threshold.
+ */
+function theArmiesHaveInterleaved(state: SimState): boolean {
+  let mixed = 0;
+  for (const unit of state.units) {
+    let nearest = Infinity;
+    let nearestIsEnemy = false;
+    for (const other of state.units) {
+      if (other.id === unit.id) { continue; }
+      const gap = Math.hypot(other.x - unit.x, other.z - unit.z);
+      if (gap < nearest) {
+        nearest = gap;
+        nearestIsEnemy = other.side !== unit.side;
+      }
+    }
+    if (nearestIsEnemy) { mixed += 1; }
+  }
+  return state.units.length > 0 && mixed >= state.units.length * SCRUM_MIXING;
+}
+
+/**
+ * Share of the army that must have an enemy nearest for the fight to count as
+ * scrummed. 0.5 is total interleaving, so this is "two thirds of the way to a
+ * single indistinguishable mass".
+ */
+const SCRUM_MIXING = 1 / 3;
 
 /** The time-to-contact predicate, checked every step rather than at samples. */
 function halfTheSwordsAreInReach(state: SimState): boolean {
@@ -711,6 +834,79 @@ const APPROACH: Variant[] = [
   { approach: true, density: "dense", key: "r3-plaza", label: "mixed, plaza — no cover at all", roster: "mixed", space: "plaza" },
 ];
 
+/**
+ * Round 4's matrix: the **area** axis, at the ruled configuration.
+ *
+ * `spread` density and `hitscan` fire are not reopened, and neither is the
+ * covered approach, so every row below is the same fight on a different amount
+ * of floor. Three points on the area axis, at 40 bodies throughout — the army
+ * size is a separate open question and the round-4 fence says vary the floor.
+ *
+ * The plaza rows are the control that separates the two candidate explanations
+ * for round 3's scrum. If crowding is what collapses the fight, a plaza at
+ * `vast` should hold together too; if it is cover, it should not.
+ */
+const AREA: Variant[] = BOARD_SIZES.flatMap((size): Variant[] => [
+  { density: "spread", key: `area-mixed-${size}`, label: `mixed, spread — ${size}`, roster: "mixed", size, space: "cover" },
+  { density: "spread", key: `area-split-${size}`, label: `split, spread — ${size}`, roster: "split", size, space: "cover" },
+  { density: "spread", key: `area-plaza-${size}`, label: `mixed, plaza — ${size}`, roster: "mixed", size, space: "plaza" },
+]);
+
+/**
+ * The two camera treatments a bigger board forces a choice between, priced in
+ * the only currency that matters here: the height of a fodder figure on screen.
+ *
+ * Copied from `scene.ts`'s `zoomFor` / `fodderPixels` rather than imported, for
+ * the same reason the rest of the camera is copied at the top of this file —
+ * this script must run under `tsx` with no renderer and no DOM.
+ */
+interface CameraRow {
+  size: BoardSize;
+  cells: number;
+  floorPerUnit: number;
+  fitZoom: number;
+  fitPx: number;
+  fitInBand: boolean;
+  panPx: number;
+  /** World units the pan must sweep for the board to have passed the frame. */
+  panSweep: number;
+  /** Share of the board's screen width visible at once under `pan`. */
+  panVisible: number;
+}
+
+function cameraRows(): CameraRow[] {
+  return BOARD_SIZES.map((size) => {
+    const cells = SIZE_CELLS[size];
+    const fitZoom = CROWD_ZOOM / (cells / BASE_GRID);
+    const fitPx = FODDER_HEIGHT * UP_Y * PX_PER_UNIT * fitZoom;
+    const boardHalfWidth = (boardExtent(size) / 2) * Math.SQRT2;
+    const frameHalfWidth = 480 / (2 * PX_PER_UNIT * CROWD_ZOOM);
+    return {
+      cells,
+      fitInBand: fitPx >= BAND_LOW && fitPx <= BAND_HIGH,
+      fitPx: Number(fitPx.toFixed(1)),
+      fitZoom: Number(fitZoom.toFixed(4)),
+      floorPerUnit: Number((boardArea(size) / 40).toFixed(1)),
+      panPx: Number((FODDER_HEIGHT * UP_Y * PX_PER_UNIT * CROWD_ZOOM).toFixed(1)),
+      panSweep: Number(Math.max(0, boardHalfWidth - frameHalfWidth).toFixed(2)),
+      panVisible: Math.min(1, frameHalfWidth / boardHalfWidth),
+      size,
+    };
+  });
+}
+
+/** The band every legibility finding on this map was measured in. */
+const BAND_LOW = 22;
+const BAND_HIGH = 48;
+
+/**
+ * The board side, in cells, at which pulling back drops a fodder figure out of
+ * the bottom of the legibility band. **The crossover** — solved, not sampled,
+ * so it is a real number rather than the nearest of three boards tested.
+ */
+const FIT_BAND_FLOOR_CELLS
+  = BASE_GRID * ((FODDER_HEIGHT * UP_Y * PX_PER_UNIT * CROWD_ZOOM) / BAND_LOW);
+
 function main(): void {
   const args = process.argv.slice(2);
   const outIndex = args.indexOf("--out");
@@ -721,9 +917,14 @@ function main(): void {
   const ranged = RANGED.map(run);
   const split = SPLIT.map(run);
   const approach = APPROACH.map(run);
-  const all = [...mixed, ...ranged, ...split, ...approach];
+  const area = AREA.map(run);
+  const all = [...mixed, ...ranged, ...split, ...approach, ...area];
 
   const densities: DensityRow[] = COVER_DENSITIES.map((density) => densityReport(boardFor(density)));
+  // Round 4: the same density knob read at every board size, so "held per unit
+  // of floor" is a claim with a number under it rather than an assertion.
+  const sizes: DensityRow[] = BOARD_SIZES.map((size) => densityReport(boardFor("spread", size)));
+  const cameras = cameraRows();
   const dense = boardFor("dense");
   const snaps = snapReport();
   const trueTiles = snaps.reduce((sum, row) => sum + row.trueTiles, 0);
@@ -750,9 +951,21 @@ function main(): void {
     walkableTilesDense: walkableCells(dense).length,
   };
 
+  const camera = {
+    bandHighPx: BAND_HIGH,
+    bandLowPx: BAND_LOW,
+    /** Board side, in cells, where `fit` leaves the band. Solved, not sampled. */
+    fitBandFloorCells: Number(FIT_BAND_FLOOR_CELLS.toFixed(2)),
+    fitBandFloorFloorPerUnit: Number(
+      (((FIT_BAND_FLOOR_CELLS * TILE) ** 2) / 40).toFixed(1),
+    ),
+    fitBandFloorWorld: Number((FIT_BAND_FLOOR_CELLS * TILE).toFixed(2)),
+    rows: cameras,
+  };
+
   writeFileSync(
     join(out, "metrics.json"),
-    `${JSON.stringify({ board, runs: all }, null, 2)}\n`,
+    `${JSON.stringify({ board, camera, runs: all, sizes }, null, 2)}\n`,
   );
 
   const lines = [
@@ -965,6 +1178,130 @@ function main(): void {
       ],
       ["tile-authored", "exact", "0 %", "the footprint IS the declaration"],
     ]),
+    "",
+    "## Round 4 — the area axis",
+    "",
+    "Every round so far used the same 20x20 grid at the same crowd scale, so the",
+    "knob turned was prop *count*. Round 4 turns the **floor** instead, holding",
+    "prop density per unit of area and the army at 40 bodies. `spread` density,",
+    "`hitscan` fire and the covered approach are all as ruled — the only thing",
+    "that moves between these rows is how much room there is.",
+    "",
+    "### Is prop density actually held?",
+    "",
+    "The methodological precondition. If this table drifts, round 4 re-tested",
+    "prop count by accident and nothing below it means anything.",
+    "",
+    table([
+      ["board", "cells", "board side (world)", "floor per body (world^2)", "authored props", "authored per 400 tiles", "mean floor to nearest prop (tiles)", "board blocked"],
+      ...sizes.map((row) => [
+        row.size,
+        `${String(row.cells)}x${String(row.cells)}`,
+        row.extent.toFixed(1),
+        row.floorPerUnit.toFixed(1),
+        String(row.authoredProps),
+        row.authoredPer400.toFixed(1),
+        row.meanFloorToProp.toFixed(2),
+        pct(row.blockedFraction),
+      ]),
+    ]),
+    "",
+    "`authored per 400 tiles` is the held quantity and it holds. `board blocked`",
+    "still falls, and the reason is stated rather than tuned away: `board.ts`'s",
+    "free-placed masses are real art that exists exactly once, so they are not",
+    "tiled with the authored cover and their share of a bigger board shrinks.",
+    "",
+    "### Does more floor delay the scrum?",
+    "",
+    "`scrum` is the step at which a third of the army has an **enemy** for its",
+    "nearest neighbour — the two masses have interleaved and can no longer be",
+    "told apart. That is round 3's negative made mechanical, and it is not the",
+    "same thing as crowding: the deployment is already tight enough that a",
+    "crowding threshold fires at t=0.35 s on the compact board, before anyone",
+    "has moved.",
+    "",
+    "A bigger board also means a longer walk, so **`legible window` is the column",
+    "to read**: scrum minus first contact, i.e. how long the fight stays readable",
+    "once it has actually started.",
+    "",
+    table([
+      ["variant", "floor per body", "first contact (s)", "scrum (s)", "legible window (s)", "interleaved at t=20", "in reach at t=20"],
+      ...area.map((entry) => {
+        const at20 = entry.samples.find((sample) => sample.t >= 20 - 1e-6);
+        return [
+          entry.label,
+          entry.floorPerUnit.toFixed(1),
+          entry.meleeContactT < 0 ? "never" : entry.meleeContactT.toFixed(2),
+          entry.scrumT < 0 ? "never" : entry.scrumT.toFixed(2),
+          Number.isNaN(entry.legibleWindow) ? "n/a" : entry.legibleWindow.toFixed(2),
+          at20 === undefined ? "-" : pct(at20.mixing),
+          at20 === undefined ? "-" : `${String(at20.inReach)}/40`,
+        ];
+      }),
+    ]),
+    "",
+    "### Interleaving over time",
+    "",
+    "Share of bodies whose nearest neighbour is an enemy. 0 % is two separate",
+    "armies, 50 % is one indistinguishable mass. The scrum threshold is 33 %.",
+    "",
+    table(overTime(area, (sample) => pct(sample.mixing))),
+    "",
+    "### Crowding over time",
+    "",
+    "Share of bodies with no personal space left — reported alongside because it",
+    "is what round 3 was eyeballing, and it is **saturated by the deployment**:",
+    "32.5 % of the compact army is inside `SEPARATION_RADIUS` at t=0, before",
+    "anyone has moved. That is why the scrum is timed on interleaving instead.",
+    "",
+    table(overTime(area, (sample) => pct(sample.crowded))),
+    "",
+    "### Does the covered approach survive the extra floor?",
+    "",
+    "Round 3 bought -9.2 pp of sword exposure and contact 1.3 s sooner on the",
+    "compact board. The question is whether more floor helps that or dilutes it.",
+    "",
+    table(atTime(area, 20, [
+      ["sword exposure while closing", (sample) => pct(sample.meleeExposed)],
+      ["swords in cover", (sample) => `${String(sample.meleeInCover)}/${String(sample.meleeUnits)}`],
+      ["swords in reach", (sample) => `${String(sample.meleeInReach)}/${String(sample.meleeUnits)}`],
+      ["melee depth s.d.", (sample) => sample.meleeDepthSd.toFixed(2)],
+      ["ranged depth s.d.", (sample) => sample.rangedDepthSd.toFixed(2)],
+      ["mean nearest neighbour", (sample) => sample.meanNearest.toFixed(2)],
+      ["attempts denied by cover", (sample) => pct(deniedShare(sample))],
+      ["flanking hits", (sample) => String(sample.flankedShots)],
+      ["ranged peeking", (sample) => pct(sample.rangedPeeking)],
+    ])),
+    "",
+    "### The camera collision, priced",
+    "",
+    "A bigger board collides with the fixed 2:1 dimetric camera and there are",
+    "exactly two ways out. `fit` pulls back so the board keeps the same share of",
+    "frame; `pan` holds the figure size and translates instead. The band every",
+    `legibility finding on this map was measured in is **${String(BAND_LOW)}-${String(BAND_HIGH)} px**\`,`,
+    "so the fodder-height column is what decides whether a treatment is",
+    "admissible at all.",
+    "",
+    table([
+      ["board", "floor per body", "fit zoom", "fit — fodder px", "in band?", "pan — fodder px", "pan sweep (world)", "board visible at once"],
+      ...cameras.map((row) => [
+        row.size,
+        row.floorPerUnit.toFixed(1),
+        row.fitZoom.toFixed(3),
+        row.fitPx.toFixed(1),
+        row.fitInBand ? "yes" : "**no**",
+        row.panPx.toFixed(1),
+        row.panSweep.toFixed(1),
+        pct(row.panVisible),
+      ]),
+    ]),
+    "",
+    `**The crossover.** Pulling back leaves the band at **${camera.fitBandFloorCells.toFixed(1)} cells a side**`,
+    `(${camera.fitBandFloorWorld.toFixed(1)} world units, ${camera.fitBandFloorFloorPerUnit.toFixed(0)} world^2 of floor per body).`,
+    "Past that a fodder figure is under 22 px and every legibility finding on",
+    "this map is outside the range it was measured in. That is below the first",
+    "step up the area axis, so the choice is forced immediately rather than",
+    "eventually.",
     "",
   ];
   writeFileSync(join(out, "metrics.md"), `${lines.join("\n")}\n`);

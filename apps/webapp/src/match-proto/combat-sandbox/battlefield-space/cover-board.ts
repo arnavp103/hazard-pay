@@ -21,9 +21,9 @@ import { box, facet, FlatBatch, quad, taper, wedge } from "../flat.ts";
 import {
   type BoardProp,
   boardFor,
+  type BoardSize,
   cellEdge,
   type CoverDensity,
-  GRID,
   RETROFIT_KINDS,
   TILE,
   walkable,
@@ -296,11 +296,18 @@ export interface CoverBoardOptions {
   grid?: boolean;
   /** Which density to draw. Default `dense` — round 1's board. */
   density?: CoverDensity;
+  /** #100 round 4: how much floor. Default `compact` — rounds 1-3's board. */
+  size?: BoardSize;
 }
 
 /** Thin bar along the world x axis at a fixed z, hugging the floor. */
-function gridLine(batch: FlatBatch, along: "x" | "z", at: number, y: number): void {
-  const span = GRID * TILE;
+function gridLine(
+  batch: FlatBatch,
+  along: "x" | "z",
+  at: number,
+  y: number,
+  span: number,
+): void {
   const thin = 0.022;
   batch.addEmit(
     along === "x" ? quad(span, thin) : quad(thin, span),
@@ -310,13 +317,14 @@ function gridLine(batch: FlatBatch, along: "x" | "z", at: number, y: number): vo
 }
 
 export function buildCoverBoard(options: CoverBoardOptions = {}): CoverBoardBuild {
-  const board = boardFor(options.density ?? "dense");
+  const board = boardFor(options.density ?? "dense", options.size ?? "compact");
   const batch = new FlatBatch();
   let drawn = 0;
 
   if (options.grid === true) {
-    for (let cy = 0; cy < GRID; cy += 1) {
-      for (let cx = 0; cx < GRID; cx += 1) {
+    const span = board.cells * TILE;
+    for (let cy = board.lo; cy < board.hi; cy += 1) {
+      for (let cx = board.lo; cx < board.hi; cx += 1) {
         if (walkable(board, cx, cy)) { continue; }
         batch.add(quad(TILE * 0.96, TILE * 0.96), GRID_BLOCKED, {
           at: [cellEdge(cx) + TILE / 2, 0.028, cellEdge(cy) + TILE / 2],
@@ -335,9 +343,9 @@ export function buildCoverBoard(options: CoverBoardOptions = {}): CoverBoardBuil
         }
       }
     }
-    for (let i = 0; i <= GRID; i += 1) {
-      gridLine(batch, "x", cellEdge(i), 0.032);
-      gridLine(batch, "z", cellEdge(i), 0.032);
+    for (let i = board.lo; i <= board.hi; i += 1) {
+      gridLine(batch, "x", cellEdge(i), 0.032, span);
+      gridLine(batch, "z", cellEdge(i), 0.032, span);
     }
   }
 

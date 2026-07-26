@@ -68,8 +68,99 @@
 
 import { FODDER_HEIGHT, heightOf, type Tier } from "../units.ts";
 
-/** Cells a side. Lane 5's number, kept so the two boards stay comparable. */
-export const GRID = 20;
+/**
+ * Cells a side on lane 5's board — round 1's grid, and the coordinate space
+ * the authored manifest below is written in. Round 4 keeps it as the *authoring*
+ * unit, not as the board.
+ */
+export const BASE_GRID = 20;
+
+/**
+ * Cells a side on the largest board round 4 tests, and therefore the size of
+ * the **one shared cell lattice** every board is cut out of.
+ *
+ * ## Why a fixed lattice rather than a per-board grid
+ *
+ * Round 4's variable is floor, so the grid had to stop being a constant. The
+ * obvious move — give every board its own `grid` and thread it through every
+ * cell query — was tried and rejected: it puts a grid argument on ~80 call
+ * sites, and worse, it makes a cell index *mean* something different on each
+ * board. `SimUnit.coverCell` is a linear cell index that has to survive a slice
+ * boundary, so under a per-board grid the same stored number would decode to a
+ * different tile depending on a second field. That is a resumability hazard for
+ * exactly the reason `state.ts` argues everything must be a plain number.
+ *
+ * So instead: one lattice, `LATTICE` cells a side, shared by every board size.
+ * A board is a centred **window** on it, `[lo, hi)` in both axes. World
+ * position, cell index and the `cy * LATTICE + cx` encoding are then all
+ * independent of board size, and the only thing a board size changes is which
+ * cells are in bounds — a question every bounds check already asks through the
+ * board it was handed.
+ */
+export const LATTICE = 40;
+
+/** Cell of the lattice origin. World x=0 is the boundary between `mid-1` and `mid`. */
+const LATTICE_MID = LATTICE / 2;
+
+/**
+ * Where the authored manifest's cell (0,0) sits on the shared lattice.
+ *
+ * The manifest is authored against `BASE_GRID`, centred on the world origin, so
+ * its cell `c` is at world `(c - BASE_GRID/2) * TILE` — which is lattice cell
+ * `c + (LATTICE - BASE_GRID)/2`. Added once, in `propOf`, so not one manifest
+ * literal moves and round 1's board is provably the same board.
+ */
+const AUTHORED_OFFSET = (LATTICE - BASE_GRID) / 2;
+
+/**
+ * Round 4's variable: how much floor, at a fixed 40 bodies.
+ *
+ * Three points on the **area** axis, not the prop-count axis rounds 1-3 turned.
+ * Prop density is held per unit of floor (see `authoredTarget`), so a difference
+ * between two sizes is attributable to floor per unit and not to cover.
+ *
+ *   compact  20x20 —  400 tiles, round 1-3's board unchanged
+ *   broad    28x28 —  784 tiles, ~2x the floor
+ *   vast     40x40 — 1600 tiles, ~4x the floor
+ *
+ * Even side lengths only: a board is centred on the lattice, so an odd count
+ * would put its edge half a tile off the lattice and `cellIndexAt` would stop
+ * agreeing with the bounds check.
+ */
+export type BoardSize = "broad" | "compact" | "vast";
+
+export const BOARD_SIZES: readonly BoardSize[] = ["compact", "broad", "vast"];
+
+export const SIZE_CELLS: Record<BoardSize, number> = {
+  broad: 28,
+  compact: BASE_GRID,
+  vast: LATTICE,
+};
+
+export function isBoardSize(value: string | null): value is BoardSize {
+  return value === "broad" || value === "compact" || value === "vast";
+}
+
+/** `SimState.boardSize` is an index into `BOARD_SIZES`; this decodes it. */
+export function sizeAt(index: number): BoardSize {
+  return BOARD_SIZES[index] ?? "compact";
+}
+
+/** The inverse — what a `SimState` stores. */
+export function sizeIndex(size: BoardSize): number {
+  const at = BOARD_SIZES.indexOf(size);
+  return at < 0 ? 0 : at;
+}
+
+/**
+ * How much wider a board is than the one rounds 1-3 measured.
+ *
+ * The deployment scales by this and the prop target by its square, so "floor per
+ * unit" is the single knob and the army's *shape* does not change with it.
+ */
+export function sizeScale(size: BoardSize): number {
+  return SIZE_CELLS[size] / BASE_GRID;
+}
 
 /** Lane 5's yardstick: a fodder figure is 22 board px tall. */
 export const FODDER_FIGURE_PX = 22;
@@ -93,8 +184,15 @@ export const TILE = (TILE_PX / FODDER_FIGURE_PX) * FODDER_HEIGHT * DIMETRIC_UP_Y
 /** Board pixels to world units, for porting lane 5's authored prop heights. */
 export const WORLD_PER_BOARD_PX = FODDER_HEIGHT / FODDER_FIGURE_PX;
 
-/** Grid extent in world units, centred on the origin. */
-export const BOARD_EXTENT = GRID * TILE;
+/** Board extent in world units, centred on the origin. */
+export function boardExtent(size: BoardSize): number {
+  return SIZE_CELLS[size] * TILE;
+}
+
+/** Board area in world units squared — the denominator of "floor per unit". */
+export function boardArea(size: BoardSize): number {
+  return boardExtent(size) ** 2;
+}
 
 /**
  * How a prop reads as cover against a fodder figure. Lane 5's vocabulary,
@@ -369,17 +467,21 @@ export interface BoardProp {
 
 /** World x of a cell's near edge. Cell `cx` spans `[edge(cx), edge(cx + 1))`. */
 export function cellEdge(index: number): number {
-  return (index - GRID / 2) * TILE;
+  return (index - LATTICE_MID) * TILE;
 }
 
-/** Cell index containing a world coordinate. May fall outside `[0, GRID)`. */
+/**
+ * Lattice cell index containing a world coordinate. May fall outside
+ * `[0, LATTICE)`, and may fall outside the *board* even when it is on the
+ * lattice — which is why the bounds check lives on the board and not here.
+ */
 export function cellIndexAt(world: number): number {
-  return Math.floor(world / TILE + GRID / 2);
+  return Math.floor(world / TILE + LATTICE_MID);
 }
 
 /** World centre of a cell. */
 export function cellCentre(cx: number, cy: number): { x: number; z: number } {
-  return { x: (cx + 0.5 - GRID / 2) * TILE, z: (cy + 0.5 - GRID / 2) * TILE };
+  return { x: (cx + 0.5 - LATTICE_MID) * TILE, z: (cy + 0.5 - LATTICE_MID) * TILE };
 }
 
 /** The world AABB a cell rect claims. */
@@ -394,38 +496,48 @@ export function worldRectOf(cells: CellRect): WorldRect {
 
 function snapOutward(rect: WorldRect): CellRect {
   return {
-    cx0: Math.floor(rect.x0 / TILE + GRID / 2),
-    cx1: Math.ceil(rect.x1 / TILE + GRID / 2),
-    cy0: Math.floor(rect.z0 / TILE + GRID / 2),
-    cy1: Math.ceil(rect.z1 / TILE + GRID / 2),
+    cx0: Math.floor(rect.x0 / TILE + LATTICE_MID),
+    cx1: Math.ceil(rect.x1 / TILE + LATTICE_MID),
+    cy0: Math.floor(rect.z0 / TILE + LATTICE_MID),
+    cy1: Math.ceil(rect.z1 / TILE + LATTICE_MID),
   };
 }
 
 function snapNearest(rect: WorldRect): CellRect {
-  const cx0 = Math.round(rect.x0 / TILE + GRID / 2);
-  const cy0 = Math.round(rect.z0 / TILE + GRID / 2);
+  const cx0 = Math.round(rect.x0 / TILE + LATTICE_MID);
+  const cy0 = Math.round(rect.z0 / TILE + LATTICE_MID);
   return {
     cx0,
-    cx1: Math.max(cx0 + 1, Math.round(rect.x1 / TILE + GRID / 2)),
+    cx1: Math.max(cx0 + 1, Math.round(rect.x1 / TILE + LATTICE_MID)),
     cy0,
-    cy1: Math.max(cy0 + 1, Math.round(rect.z1 / TILE + GRID / 2)),
+    cy1: Math.max(cy0 + 1, Math.round(rect.z1 / TILE + LATTICE_MID)),
   };
 }
 
-function propOf(entry: AuthoredEntry): BoardProp {
+/**
+ * One authored prop, placed on the shared lattice.
+ *
+ * `block` is the tiling offset in whole `BASE_GRID` patches — `(0, 0)` is the
+ * manifest where round 1 authored it, and any other block is a copy of the same
+ * patch laid down alongside it to keep prop density constant on a bigger board.
+ * See `candidatesFor`.
+ */
+function propOf(entry: AuthoredEntry, bx = 0, by = 0): BoardProp {
   const spec = propSpecs[entry.kind];
+  const ox = AUTHORED_OFFSET + bx * BASE_GRID;
+  const oy = AUTHORED_OFFSET + by * BASE_GRID;
   const cells: CellRect = {
-    cx0: entry.cx,
-    cx1: entry.cx + spec.sx,
-    cy0: entry.cy,
-    cy1: entry.cy + spec.sy,
+    cx0: entry.cx + ox,
+    cx1: entry.cx + ox + spec.sx,
+    cy0: entry.cy + oy,
+    cy1: entry.cy + oy + spec.sy,
   };
   return {
     cells,
     cover: spec.cover,
     girth: GIRTH[spec.cover],
     height: spec.height,
-    id: entry.id,
+    id: bx === 0 && by === 0 ? entry.id : `${entry.id}@${bx},${by}`,
     kind: entry.kind,
     note: spec.note,
     retrofit: false,
@@ -451,14 +563,15 @@ function retrofitPropOf(entry: RetrofitEntry): BoardProp {
 }
 
 /**
- * The full manifest: authored cover plus retrofitted set dressing, in a fixed
- * order. Behaviours iterate a board's prop array by index and break ties on
- * index, so this order is part of the determinism contract — and the thinner
- * below preserves it, so a prop's index is stable across densities too.
+ * The full manifest at round 1's board size: authored cover plus retrofitted
+ * set dressing, in a fixed order. Behaviours iterate a board's prop array by
+ * index and break ties on index, so this order is part of the determinism
+ * contract — and the thinner below preserves it, so a prop's index is stable
+ * across densities too.
  */
 const ALL_PROPS: readonly BoardProp[] = [
   ...RETROFIT.map(retrofitPropOf),
-  ...AUTHORED.map(propOf),
+  ...AUTHORED.map((entry) => propOf(entry)),
 ];
 
 /**
@@ -542,12 +655,78 @@ function gapBetween(a: CellRect, b: CellRect): number {
  * foundry block, which is what "spread the cover out" has to mean on a board
  * that already has two large masses on it.
  */
-function thin(count: number): BoardProp[] {
-  const authored = ALL_PROPS.filter((prop) => !prop.retrofit);
-  if (count >= authored.length) { return [...ALL_PROPS]; }
-  const kept: BoardProp[] = ALL_PROPS.filter((prop) => prop.retrofit);
+/**
+ * The window a board of this size cuts out of the shared lattice, `[lo, hi)`
+ * in both axes, centred.
+ */
+export function windowOf(size: BoardSize): { lo: number; hi: number } {
+  const cells = SIZE_CELLS[size];
+  const lo = (LATTICE - cells) / 2;
+  return { hi: lo + cells, lo };
+}
+
+/**
+ * Authored props to place on a board of this size, holding density per unit of
+ * **floor** rather than per board.
+ *
+ * This is round 4's whole methodological point. Rounds 1-3 turned the prop
+ * *count* and held the floor; turning the floor while holding the count would
+ * have re-tested the same knob backwards and produced a board that is bigger and
+ * emptier, so any difference would have been unattributable. Scaling by the area
+ * ratio keeps "how far is the next crate" fixed and leaves floor per unit as the
+ * only thing that moved.
+ */
+function authoredTarget(density: CoverDensity, size: BoardSize): number {
+  return Math.round(DENSITY_PROPS[density] * sizeScale(size) ** 2);
+}
+
+/**
+ * Every authored prop that could stand on a board of this size: the manifest
+ * patch, plus copies of it laid on a `BASE_GRID` lattice until the board is
+ * covered.
+ *
+ * A copy is kept only if its whole footprint is inside the window, so a prop
+ * that would straddle the board edge is dropped rather than clipped — a clipped
+ * footprint is a prop whose silhouette and occupancy disagree, which is the one
+ * thing the two-contract schema exists to prevent.
+ *
+ * The tiling is periodic with the manifest's own period, so no two copies can
+ * overlap and the local arrangement of cover — the thing melee has to bound
+ * between — is the arrangement round 1 authored, repeated. It is deliberately
+ * **not** a second authored layout: that would confound area with taste.
+ *
+ * `board.ts`'s retrofits are not tiled. They are real art at real world
+ * positions, they exist exactly once, and on a bigger board they simply occupy
+ * the middle. That dilution is honest and `densityReport` prints it.
+ */
+function candidatesFor(size: BoardSize): BoardProp[] {
+  const { hi, lo } = windowOf(size);
+  const blocks = Math.ceil((LATTICE - BASE_GRID) / 2 / BASE_GRID) + 1;
+  const out: BoardProp[] = [];
+  for (let by = -blocks; by <= blocks; by += 1) {
+    for (let bx = -blocks; bx <= blocks; bx += 1) {
+      for (const entry of AUTHORED) {
+        const prop = propOf(entry, bx, by);
+        const inside = prop.cells.cx0 >= lo && prop.cells.cx1 <= hi
+          && prop.cells.cy0 >= lo && prop.cells.cy1 <= hi;
+        if (inside) { out.push(prop); }
+      }
+    }
+  }
+  return out;
+}
+
+function thin(count: number, size: BoardSize): BoardProp[] {
+  const authored = candidatesFor(size);
+  const retrofits = ALL_PROPS.filter((prop) => prop.retrofit);
+  // Manifest order for this board: retrofits, then authored by block and then
+  // by manifest index. Every prop on every board size has a rank here, so the
+  // index a behaviour breaks a tie on is well defined at every size.
+  const rank = new Map([...retrofits, ...authored].map((prop, index) => [prop.id, index]));
+  if (count >= authored.length) { return [...retrofits, ...authored]; }
+  const kept: BoardProp[] = [...retrofits];
   const pool = [...authored];
-  while (kept.length - RETROFIT_PROPS.length < count && pool.length > 0) {
+  while (kept.length - retrofits.length < count && pool.length > 0) {
     let bestAt = 0;
     let bestGap = -1;
     for (let i = 0; i < pool.length; i += 1) {
@@ -565,7 +744,6 @@ function thin(count: number): BoardProp[] {
   }
   // Back into manifest order, so a prop's index means the same thing at every
   // density and a tie broken on index is broken the same way.
-  const rank = new Map(ALL_PROPS.map((prop, index) => [prop.id, index]));
   return kept.sort((a, b) => (rank.get(a.id) ?? 0) - (rank.get(b.id) ?? 0));
 }
 
@@ -579,6 +757,14 @@ function thin(count: number): BoardProp[] {
  */
 export interface CoverBoard {
   density: CoverDensity;
+  /** Round 4's variable: how much floor, at a fixed 40 bodies. */
+  size: BoardSize;
+  /** Cells a side. `hi - lo`, cached because every bounds check wants it. */
+  cells: number;
+  /** First in-bounds lattice cell, in both axes. */
+  lo: number;
+  /** One past the last in-bounds lattice cell, in both axes. */
+  hi: number;
   /**
    * Smallest clear floor between two authored props, in tiles. An outcome of
    * the density knob, not the knob itself.
@@ -596,13 +782,14 @@ export interface CoverBoard {
   shaded: ReadonlySet<number>;
 }
 
-function buildBoard(density: CoverDensity): CoverBoard {
-  const props = thin(DENSITY_PROPS[density]);
+function buildBoard(density: CoverDensity, size: BoardSize): CoverBoard {
+  const { hi, lo } = windowOf(size);
+  const props = thin(authoredTarget(density, size), size);
   const blocked = new Set<number>();
   for (const prop of props) {
-    for (let cy = Math.max(0, prop.cells.cy0); cy < Math.min(GRID, prop.cells.cy1); cy += 1) {
-      for (let cx = Math.max(0, prop.cells.cx0); cx < Math.min(GRID, prop.cells.cx1); cx += 1) {
-        blocked.add(cy * GRID + cx);
+    for (let cy = Math.max(lo, prop.cells.cy0); cy < Math.min(hi, prop.cells.cy1); cy += 1) {
+      for (let cx = Math.max(lo, prop.cells.cx0); cx < Math.min(hi, prop.cells.cx1); cx += 1) {
+        blocked.add(cy * LATTICE + cx);
       }
     }
   }
@@ -612,8 +799,8 @@ function buildBoard(density: CoverDensity): CoverBoard {
     if (roof === undefined) { continue; }
     for (let cy = prop.cells.cy0 + roof.oy; cy < prop.cells.cy0 + roof.oy + roof.sy; cy += 1) {
       for (let cx = prop.cells.cx0 + roof.ox; cx < prop.cells.cx0 + roof.ox + roof.sx; cx += 1) {
-        if (cx < 0 || cy < 0 || cx >= GRID || cy >= GRID) { continue; }
-        shaded.add(cy * GRID + cx);
+        if (cx < lo || cy < lo || cx >= hi || cy >= hi) { continue; }
+        shaded.add(cy * LATTICE + cx);
       }
     }
   }
@@ -621,23 +808,31 @@ function buildBoard(density: CoverDensity): CoverBoard {
   return {
     authored: props.filter((prop) => !prop.retrofit),
     blocked,
+    cells: hi - lo,
     density,
+    hi,
+    lo,
     minGap: minGapOf(props),
     props,
     retrofitSilhouettes: props.map((prop, index) => (prop.retrofit ? silhouettes[index] : undefined)),
     shaded,
     silhouettes,
+    size,
   };
 }
 
-const BOARDS = new Map<CoverDensity, CoverBoard>();
+const BOARDS = new Map<string, CoverBoard>();
 
-/** The board at one density. Built once, then shared — boards are immutable. */
-export function boardFor(density: CoverDensity): CoverBoard {
-  const cached = BOARDS.get(density);
+/**
+ * The board at one density and one size. Built once, then shared — boards are
+ * immutable, and `measure.ts` builds every combination in one process.
+ */
+export function boardFor(density: CoverDensity, size: BoardSize = "compact"): CoverBoard {
+  const key = `${density}:${size}`;
+  const cached = BOARDS.get(key);
   if (cached !== undefined) { return cached; }
-  const built = buildBoard(density);
-  BOARDS.set(density, built);
+  const built = buildBoard(density, size);
+  BOARDS.set(key, built);
   return built;
 }
 
@@ -652,10 +847,15 @@ export function densityIndex(density: CoverDensity): number {
   return at < 0 ? 0 : at;
 }
 
+/** Is this lattice cell inside the board's window? */
+export function onBoard(board: CoverBoard, cx: number, cy: number): boolean {
+  return cx >= board.lo && cy >= board.lo && cx < board.hi && cy < board.hi;
+}
+
 /** May a body stand on this tile? Off-board is not walkable. */
 export function walkable(board: CoverBoard, cx: number, cy: number): boolean {
-  if (cx < 0 || cy < 0 || cx >= GRID || cy >= GRID) { return false; }
-  return !board.blocked.has(cy * GRID + cx);
+  if (!onBoard(board, cx, cy)) { return false; }
+  return !board.blocked.has(cy * LATTICE + cx);
 }
 
 /**
@@ -669,8 +869,8 @@ export function walkable(board: CoverBoard, cx: number, cy: number): boolean {
  * cannot leave; the union does not have pockets.
  */
 export function blockedAt(board: CoverBoard, cx: number, cy: number): boolean {
-  if (cx < 0 || cy < 0 || cx >= GRID || cy >= GRID) { return false; }
-  return board.blocked.has(cy * GRID + cx);
+  if (!onBoard(board, cx, cy)) { return false; }
+  return board.blocked.has(cy * LATTICE + cx);
 }
 
 /**
@@ -699,14 +899,14 @@ export function overlappingRetrofits(board: CoverBoard): string[] {
 
 /** Is this tile under a roof? Roofed tiles stay walkable — they are shaded. */
 export function underRoof(board: CoverBoard, cx: number, cy: number): boolean {
-  return board.shaded.has(cy * GRID + cx);
+  return board.shaded.has(cy * LATTICE + cx);
 }
 
 /** Walkable tiles, in a deterministic order. */
 export function walkableCells(board: CoverBoard): { cx: number; cy: number }[] {
   const out: { cx: number; cy: number }[] = [];
-  for (let cy = 0; cy < GRID; cy += 1) {
-    for (let cx = 0; cx < GRID; cx += 1) {
+  for (let cy = board.lo; cy < board.hi; cy += 1) {
+    for (let cx = board.lo; cx < board.hi; cx += 1) {
       if (walkable(board, cx, cy)) { out.push({ cx, cy }); }
     }
   }
@@ -715,6 +915,23 @@ export function walkableCells(board: CoverBoard): { cx: number; cy: number }[] {
 
 export interface DensityRow {
   density: CoverDensity;
+  size: BoardSize;
+  /** Cells a side. */
+  cells: number;
+  /** Board side in world units. */
+  extent: number;
+  /** Board area in world units squared. */
+  area: number;
+  /**
+   * Round 4's transferable unit: **world units squared of floor per body**, at
+   * a fixed 40-body army.
+   *
+   * Stated so a result reads as "the scrum stops at N wu2 a body" rather than
+   * "20x20 versus 40x40", which transfers to no other board.
+   */
+  floorPerUnit: number;
+  /** Authored props per 400 tiles — the density knob, normalised for area. */
+  authoredPer400: number;
   minGap: number;
   authoredProps: number;
   totalProps: number;
@@ -730,8 +947,14 @@ export interface DensityRow {
   meanFloorToProp: number;
 }
 
-/** What a density actually came out as, rather than what the knob asked for. */
-export function densityReport(board: CoverBoard): DensityRow {
+/**
+ * What a board actually came out as, rather than what the knobs asked for.
+ *
+ * `bodies` is the army size the floor is being divided between — 40 at every
+ * point round 4 measures, because the army size is a separate open question and
+ * round 4's fence says vary the floor, not the army.
+ */
+export function densityReport(board: CoverBoard, bodies = 40): DensityRow {
   const open = walkableCells(board);
   let sum = 0;
   for (const cell of open) {
@@ -744,13 +967,20 @@ export function densityReport(board: CoverBoard): DensityRow {
     }
     sum += Number.isFinite(nearest) ? nearest : 0;
   }
+  const tiles = board.cells * board.cells;
   return {
+    area: boardArea(board.size),
+    authoredPer400: (board.authored.length * BASE_GRID * BASE_GRID) / tiles,
     authoredProps: board.authored.length,
-    blockedFraction: board.blocked.size / (GRID * GRID),
+    blockedFraction: board.blocked.size / tiles,
     blockedTiles: board.blocked.size,
+    cells: board.cells,
     density: board.density,
+    extent: boardExtent(board.size),
+    floorPerUnit: boardArea(board.size) / bodies,
     meanFloorToProp: open.length === 0 ? 0 : sum / open.length,
     minGap: board.minGap,
+    size: board.size,
     totalProps: board.props.length,
     walkableTiles: open.length,
   };

@@ -23,13 +23,17 @@ import { createBattle, type SimState, type SimUnit } from "../sim.ts";
 import type { BattleOptions } from "../state.ts";
 import { clampUnitOutOfProps, isInsideFootprint } from "./cover-behaviours.ts";
 import {
+  type BoardSize,
   boardFor,
   cellIndexAt,
   type CoverBoard,
   type CoverDensity,
   densityAt,
   densityIndex,
-  GRID,
+  onBoard,
+  sizeAt,
+  sizeIndex,
+  sizeScale,
   walkable,
 } from "./cover-model.ts";
 
@@ -74,6 +78,35 @@ export interface SpaceOptions extends BattleOptions {
    * every round-3 number is read against.
    */
   approach?: boolean;
+  /**
+   * Round 4's variable: how much floor, at a fixed 40 bodies. Default
+   * `compact` — rounds 1-3's 20x20 board, unchanged.
+   *
+   * Unlike `density` this is **not** ignored in the plaza: the plaza has no
+   * board to grow, but it does have an army to spread, and the whole round-4
+   * hypothesis is that the scrum is a crowding artefact rather than a cover
+   * one. A plaza at `vast` is the control that separates the two.
+   */
+  size?: BoardSize;
+}
+
+/**
+ * The deployment at a given board size.
+ *
+ * Both numbers scale with the board's side, not its area, so the army stays the
+ * same *shape* and only its density changes — which is what makes floor per unit
+ * the single variable. Scaling only the lateral spacing would have stretched the
+ * two lines into ribbons; scaling only the standoff would have moved them apart
+ * without unpacking either.
+ *
+ * The consequence is that a bigger board also has a longer walk to contact, so
+ * `measure.ts` reports **time to scrum measured from first contact** rather than
+ * from t=0. Otherwise travel time and crowding would be the same number and the
+ * hypothesis would be untestable.
+ */
+export function deploymentFor(size: BoardSize): { spacing: number; standoff: number } {
+  const scale = sizeScale(size);
+  return { spacing: 1.42 * scale, standoff: 6.4 * scale };
 }
 
 /**
@@ -106,10 +139,19 @@ function archetypeUnder(roster: RosterMode, unit: SimUnit): Archetype | undefine
  * inside a crate is a bug the *placement* has to solve, not the sim.
  */
 export function createSpaceBattle(space: SpaceMode, options: SpaceOptions = {}): SimState {
-  const { approach = true, density = "dense", roster = "mixed", ...battleOptions } = options;
+  const {
+    approach = true,
+    density = "dense",
+    roster = "mixed",
+    size = "compact",
+    ...battleOptions
+  } = options;
+  const deployment = deploymentFor(size);
   const state = createBattle({
+    ...deployment,
     ...battleOptions,
     approachMode: approach,
+    boardSize: sizeIndex(size),
     coverDensity: densityIndex(density),
     coverMode: space === "cover",
   });
@@ -120,14 +162,16 @@ export function createSpaceBattle(space: SpaceMode, options: SpaceOptions = {}):
     }
   }
   if (space !== "cover") { return state; }
-  const board = boardFor(density);
+  const board = boardFor(density, size);
   for (const unit of state.units) { clampUnitOutOfProps(board, unit); }
   return state;
 }
 
 /** The board a battle is being fought on. `plaza` has none — hence undefined. */
 export function boardOfBattle(state: SimState): CoverBoard | undefined {
-  return state.coverMode === 1 ? boardFor(densityAt(state.coverDensity)) : undefined;
+  return state.coverMode === 1
+    ? boardFor(densityAt(state.coverDensity), sizeAt(state.boardSize))
+    : undefined;
 }
 
 /** The tile a unit is standing on. Only meaningful in the cover variant. */
@@ -159,11 +203,11 @@ export function unitsInsideFootprints(board: CoverBoard, state: SimState): numbe
 }
 
 /** Units currently standing off the board entirely. */
-export function unitsOffBoard(state: SimState): number {
+export function unitsOffBoard(board: CoverBoard, state: SimState): number {
   let off = 0;
   for (const unit of state.units) {
     const cell = cellOfUnit(unit);
-    if (cell.cx < 0 || cell.cy < 0 || cell.cx >= GRID || cell.cy >= GRID) { off += 1; }
+    if (!onBoard(board, cell.cx, cell.cy)) { off += 1; }
   }
   return off;
 }

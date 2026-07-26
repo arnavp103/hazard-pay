@@ -194,6 +194,7 @@ export function createBattle(options: BattleOptions = {}): SimState {
 
   const state: SimState = {
     approachMode: options.approachMode === false ? 0 : 1,
+    boardSize: options.boardSize ?? 0,
     coverDensity: options.coverDensity ?? 0,
     coverMode: options.coverMode === true ? 1 : 0,
     randomState: seedRandom(seed),
