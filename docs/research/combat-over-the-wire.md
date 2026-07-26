@@ -888,15 +888,15 @@ From the [WHATWG HTML Living Standard, Server-sent events](https://html.spec.wha
   that a server replay anything. **Replay is entirely the application's job.**
   ADR 0004 §5's "the table is the truth" is precisely the right answer to this,
   and the existing route already implements it.
-- **An event with `id:` but no `data:` advances the cursor without dispatching
-  a message.** Dispatch sets the last event ID *first*, then returns early if
+- **An SSE event with `id:` but no `data:` advances the cursor without
+  dispatching a message.** Dispatch sets the last event ID *first*, then returns early if
   the data buffer is empty. That is a free checkpoint primitive — useful if
   slice chunks are ever large enough that you want finer-grained resume points
   than actual payloads.
 - **Anything pending at end-of-stream is discarded.** A partially transmitted
-  match event is lost in full; there is no partial resume *within* an event.
-  This is a second, independent argument against very large single events, and
-  it bounds how big a slice chunk should be.
+  match event is lost in full; there is no partial resume *within* one SSE
+  event. This is a second, independent argument against very large single
+  frames, and it bounds how big a slice chunk should be.
 - **A non-200 status or a wrong `Content-Type` kills the stream permanently.**
   "fail the connection" sets `readyState` to CLOSED and fires `error`, and the
   UA "does not attempt to reconnect". A 502 from a proxy during a deploy is a
@@ -939,12 +939,12 @@ From the [WHATWG HTML Living Standard, Server-sent events](https://html.spec.wha
   and decodes without any client code. The catch is flushing: a compressor
   buffers, so each match event needs an explicit `Z_SYNC_FLUSH` /
   `BROTLI_OPERATION_FLUSH` or it sits in the deflate window. Measured cost of
-  flushing per event rather than once: **+16.7%**. At 11 KiB per slice that is
-  ~1.8 KiB — pay it.
+  flushing per match event rather than once per slice: **+16.7%**. At 11 KiB
+  per slice that is ~1.8 KiB — pay it.
 - **There is no spec-imposed message size limit.** Stated as an argument from
   absence: the parsing algorithm appends to an unbounded data buffer and
-  dispatches on a blank line, with no bound on field, event or stream size. The
-  real limit is client-side — the whole event is buffered as one JS string and
+  dispatches on a blank line, with no bound on field, frame or stream size. The
+  real limit is client-side — a whole SSE frame is buffered as one JS string and
   `JSON.parse`d on the main thread. Another vote for per-second chunks over
   one-blob-per-slice.
 
@@ -1022,7 +1022,7 @@ The ticket's premise that "enumerated as match events that is potentially
 thousands of records per slice" is **correct but not fatal**. It is thousands of
 records only under one specific choice — one match event per unit per sim step.
 Field selection, sample rate and batching each independently remove an order of
-magnitude, and the three together take 5.2 MiB / 12,040 records down to 13.5 KiB
+magnitude, and the three together take 5.2 MiB / 12,040 records down to 11.1 KiB
 / 5 records. **ADR 0004 does not need to change. The thing that needed to change
 was an unstated assumption about record granularity.**
 
@@ -1063,7 +1063,11 @@ slice on the wire, 5 rows per slice in Postgres, 18 kbit/s per viewer.
 
 1. **The client interpolates, always.** At 10 Hz the renderer draws 6 frames per
    sample at 60 fps. Catmull-Rom on `(x, z)` and shortest-arc slerp on `facing`;
-   a unit travels ≤0.16 world units between samples, so no visible corner-cutting.
+   a unit travels ≤0.16 world units between samples, so no visible
+   corner-cutting. Worth noting that 10 Hz is not an arbitrary landing spot:
+   Supreme Commander and Planetary Annihilation both run their simulation at
+   10 fps while rendering at 60, and both ship crowds far larger than 40 bodies
+   (§6.3). Arriving at the same number from payload arithmetic is a good sign.
 2. **The procedural layers keep working unchanged.** The `bind → cycle → attack
    → aim → lean → reactions → root → weapon IK` stack takes speed, acceleration,
    an aim target and impulse timings — all of which survive sampling. `speed`
