@@ -850,6 +850,14 @@ const AREA: Variant[] = BOARD_SIZES.flatMap((size): Variant[] => [
   { density: "spread", key: `area-mixed-${size}`, label: `mixed, spread — ${size}`, roster: "mixed", size, space: "cover" },
   { density: "spread", key: `area-split-${size}`, label: `split, spread — ${size}`, roster: "split", size, space: "cover" },
   { density: "spread", key: `area-plaza-${size}`, label: `mixed, plaza — ${size}`, roster: "mixed", size, space: "plaza" },
+  // The confound control. Holding authored props per 400 tiles does NOT hold
+  // total occlusion: `board.ts`'s free-placed masses exist exactly once, so
+  // blocked fraction falls 25.5 % -> 12.3 % across the axis even at constant
+  // prop density. Any effect attributed to floor could therefore be an effect
+  // of less cover. `dense` at each size is the closest available board to
+  // compact-spread's blocked fraction, so it separates the two as far as this
+  // manifest allows — and where it does not, the report says so.
+  { density: "dense", key: `area-dense-${size}`, label: `mixed, dense — ${size}`, roster: "mixed", size, space: "cover" },
 ]);
 
 /**
@@ -1255,6 +1263,32 @@ function main(): void {
     "anyone has moved. That is why the scrum is timed on interleaving instead.",
     "",
     table(overTime(area, (sample) => pct(sample.crowded))),
+    "",
+    "### The confound, bounded",
+    "",
+    "Holding authored props per 400 tiles does not hold **total occlusion**:",
+    "blocked fraction falls 25.5 % to 12.3 % across the axis, because",
+    "`board.ts`'s free-placed masses exist exactly once and are not tiled. So an",
+    "effect attributed to floor could be an effect of less cover. The `dense`",
+    "rows are the closest control this manifest allows.",
+    "",
+    table([
+      ["board", "density", "board blocked", "sword exposure while closing", "swords in cover", "flanking hits", "legible window (s)"],
+      ...area
+        .filter((entry) => entry.space === "cover" && entry.roster === "mixed")
+        .map((entry) => {
+          const at20 = entry.samples.find((sample) => sample.t >= 20 - 1e-6);
+          return [
+            entry.size ?? "compact",
+            entry.density,
+            pct(densityReport(boardFor(entry.density, entry.size ?? "compact")).blockedFraction),
+            at20 === undefined ? "-" : pct(at20.meleeExposed),
+            at20 === undefined ? "-" : `${String(at20.meleeInCover)}/${String(at20.meleeUnits)}`,
+            at20 === undefined ? "-" : String(at20.flankedShots),
+            Number.isNaN(entry.legibleWindow) ? "n/a" : entry.legibleWindow.toFixed(2),
+          ];
+        }),
+    ]),
     "",
     "### Does the covered approach survive the extra floor?",
     "",

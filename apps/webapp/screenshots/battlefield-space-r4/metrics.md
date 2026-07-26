@@ -188,36 +188,39 @@ covered approach risks, and the number that says whether it happened.
 
 | variant | sim ms per 4 s slice |
 | --- | --- |
-| A — open plaza | 16.3 |
-| B — cover, dense (round 1) | 60.4 |
-| B — cover, spread | 44.5 |
-| B — cover, sparse | 39.9 |
-| ranged — open plaza | 16.3 |
-| ranged — cover, dense | 57.6 |
-| ranged — cover, spread | 44.9 |
-| ranged — cover, sparse | 38.2 |
-| ranged vs melee — plaza | 15.4 |
-| ranged vs melee — dense | 76.1 |
-| ranged vs melee — spread | 44.2 |
-| ranged vs melee — sparse | 38.7 |
-| mixed, spread — r2 (melee ignores cover) | 44.9 |
-| mixed, spread — r3 (melee routes) | 86.4 |
-| split, spread — r2 | 45.6 |
-| split, spread — r3 | 79.5 |
-| mixed, dense — r2 | 59.7 |
-| mixed, dense — r3 | 106.9 |
-| mixed, sparse — r2 | 40.5 |
-| mixed, sparse — r3 | 75.2 |
-| mixed, plaza — no cover at all | 16.3 |
-| mixed, spread — compact | 85.2 |
-| split, spread — compact | 77.9 |
-| mixed, plaza — compact | 18.1 |
-| mixed, spread — broad | 76.1 |
-| split, spread — broad | 74.7 |
-| mixed, plaza — broad | 15.4 |
-| mixed, spread — vast | 74.9 |
-| split, spread — vast | 69.7 |
-| mixed, plaza — vast | 16.3 |
+| A — open plaza | 15.3 |
+| B — cover, dense (round 1) | 60.9 |
+| B — cover, spread | 44.8 |
+| B — cover, sparse | 36.7 |
+| ranged — open plaza | 18.2 |
+| ranged — cover, dense | 57.0 |
+| ranged — cover, spread | 45.6 |
+| ranged — cover, sparse | 38.5 |
+| ranged vs melee — plaza | 14.5 |
+| ranged vs melee — dense | 55.5 |
+| ranged vs melee — spread | 41.1 |
+| ranged vs melee — sparse | 39.1 |
+| mixed, spread — r2 (melee ignores cover) | 42.4 |
+| mixed, spread — r3 (melee routes) | 77.4 |
+| split, spread — r2 | 45.2 |
+| split, spread — r3 | 74.5 |
+| mixed, dense — r2 | 56.5 |
+| mixed, dense — r3 | 104.0 |
+| mixed, sparse — r2 | 38.4 |
+| mixed, sparse — r3 | 67.3 |
+| mixed, plaza — no cover at all | 16.0 |
+| mixed, spread — compact | 79.3 |
+| split, spread — compact | 81.4 |
+| mixed, plaza — compact | 14.8 |
+| mixed, dense — compact | 110.9 |
+| mixed, spread — broad | 79.1 |
+| split, spread — broad | 71.3 |
+| mixed, plaza — broad | 15.0 |
+| mixed, dense — broad | 106.0 |
+| mixed, spread — vast | 67.9 |
+| split, spread — vast | 65.4 |
+| mixed, plaza — vast | 14.7 |
+| mixed, dense — vast | 87.3 |
 
 ## The board, unchanged from round 1
 
@@ -280,12 +283,15 @@ once it has actually started.
 | mixed, spread — compact | 13.3 | 5.33 | 28.22 | 22.89 | 22.5 % | 36/40 |
 | split, spread — compact | 13.3 | 14.73 | 16.37 | 1.64 | 27.5 % | 34/40 |
 | mixed, plaza — compact | 13.3 | 3.98 | 6.12 | 2.14 | 52.5 % | 40/40 |
+| mixed, dense — compact | 13.3 | never | never | n/a | 20.0 % | 26/40 |
 | mixed, spread — broad | 26.1 | 7.62 | 9.93 | 2.31 | 47.5 % | 37/40 |
 | split, spread — broad | 26.1 | 13.75 | 14.92 | 1.17 | 30.0 % | 30/40 |
 | mixed, plaza — broad | 26.1 | 5.52 | 8.15 | 2.63 | 52.5 % | 40/40 |
+| mixed, dense — broad | 26.1 | 7.62 | 11.15 | 3.53 | 32.5 % | 29/40 |
 | mixed, spread — vast | 53.2 | 8.78 | 10.97 | 2.19 | 42.5 % | 39/40 |
 | split, spread — vast | 53.2 | 21.13 | 23.22 | 2.09 | 25.0 % | 26/40 |
 | mixed, plaza — vast | 53.2 | 7.95 | 10.67 | 2.72 | 55.0 % | 40/40 |
+| mixed, dense — vast | 53.2 | 8.70 | 11.30 | 2.60 | 32.5 % | 31/40 |
 
 ### Interleaving over time
 
@@ -297,12 +303,15 @@ armies, 50 % is one indistinguishable mass. The scrum threshold is 33 %.
 | mixed, spread — compact | 0.0 % | 0.0 % | 2.5 % | 15.0 % | 15.0 % | 20.0 % | 22.5 % | 22.5 % | 27.5 % | 37.5 % |
 | split, spread — compact | 0.0 % | 0.0 % | 0.0 % | 2.5 % | 0.0 % | 10.0 % | 20.0 % | 27.5 % | 32.5 % | 42.5 % |
 | mixed, plaza — compact | 0.0 % | 0.0 % | 15.0 % | 30.0 % | 52.5 % | 52.5 % | 52.5 % | 52.5 % | 52.5 % | 52.5 % |
+| mixed, dense — compact | 0.0 % | 0.0 % | 2.5 % | 7.5 % | 7.5 % | 12.5 % | 15.0 % | 20.0 % | 22.5 % | 25.0 % |
 | mixed, spread — broad | 0.0 % | 0.0 % | 0.0 % | 12.5 % | 27.5 % | 35.0 % | 40.0 % | 47.5 % | 50.0 % | 52.5 % |
 | split, spread — broad | 0.0 % | 0.0 % | 0.0 % | 0.0 % | 0.0 % | 10.0 % | 30.0 % | 30.0 % | 40.0 % | 40.0 % |
 | mixed, plaza — broad | 0.0 % | 0.0 % | 0.0 % | 12.5 % | 32.5 % | 47.5 % | 52.5 % | 52.5 % | 52.5 % | 52.5 % |
+| mixed, dense — broad | 0.0 % | 0.0 % | 0.0 % | 15.0 % | 25.0 % | 32.5 % | 35.0 % | 32.5 % | 35.0 % | 35.0 % |
 | mixed, spread — vast | 0.0 % | 0.0 % | 0.0 % | 0.0 % | 15.0 % | 25.0 % | 35.0 % | 42.5 % | 47.5 % | 47.5 % |
 | split, spread — vast | 0.0 % | 0.0 % | 0.0 % | 0.0 % | 0.0 % | 0.0 % | 15.0 % | 25.0 % | 32.5 % | 32.5 % |
 | mixed, plaza — vast | 0.0 % | 0.0 % | 0.0 % | 0.0 % | 20.0 % | 25.0 % | 52.5 % | 55.0 % | 55.0 % | 55.0 % |
+| mixed, dense — vast | 0.0 % | 0.0 % | 0.0 % | 0.0 % | 10.0 % | 22.5 % | 32.5 % | 32.5 % | 42.5 % | 47.5 % |
 
 ### Crowding over time
 
@@ -316,12 +325,32 @@ anyone has moved. That is why the scrum is timed on interleaving instead.
 | mixed, spread — compact | 32.5 % | 60.0 % | 82.5 % | 82.5 % | 90.0 % | 92.5 % | 92.5 % | 87.5 % | 85.0 % | 85.0 % |
 | split, spread — compact | 32.5 % | 77.5 % | 85.0 % | 82.5 % | 85.0 % | 85.0 % | 85.0 % | 77.5 % | 87.5 % | 82.5 % |
 | mixed, plaza — compact | 0.0 % | 27.5 % | 77.5 % | 72.5 % | 75.0 % | 60.0 % | 65.0 % | 65.0 % | 60.0 % | 65.0 % |
+| mixed, dense — compact | 37.5 % | 67.5 % | 75.0 % | 82.5 % | 77.5 % | 80.0 % | 80.0 % | 77.5 % | 80.0 % | 80.0 % |
 | mixed, spread — broad | 15.0 % | 47.5 % | 40.0 % | 45.0 % | 60.0 % | 80.0 % | 75.0 % | 90.0 % | 85.0 % | 85.0 % |
 | split, spread — broad | 15.0 % | 40.0 % | 60.0 % | 50.0 % | 50.0 % | 57.5 % | 62.5 % | 75.0 % | 72.5 % | 72.5 % |
 | mixed, plaza — broad | 0.0 % | 10.0 % | 15.0 % | 80.0 % | 72.5 % | 72.5 % | 60.0 % | 55.0 % | 55.0 % | 55.0 % |
+| mixed, dense — broad | 15.0 % | 30.0 % | 42.5 % | 40.0 % | 67.5 % | 85.0 % | 82.5 % | 82.5 % | 82.5 % | 82.5 % |
 | mixed, spread — vast | 0.0 % | 22.5 % | 37.5 % | 32.5 % | 45.0 % | 77.5 % | 85.0 % | 82.5 % | 77.5 % | 62.5 % |
 | split, spread — vast | 0.0 % | 25.0 % | 37.5 % | 52.5 % | 65.0 % | 70.0 % | 50.0 % | 62.5 % | 75.0 % | 87.5 % |
 | mixed, plaza — vast | 0.0 % | 10.0 % | 15.0 % | 20.0 % | 42.5 % | 80.0 % | 70.0 % | 55.0 % | 55.0 % | 60.0 % |
+| mixed, dense — vast | 0.0 % | 20.0 % | 37.5 % | 22.5 % | 40.0 % | 70.0 % | 85.0 % | 77.5 % | 70.0 % | 70.0 % |
+
+### The confound, bounded
+
+Holding authored props per 400 tiles does not hold **total occlusion**:
+blocked fraction falls 25.5 % to 12.3 % across the axis, because
+`board.ts`'s free-placed masses exist exactly once and are not tiled. So an
+effect attributed to floor could be an effect of less cover. The `dense`
+rows are the closest control this manifest allows.
+
+| board | density | board blocked | sword exposure while closing | swords in cover | flanking hits | legible window (s) |
+| --- | --- | --- | --- | --- | --- | --- |
+| compact | spread | 25.5 % | 52.6 % | 2/20 | 49 | 22.89 |
+| compact | dense | 33.0 % | 42.8 % | 7/20 | 71 | n/a |
+| broad | spread | 18.4 % | 54.5 % | 1/20 | 15 | 2.31 |
+| broad | dense | 21.9 % | 40.7 % | 4/20 | 90 | 3.53 |
+| vast | spread | 12.3 % | 79.6 % | 0/20 | 21 | 2.19 |
+| vast | dense | 19.1 % | 71.0 % | 1/20 | 32 | 2.60 |
 
 ### Does the covered approach survive the extra floor?
 
@@ -333,12 +362,15 @@ compact board. The question is whether more floor helps that or dilutes it.
 | mixed, spread — compact | 52.6 % | 2/20 | 17/20 | 0.90 | 1.26 | 0.97 | 2.2 % | 49 | 27.0 % |
 | split, spread — compact | 65.3 % | 3/18 | 13/18 | 0.00 | 2.67 | 1.29 | 28.2 % | 57 | 17.6 % |
 | mixed, plaza — compact | 0.0 % | 0/20 | 20/20 | 0.55 | 0.27 | 1.05 | 0.0 % | 0 | 0.0 % |
+| mixed, dense — compact | 42.8 % | 7/20 | 9/20 | 2.17 | 1.53 | 1.02 | 22.2 % | 71 | 45.6 % |
 | mixed, spread — broad | 54.5 % | 1/20 | 19/20 | 0.97 | 1.56 | 1.03 | 1.8 % | 15 | 24.7 % |
 | split, spread — broad | 73.4 % | 1/18 | 10/18 | 0.00 | 2.89 | 1.59 | 25.7 % | 30 | 17.9 % |
 | mixed, plaza — broad | 0.0 % | 0/20 | 20/20 | 0.54 | 0.44 | 1.12 | 0.0 % | 0 | 0.0 % |
+| mixed, dense — broad | 40.7 % | 4/20 | 13/20 | 3.16 | 2.30 | 1.18 | 16.8 % | 90 | 47.7 % |
 | mixed, spread — vast | 79.6 % | 0/20 | 20/20 | 0.61 | 0.95 | 1.29 | 2.1 % | 21 | 12.5 % |
 | split, spread — vast | 81.4 % | 1/18 | 5/18 | 0.00 | 2.56 | 1.08 | 22.2 % | 23 | 11.1 % |
 | mixed, plaza — vast | 0.0 % | 0/20 | 20/20 | 0.41 | 0.55 | 1.16 | 0.0 % | 0 | 0.0 % |
+| mixed, dense — vast | 71.0 % | 1/20 | 18/20 | 1.20 | 2.59 | 1.17 | 4.3 % | 32 | 30.5 % |
 
 ### The camera collision, priced
 
