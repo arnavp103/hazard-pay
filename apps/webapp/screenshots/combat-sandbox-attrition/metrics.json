@@ -1,0 +1,783 @@
+{
+  "note": "PROTOTYPE STAND-IN death rule: one hit stamp = 1 damage, fodder 3, hero 6. Not a damage model.",
+  "seconds": 24,
+  "seed": "default (20890724)",
+  "targetCommitment": [
+    {
+      "aimedAtDeadPercent": 5.5,
+      "attacks": 121,
+      "commit": false,
+      "midSwingFlipPercent": 19,
+      "targetChurnPerUnitSecond": 0.355,
+      "treatment": "downed"
+    },
+    {
+      "aimedAtDeadPercent": 12.9,
+      "attacks": 134,
+      "commit": true,
+      "midSwingFlipPercent": 0,
+      "targetChurnPerUnitSecond": 0.223,
+      "treatment": "downed"
+    },
+    {
+      "aimedAtDeadPercent": 6.7,
+      "attacks": 123,
+      "commit": false,
+      "midSwingFlipPercent": 12.2,
+      "targetChurnPerUnitSecond": 0.367,
+      "treatment": "removed"
+    },
+    {
+      "aimedAtDeadPercent": 12.8,
+      "attacks": 133,
+      "commit": true,
+      "midSwingFlipPercent": 0,
+      "targetChurnPerUnitSecond": 0.243,
+      "treatment": "removed"
+    }
+  ],
+  "treatments": [
+    {
+      "aimedAtDeadPercent": 12.9,
+      "arc": [
+        {
+          "alive": 40,
+          "bodies": 40,
+          "boxHeight": 177.9,
+          "boxWidth": 287.4,
+          "medianGapPx": 17.5,
+          "t": 0
+        },
+        {
+          "alive": 40,
+          "bodies": 40,
+          "boxHeight": 131.1,
+          "boxWidth": 281.1,
+          "medianGapPx": 18.9,
+          "t": 2
+        },
+        {
+          "alive": 39,
+          "bodies": 40,
+          "boxHeight": 88.6,
+          "boxWidth": 271.2,
+          "medianGapPx": 15.6,
+          "t": 4
+        },
+        {
+          "alive": 34,
+          "bodies": 40,
+          "boxHeight": 103.6,
+          "boxWidth": 291.1,
+          "medianGapPx": 15.9,
+          "t": 6
+        },
+        {
+          "alive": 30,
+          "bodies": 40,
+          "boxHeight": 105.3,
+          "boxWidth": 293.9,
+          "medianGapPx": 17.9,
+          "t": 8
+        },
+        {
+          "alive": 27,
+          "bodies": 40,
+          "boxHeight": 103.5,
+          "boxWidth": 312.3,
+          "medianGapPx": 19.2,
+          "t": 10
+        },
+        {
+          "alive": 23,
+          "bodies": 40,
+          "boxHeight": 110.9,
+          "boxWidth": 312.3,
+          "medianGapPx": 21.3,
+          "t": 12
+        },
+        {
+          "alive": 19,
+          "bodies": 40,
+          "boxHeight": 109.1,
+          "boxWidth": 312.3,
+          "medianGapPx": 20.9,
+          "t": 14
+        },
+        {
+          "alive": 17,
+          "bodies": 40,
+          "boxHeight": 82.4,
+          "boxWidth": 312.3,
+          "medianGapPx": 20.4,
+          "t": 16
+        },
+        {
+          "alive": 14,
+          "bodies": 40,
+          "boxHeight": 70.6,
+          "boxWidth": 312.3,
+          "medianGapPx": 21.9,
+          "t": 18
+        },
+        {
+          "alive": 12,
+          "bodies": 40,
+          "boxHeight": 70.2,
+          "boxWidth": 312.3,
+          "medianGapPx": 22.3,
+          "t": 20
+        },
+        {
+          "alive": 11,
+          "bodies": 40,
+          "boxHeight": 65.1,
+          "boxWidth": 312.3,
+          "medianGapPx": 22.3,
+          "t": 22
+        },
+        {
+          "alive": 9,
+          "bodies": 40,
+          "boxHeight": 65,
+          "boxWidth": 312.3,
+          "medianGapPx": 22,
+          "t": 24
+        }
+      ],
+      "attacks": 134,
+      "bill": [
+        "death-fall (transient)",
+        "prone (held)",
+        "debris-settle (transient)"
+      ],
+      "firstDeath": 3.98,
+      "halfStrength": 12.25,
+      "midSwingFlipPercent": 0,
+      "quarterStrength": 19.4,
+      "survivors": [
+        3,
+        6
+      ],
+      "targetChurnPerUnitSecond": 0.223,
+      "treatment": "debris"
+    },
+    {
+      "aimedAtDeadPercent": 12.9,
+      "arc": [
+        {
+          "alive": 40,
+          "bodies": 40,
+          "boxHeight": 177.9,
+          "boxWidth": 287.4,
+          "medianGapPx": 17.5,
+          "t": 0
+        },
+        {
+          "alive": 40,
+          "bodies": 40,
+          "boxHeight": 131.1,
+          "boxWidth": 281.1,
+          "medianGapPx": 18.9,
+          "t": 2
+        },
+        {
+          "alive": 39,
+          "bodies": 40,
+          "boxHeight": 88.6,
+          "boxWidth": 271.2,
+          "medianGapPx": 15.6,
+          "t": 4
+        },
+        {
+          "alive": 34,
+          "bodies": 40,
+          "boxHeight": 103.6,
+          "boxWidth": 291.1,
+          "medianGapPx": 15.9,
+          "t": 6
+        },
+        {
+          "alive": 30,
+          "bodies": 40,
+          "boxHeight": 105.3,
+          "boxWidth": 293.9,
+          "medianGapPx": 17.9,
+          "t": 8
+        },
+        {
+          "alive": 27,
+          "bodies": 40,
+          "boxHeight": 103.5,
+          "boxWidth": 312.3,
+          "medianGapPx": 19.2,
+          "t": 10
+        },
+        {
+          "alive": 23,
+          "bodies": 40,
+          "boxHeight": 110.9,
+          "boxWidth": 312.3,
+          "medianGapPx": 21.3,
+          "t": 12
+        },
+        {
+          "alive": 19,
+          "bodies": 40,
+          "boxHeight": 109.1,
+          "boxWidth": 312.3,
+          "medianGapPx": 20.9,
+          "t": 14
+        },
+        {
+          "alive": 17,
+          "bodies": 40,
+          "boxHeight": 82.4,
+          "boxWidth": 312.3,
+          "medianGapPx": 20.4,
+          "t": 16
+        },
+        {
+          "alive": 14,
+          "bodies": 40,
+          "boxHeight": 70.6,
+          "boxWidth": 312.3,
+          "medianGapPx": 21.9,
+          "t": 18
+        },
+        {
+          "alive": 12,
+          "bodies": 40,
+          "boxHeight": 70.2,
+          "boxWidth": 312.3,
+          "medianGapPx": 22.3,
+          "t": 20
+        },
+        {
+          "alive": 11,
+          "bodies": 40,
+          "boxHeight": 65.1,
+          "boxWidth": 312.3,
+          "medianGapPx": 22.3,
+          "t": 22
+        },
+        {
+          "alive": 9,
+          "bodies": 40,
+          "boxHeight": 65,
+          "boxWidth": 312.3,
+          "medianGapPx": 22,
+          "t": 24
+        }
+      ],
+      "attacks": 134,
+      "bill": [
+        "death-fall (transient)",
+        "prone (held)"
+      ],
+      "firstDeath": 3.98,
+      "halfStrength": 12.25,
+      "midSwingFlipPercent": 0,
+      "quarterStrength": 19.4,
+      "survivors": [
+        3,
+        6
+      ],
+      "targetChurnPerUnitSecond": 0.223,
+      "treatment": "downed"
+    },
+    {
+      "aimedAtDeadPercent": 13.3,
+      "arc": [
+        {
+          "alive": 40,
+          "bodies": 40,
+          "boxHeight": 177.9,
+          "boxWidth": 287.4,
+          "medianGapPx": 17.5,
+          "t": 0
+        },
+        {
+          "alive": 40,
+          "bodies": 40,
+          "boxHeight": 131.1,
+          "boxWidth": 281.1,
+          "medianGapPx": 18.9,
+          "t": 2
+        },
+        {
+          "alive": 39,
+          "bodies": 40,
+          "boxHeight": 88.6,
+          "boxWidth": 271.2,
+          "medianGapPx": 15.6,
+          "t": 4
+        },
+        {
+          "alive": 34,
+          "bodies": 38,
+          "boxHeight": 103.6,
+          "boxWidth": 291.1,
+          "medianGapPx": 15.9,
+          "t": 6
+        },
+        {
+          "alive": 30,
+          "bodies": 34,
+          "boxHeight": 110.5,
+          "boxWidth": 293.6,
+          "medianGapPx": 18.8,
+          "t": 8
+        },
+        {
+          "alive": 26,
+          "bodies": 30,
+          "boxHeight": 100.6,
+          "boxWidth": 298.4,
+          "medianGapPx": 20.5,
+          "t": 10
+        },
+        {
+          "alive": 22,
+          "bodies": 26,
+          "boxHeight": 111.6,
+          "boxWidth": 283.1,
+          "medianGapPx": 23.9,
+          "t": 12
+        },
+        {
+          "alive": 19,
+          "bodies": 22,
+          "boxHeight": 100.9,
+          "boxWidth": 231.7,
+          "medianGapPx": 22.2,
+          "t": 14
+        },
+        {
+          "alive": 17,
+          "bodies": 18,
+          "boxHeight": 89,
+          "boxWidth": 207.9,
+          "medianGapPx": 20.9,
+          "t": 16
+        },
+        {
+          "alive": 15,
+          "bodies": 17,
+          "boxHeight": 65.4,
+          "boxWidth": 213.2,
+          "medianGapPx": 21,
+          "t": 18
+        },
+        {
+          "alive": 12,
+          "bodies": 15,
+          "boxHeight": 69.5,
+          "boxWidth": 191.9,
+          "medianGapPx": 21.7,
+          "t": 20
+        },
+        {
+          "alive": 11,
+          "bodies": 12,
+          "boxHeight": 69.3,
+          "boxWidth": 172.3,
+          "medianGapPx": 23,
+          "t": 22
+        },
+        {
+          "alive": 9,
+          "bodies": 11,
+          "boxHeight": 71.9,
+          "boxWidth": 172.7,
+          "medianGapPx": 23.6,
+          "t": 24
+        }
+      ],
+      "attacks": 138,
+      "bill": [
+        "death-fall (transient)",
+        "prone (held)",
+        "+ alpha dissolve (shader, no frames)"
+      ],
+      "firstDeath": 3.98,
+      "halfStrength": 10.92,
+      "midSwingFlipPercent": 0,
+      "quarterStrength": 19.58,
+      "survivors": [
+        3,
+        6
+      ],
+      "targetChurnPerUnitSecond": 0.22,
+      "treatment": "fade"
+    },
+    {
+      "aimedAtDeadPercent": 0,
+      "arc": [
+        {
+          "alive": 40,
+          "bodies": 40,
+          "boxHeight": 177.9,
+          "boxWidth": 287.4,
+          "medianGapPx": 17.5,
+          "t": 0
+        },
+        {
+          "alive": 40,
+          "bodies": 40,
+          "boxHeight": 131.2,
+          "boxWidth": 281.1,
+          "medianGapPx": 18.9,
+          "t": 2
+        },
+        {
+          "alive": 40,
+          "bodies": 40,
+          "boxHeight": 91.7,
+          "boxWidth": 272.9,
+          "medianGapPx": 14.8,
+          "t": 4
+        },
+        {
+          "alive": 40,
+          "bodies": 40,
+          "boxHeight": 107,
+          "boxWidth": 293.2,
+          "medianGapPx": 16.1,
+          "t": 6
+        },
+        {
+          "alive": 40,
+          "bodies": 40,
+          "boxHeight": 109.7,
+          "boxWidth": 294.9,
+          "medianGapPx": 16.6,
+          "t": 8
+        },
+        {
+          "alive": 40,
+          "bodies": 40,
+          "boxHeight": 109.9,
+          "boxWidth": 296.1,
+          "medianGapPx": 15.9,
+          "t": 10
+        },
+        {
+          "alive": 40,
+          "bodies": 40,
+          "boxHeight": 109.8,
+          "boxWidth": 298.3,
+          "medianGapPx": 16.1,
+          "t": 12
+        },
+        {
+          "alive": 40,
+          "bodies": 40,
+          "boxHeight": 109.8,
+          "boxWidth": 299.6,
+          "medianGapPx": 16.9,
+          "t": 14
+        },
+        {
+          "alive": 40,
+          "bodies": 40,
+          "boxHeight": 110.5,
+          "boxWidth": 300.9,
+          "medianGapPx": 17.8,
+          "t": 16
+        },
+        {
+          "alive": 40,
+          "bodies": 40,
+          "boxHeight": 112.2,
+          "boxWidth": 302.4,
+          "medianGapPx": 18.4,
+          "t": 18
+        },
+        {
+          "alive": 40,
+          "bodies": 40,
+          "boxHeight": 114.5,
+          "boxWidth": 305,
+          "medianGapPx": 18.4,
+          "t": 20
+        },
+        {
+          "alive": 40,
+          "bodies": 40,
+          "boxHeight": 117.1,
+          "boxWidth": 309.8,
+          "medianGapPx": 17.9,
+          "t": 22
+        },
+        {
+          "alive": 40,
+          "bodies": 40,
+          "boxHeight": 119.2,
+          "boxWidth": 314.6,
+          "medianGapPx": 16.9,
+          "t": 24
+        }
+      ],
+      "attacks": 269,
+      "bill": [],
+      "firstDeath": null,
+      "halfStrength": null,
+      "midSwingFlipPercent": 1.5,
+      "quarterStrength": null,
+      "survivors": [
+        20,
+        20
+      ],
+      "targetChurnPerUnitSecond": 0.053,
+      "treatment": "none"
+    },
+    {
+      "aimedAtDeadPercent": 7.6,
+      "arc": [
+        {
+          "alive": 40,
+          "bodies": 40,
+          "boxHeight": 177.9,
+          "boxWidth": 287.4,
+          "medianGapPx": 17.5,
+          "t": 0
+        },
+        {
+          "alive": 40,
+          "bodies": 40,
+          "boxHeight": 135.6,
+          "boxWidth": 280.9,
+          "medianGapPx": 17.1,
+          "t": 2
+        },
+        {
+          "alive": 40,
+          "bodies": 40,
+          "boxHeight": 92.7,
+          "boxWidth": 280.5,
+          "medianGapPx": 17.4,
+          "t": 4
+        },
+        {
+          "alive": 38,
+          "bodies": 38,
+          "boxHeight": 77.5,
+          "boxWidth": 278.8,
+          "medianGapPx": 17,
+          "t": 6
+        },
+        {
+          "alive": 37,
+          "bodies": 37,
+          "boxHeight": 89,
+          "boxWidth": 273.5,
+          "medianGapPx": 13.8,
+          "t": 8
+        },
+        {
+          "alive": 33,
+          "bodies": 33,
+          "boxHeight": 95.5,
+          "boxWidth": 256.5,
+          "medianGapPx": 18.8,
+          "t": 10
+        },
+        {
+          "alive": 29,
+          "bodies": 29,
+          "boxHeight": 100,
+          "boxWidth": 244.5,
+          "medianGapPx": 19.5,
+          "t": 12
+        },
+        {
+          "alive": 26,
+          "bodies": 26,
+          "boxHeight": 88.1,
+          "boxWidth": 231,
+          "medianGapPx": 22.9,
+          "t": 14
+        },
+        {
+          "alive": 22,
+          "bodies": 22,
+          "boxHeight": 84.1,
+          "boxWidth": 183.4,
+          "medianGapPx": 22.6,
+          "t": 16
+        },
+        {
+          "alive": 19,
+          "bodies": 19,
+          "boxHeight": 81,
+          "boxWidth": 204,
+          "medianGapPx": 24,
+          "t": 18
+        },
+        {
+          "alive": 14,
+          "bodies": 14,
+          "boxHeight": 60.1,
+          "boxWidth": 215.7,
+          "medianGapPx": 26.8,
+          "t": 20
+        },
+        {
+          "alive": 13,
+          "bodies": 13,
+          "boxHeight": 62.4,
+          "boxWidth": 203.3,
+          "medianGapPx": 30.8,
+          "t": 22
+        },
+        {
+          "alive": 12,
+          "bodies": 12,
+          "boxHeight": 60.4,
+          "boxWidth": 196.1,
+          "medianGapPx": 31.2,
+          "t": 24
+        }
+      ],
+      "attacks": 118,
+      "bill": [
+        "(none new)",
+        "+ stable slot reassignment in the sim"
+      ],
+      "firstDeath": 5.27,
+      "halfStrength": 16.02,
+      "midSwingFlipPercent": 0,
+      "quarterStrength": 23.47,
+      "survivors": [
+        5,
+        7
+      ],
+      "targetChurnPerUnitSecond": 0.159,
+      "treatment": "ranks"
+    },
+    {
+      "aimedAtDeadPercent": 12.8,
+      "arc": [
+        {
+          "alive": 40,
+          "bodies": 40,
+          "boxHeight": 177.9,
+          "boxWidth": 287.4,
+          "medianGapPx": 17.5,
+          "t": 0
+        },
+        {
+          "alive": 40,
+          "bodies": 40,
+          "boxHeight": 131.1,
+          "boxWidth": 281.1,
+          "medianGapPx": 18.9,
+          "t": 2
+        },
+        {
+          "alive": 39,
+          "bodies": 39,
+          "boxHeight": 88.6,
+          "boxWidth": 271.2,
+          "medianGapPx": 15.6,
+          "t": 4
+        },
+        {
+          "alive": 34,
+          "bodies": 34,
+          "boxHeight": 105.8,
+          "boxWidth": 282.3,
+          "medianGapPx": 16,
+          "t": 6
+        },
+        {
+          "alive": 30,
+          "bodies": 30,
+          "boxHeight": 106.2,
+          "boxWidth": 283,
+          "medianGapPx": 19.6,
+          "t": 8
+        },
+        {
+          "alive": 24,
+          "bodies": 24,
+          "boxHeight": 101.6,
+          "boxWidth": 268.7,
+          "medianGapPx": 22.4,
+          "t": 10
+        },
+        {
+          "alive": 21,
+          "bodies": 21,
+          "boxHeight": 108,
+          "boxWidth": 243.3,
+          "medianGapPx": 24.1,
+          "t": 12
+        },
+        {
+          "alive": 18,
+          "bodies": 18,
+          "boxHeight": 126.3,
+          "boxWidth": 235.5,
+          "medianGapPx": 24.4,
+          "t": 14
+        },
+        {
+          "alive": 17,
+          "bodies": 17,
+          "boxHeight": 106.9,
+          "boxWidth": 218.9,
+          "medianGapPx": 21,
+          "t": 16
+        },
+        {
+          "alive": 14,
+          "bodies": 14,
+          "boxHeight": 73.7,
+          "boxWidth": 206.8,
+          "medianGapPx": 22.6,
+          "t": 18
+        },
+        {
+          "alive": 13,
+          "bodies": 13,
+          "boxHeight": 72.2,
+          "boxWidth": 195.1,
+          "medianGapPx": 22.2,
+          "t": 20
+        },
+        {
+          "alive": 12,
+          "bodies": 12,
+          "boxHeight": 87.4,
+          "boxWidth": 179.6,
+          "medianGapPx": 20.7,
+          "t": 22
+        },
+        {
+          "alive": 9,
+          "bodies": 9,
+          "boxHeight": 97.8,
+          "boxWidth": 162.7,
+          "medianGapPx": 23.6,
+          "t": 24
+        }
+      ],
+      "attacks": 133,
+      "bill": [
+        "(none — the body pops)"
+      ],
+      "firstDeath": 3.98,
+      "halfStrength": 10.5,
+      "midSwingFlipPercent": 0,
+      "quarterStrength": 22.28,
+      "survivors": [
+        4,
+        5
+      ],
+      "targetChurnPerUnitSecond": 0.243,
+      "treatment": "removed"
+    }
+  ]
+}
