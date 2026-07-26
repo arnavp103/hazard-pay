@@ -40,6 +40,7 @@ Useful query parameters — the full list is in
 | `density=dense\|spread\|sparse` | #100 round 2: 32 / 16 / 8 authored cover props. `dense` is round 1's board |
 | `roster=mixed\|ranged\|split` | #100 round 2: the bake-off mix, all shooters, or shooters vs swords |
 | `fire=none\|hitscan\|bolt` | #100 round 2: how a ranged attack is drawn. **A prototype stand-in** — read `battlefield-space/fire-render.ts` first |
+| `approach=0` | #100 round 3: turn melee's covered approach **off**, reproducing rounds 1–2 where only shooters used cover. Default on |
 | `grid=1` | #100: debug overlay — tiles, blocked and roofed cells |
 | `zoom=`, `scale=`, `motion=1`, `mark=0` | framing, pixel density, camera pan, hero border |
 | `freeze=<ms>` | one deterministic frame, then stop |
@@ -194,6 +195,9 @@ contact timing wants authored keys in `authored.ts`, not more sine waves.
 | `figure.ts` | the parametric rig. `figure.test.ts` locks the head-readability fix |
 | `flat.ts` | materials and the low-poly primitive vocabulary |
 | `board.ts` | the environment, 2 draw calls |
+| `battlefield-space/approach-field.ts` | #100 r3: one exposure field, two resistance vectors, the flood |
+| `battlefield-space/directional-cover.ts` | #100 r3: cover facings, flanking, and the duck/peek states |
+| `battlefield-space/cover-poses.ts` | #100 r3: duck and peek as silhouette heights. **Stand-ins**, not clips |
 | `scene.ts` | mount/teardown, the fixed camera, the cost meter, the capture hook |
 | `capture.mjs` | the #67 capture path |
 
