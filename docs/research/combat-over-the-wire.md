@@ -23,20 +23,42 @@ with the client interpolating between samples and running the existing
 procedural animation layers on top. Measured on the real sim, a 5-second
 40-unit slice costs **11.1 KiB on the wire as quantised-integer JSON under
 brotli**, or **8.6 KiB** if you delta-code it into base64'd binary. Either is
-~15 kbit/s sustained.
+under 20 kbit/s sustained, and about 133 KiB for a whole match.
 
 Deterministic re-simulation from a seed would be **173 bytes** — but it buys
 that ~10 KiB in exchange for making bit-identical floating point across Node
 and every browser engine a permanent correctness requirement. §6 shows this
 specific sim already calls `Math.hypot` (which ECMA-262 marks
-implementation-approximated) in three hot paths, and that Mozilla has stated
+implementation-approximated) in three hot paths; that Mozilla has stated
 outright that Firefox does not use the same `sin`/`cos`/`tan` implementation as
-V8. **The 10 KiB is not worth it.**
+V8; and that the two teams who have actually shipped deterministic JavaScript
+both had to override the `Math` library wholesale to do it. **The 10 KiB is not
+worth it.**
 
 **ADR 0004 survives.** Nothing here pressures SSE, the atomic transaction, the
 phase state machine, or the no-payload NOTIFY rule — the last of which turns
 out to have been exactly right. What it does pressure is the unstated
 assumption that a match event is a small semantic record (§8).
+
+### At a glance
+
+| | Wire/slice | Records/slice | Rows/slice | Demands |
+| --- | ---: | ---: | ---: | --- |
+| **A** naive (one match event per unit-frame @60 Hz) | 903 KiB | 12,040 | 12,000 | nothing |
+| **A** recommended (10 Hz JSON ints, per-second chunks) | **11.1 KiB** | **5** | **5** | client interpolation |
+| **B** seed + re-simulation | 173 B | 1 | 1 | bit-identical floats in every engine, forever |
+| **C** outcomes + keyframes | 1.3 KiB | 5 | 5 | client must *reach* the outcomes — collapses into A |
+
+Contents: [1 the sim](#1-what-the-sim-actually-produces) ·
+[2 Option A](#2-option-a--enumerate-the-motion-as-match-events) ·
+[3 Option B](#3-option-b--deterministic-re-simulation-from-a-seed) ·
+[4 Option C](#4-option-c--the-hybrid) ·
+[5 arithmetic](#5-payload-arithmetic) ·
+[6 determinism](#6-javascript-determinism-hazards) ·
+[7 SSE](#7-does-sse-fit-and-what-happens-on-a-mid-slice-resume) ·
+[8 findings vs ADR 0004](#8-findings-that-pressure-adr-0004) ·
+[9 recommendation](#9-recommendation-and-what-it-costs) ·
+[10 sources](#10-sources)
 
 ---
 
@@ -164,8 +186,12 @@ What it demands:
   for: every deploy becomes a potential silent desync until every open tab
   reloads.
 
-What it buys: ~14 KiB per slice, ~0.16 MiB per match. See §5 for whether that
-is worth anything.
+What it buys: ~10 KiB per slice, ~0.13 MiB per match. See §5 for whether that
+is worth anything, and §6.3 for what two teams who actually shipped
+deterministic JavaScript had to do to get there — the short version is that
+both replaced `Math.random`, overrode the `Math` transcendentals wholesale, and
+pinned sort and iteration order, and one of them rounds every arithmetic result
+through `Math.fround` to force agreement.
 
 What it also buys, and this is the honest argument for it: **scrubbing and
 replays for free**. `battleAt(seconds)` is time-indexed, so a client that
@@ -648,7 +674,148 @@ Identical. V8's optimising tiers do not change float results here, which is what
 the spec requires — but it only rules out one of several hazards, and it is one
 V8 version on one platform.
 
-### 6.3 The gap this research could not close
+### 6.3 What shipped games actually learned
+
+Deterministic lockstep is a well-documented technique with thirty years of
+published postmortems. Four of them bear directly on this decision, and one of
+them inverts in our favour.
+
+**The founding argument for lockstep is a bandwidth argument — and it was made
+against a 28.8 kbit/s modem.** Bettner and Terrano's
+["1500 Archers on a 28.8"](https://www.gamedeveloper.com/programming/1500-archers-on-a-28-8-network-programming-in-age-of-empires-and-beyond)
+(GDC 2001, Ensemble Studios) is the canonical source, and its central
+calculation is *exactly Option A*:
+
+> "Just passing X & Y coordinates, status, action, facing and damage would have
+> limited us to **250 moving units** in the game at the most."
+
+That is the same field list this document measured, and Ensemble rejected it.
+But their budget was a 28.8 kbit/s modem on a 16 MB Pentium 90 shared between
+8 players, and they needed 1,500 units. **We need 40 units and we measured
+18 kbit/s.** The arithmetic that forced Ensemble to lockstep in 1997 comes out
+the other way at our scale on a modern connection — which is not a refutation
+of their reasoning, it is their reasoning applied to different numbers.
+Glenn Fiedler's
+["Deterministic Lockstep"](https://gafferongames.com/post/deterministic_lockstep/)
+states the general form: "bandwidth is proportional to the size of the input,
+not the number of objects." True, and irrelevant when the objects cost 11 KiB.
+
+The other end of the scale confirms the shape. Forrest Smith, who worked on
+both Supreme Commander (lockstep) and Planetary Annihilation (client-server
+state streaming), reports PA's
+[state streaming](https://www.forrestthewoods.com/blog/tech_of_planetary_annihilation_chrono_cam/)
+costing "**1 Mbit per connected player**" against lockstep's "a few kilobytes
+per second" — but PA streams a solar system. At 40 bodies we measure 55× less
+than PA's figure.
+
+**The cost of determinism is paid in engineering, and the postmortems are
+unanimous that it is the worst bug class on the project.** Ensemble again:
+
+> "The Microsoft product manager… said 'In every project, there is one stubborn
+> bug that goes all the way to the wire — I think out-of-sync is going to be
+> it' — he was right." … "**Synchronization debugging was probably at the top
+> of this list**" of things they should have front-loaded.
+
+Their description of the failure mode is worth quoting because it is precisely
+what §6.2's knife-edge comparisons would produce: "A deer slightly out of
+alignment when the random map was created would forage slightly differently —
+and minutes later a villager would path a tiny bit off, or miss with his spear
+and take home no meat." Note also their observation that programmers "were not
+used to having to write code that used **the same number of calls to random
+within the simulation**" — the exact hazard §6.2 flagged around
+`state.random()` inside a conditional.
+
+For a magnitude: NetherRealm's
+["8 Frames in 16ms"](https://media.gdcvault.com/gdc2018/presentations/Stallone_Michael_8FramesIn16ms.pdf)
+(GDC 2018) reports **"roughly 7-8 man years"** and "4-12 concurrent engineers
+for 9 months" to add rollback to Mortal Kombat X — *starting from an already
+bit-deterministic engine* — converging on a "**final desync rate less than
+0.1%**." Factorio, which documents its determinism work more openly than
+anyone, chose to
+[drop 32-bit builds entirely](https://www.factorio.com/blog/post/fff-158)
+rather than "deal with desync reports related to 32 versus 64 bit systems," and
+runs [a whole-map CRC every tick](https://www.factorio.com/blog/post/fff-47) in
+a debug mode that costs all but "units of FPS" to find the first divergent
+tick. Gas Powered Games did ship bit-exact float determinism to over a million
+customers — so it is achievable — but by "setting the CPU to strictly follow
+the IEEE754 standard," a lever a JavaScript program does not have.
+
+**JavaScript specifically is named as a losing case.** David Salz (CTO,
+Sandbox Interactive) shipped Albion Online's cross-platform deterministic
+simulation and put the conditions plainly in
+["Deterministic Simulation"](https://media.gdcvault.com/gdceurope2016/presentations/Salz_David_Deterministic_Simulation.pdf)
+(GDC Europe 2016):
+
+> "IEEE standard: only **+, –, \*, /, sqrt** guaranteed to give same results
+> everywhere — not: sin, cos, tan etc."
+> "**You are in trouble if…** you need to support **a JIT environment**… you
+> need to target different CPUs… you need to use different compilers."
+
+His guaranteed-operations list is *identical* to what §6.1 derives independently
+from ECMA-262, which is a satisfying convergence. His recommendation when those
+conditions hold is **fixed-point integers throughout the simulation**. That is
+the real price of Option B: not "be careful with `Math.hypot`", but "rewrite the
+sim's arithmetic layer."
+
+Two projects have actually done deterministic simulation in JavaScript, and
+both converged on the same mitigations:
+
+- **[Rune](https://developers.rune.ai/blog/making-js-deterministic-for-fun-and-glory)**
+  runs the same JS game logic on mobile clients and servers. They monkey-patch
+  **31 `Math` operations to round through `Math.fround`** — deliberately
+  throwing away precision to buy cross-engine agreement — replace `Math.random`
+  with seeded mulberry32 (tracking the seed *per step* so rollback can rewind
+  it), patch `Array.prototype.sort`'s comparator, and ship an ESLint plugin.
+  Their [rules](https://developers.rune.ai/docs/how-it-works/server-side-logic)
+  additionally ban `async`/`await`, `Date`, `fetch`, regular expressions, and
+  `this` inside game logic, and they maintain an allowlist of third-party
+  libraries because "many external libraries contain code with unintended side
+  effects that does not comply with determinism constraints."
+- **[0 A.D.](https://wildfiregames.com/forum/topic/24731-question-deterministic-javascript/)**
+  runs its RTS simulation layer in JavaScript on SpiderMonkey. They replaced
+  `Math.random` with a seeded Boost RNG and override `Math` functions in
+  `globalscripts/Math.js` "for platform consistency", and warn that
+  `for...in` order is implementation-dependent.
+
+This is the strongest evidence in the document: it is **possible**, two teams
+have done it, and the shape of what they had to do is fully known. It is a
+platform-level commitment, not a tactical choice.
+
+**One caveat that is usually decisive against lockstep does not apply to us.**
+Fiedler [recommends](https://gafferongames.com/post/snapshot_interpolation/)
+"deterministic lockstep for 2-4 players at most", because "you can't simulate
+frame n until you receive input from *all* players for that frame, so players
+end up waiting for the most lagged player" — and Factorio
+[notes](https://www.factorio.com/blog/post/fff-147) that under lockstep
+"everyone needs to have the same latency". **Neither applies here.** ADR 0004
+already puts all resolution on the server in one transaction, with no
+client→server input during a slice; the client is a viewer, not a peer. Option
+B in this codebase is not peer lockstep — it is *server-authoritative replay*,
+which is strictly easier. The honest version of the argument against Option B
+is therefore only the cross-runtime float requirement, not the classic lockstep
+latency problem. That is worth stating so nobody re-litigates it with the wrong
+objection.
+
+**One last warning that maps exactly onto the deploy-skew risk in §3.** Shawn
+Hargreaves (Microsoft, MotoGP), quoted in Fiedler's
+["Floating Point Determinism"](https://gafferongames.com/post/floating_point_determinism/):
+
+> "If you store replays as controller inputs, they cannot be played back on
+> machines with different CPU architectures, compilers, or optimization
+> settings… **if we ever released a patch, we had to build it using the exact
+> same compiler as the original game.**"
+
+Substitute "browser engine version" for "compiler" and that is the operational
+tax Option B levies on every deploy, forever.
+
+**Two useful corroborations for the recommendation, not against it.** Supreme
+Commander and Planetary Annihilation both run their **simulation at 10 fps
+while rendering at 60** — the same 10 Hz this document arrives at from payload
+arithmetic. And every shipped lockstep game stores replays as seed-plus-input
+log, which is why keeping the 173-byte seed alongside the tracks (§9.6) is
+cheap insurance rather than a hedge.
+
+### 6.4 The gap this research could not close
 
 I could not run the browser side. Everything above is Node/V8 on x86-64 Linux.
 The claim that matters for Option B — "V8-in-Node and JavaScriptCore-on-iOS
@@ -956,6 +1123,25 @@ team statements. Every claim in §6.1 and §7 links to one of these inline.
 - [SpiderMonkey newsletter, Firefox 92/93](https://spidermonkey.dev/blog/2021/09/10/newsletter-firefox-92-93.html) — fdlibm added as an *option* for cross-platform consistency.
 - [Chromium `net/socket/client_socket_pool_manager.cc`](https://chromium.googlesource.com/chromium/src/+/refs/heads/main/net/socket/client_socket_pool_manager.cc) — `g_max_sockets_per_group = {6 /* kNormal */, 255 /* kWebSocket */}`.
 
+### Shipped-game postmortems and developer talks
+
+- [Bettner & Terrano, "1500 Archers on a 28.8: Network Programming in Age of Empires and Beyond"](https://www.gamedeveloper.com/programming/1500-archers-on-a-28-8-network-programming-in-age-of-empires-and-beyond) (GDC 2001, Ensemble Studios) — the 250-unit state-streaming calculation, 200 ms turns, and out-of-sync as the project's worst bug class.
+- [Michael Stallone, "8 Frames in 16ms: Rollback Networking in Mortal Kombat and Injustice 2"](https://media.gdcvault.com/gdc2018/presentations/Stallone_Michael_8FramesIn16ms.pdf) (GDC 2018, NetherRealm) — 7–8 man-years, <0.1% desync rate, and the state/visual separation rules.
+- [David Salz, "Deterministic Simulation: What modern online games can learn from the Game Boy"](https://media.gdcvault.com/gdceurope2016/presentations/Salz_David_Deterministic_Simulation.pdf) (GDC Europe 2016, Sandbox Interactive / Albion Online) — "only +, –, \*, /, sqrt guaranteed"; JIT environments named as a losing condition; fixed-point recommendation.
+- [Forrest Smith, "Synchronous RTS Engines and a Tale of Desyncs"](https://www.forrestthewoods.com/blog/synchronous_rts_engines_and_a_tale_of_desyncs/) and [part 2](https://www.gamedeveloper.com/business/opinion-synchronous-rts-engines-2-sync-harder) (Gas Powered Games) — 10 fps sim tick, per-second state hashing, IEEE-754 strict mode, 50–200 MB state saves.
+- [Forrest Smith, "The Tech of Planetary Annihilation: ChronoCam"](https://www.forrestthewoods.com/blog/tech_of_planetary_annihilation_chrono_cam/) (Uber Entertainment) — why they left lockstep, and the ~1 Mbit/player state-streaming figure.
+- [Patrick Wyatt, "The making of Warcraft part 3"](https://www.codeofhonor.com/blog/the-making-of-warcraft-part-3/) (Blizzard) — the earliest first-party account of sending commands rather than state.
+- Factorio Friday Facts, first-party: [#47 CRC fun](https://www.factorio.com/blog/post/fff-47) (whole-map CRC per tick), [#147 Multiplayer rewrite](https://www.factorio.com/blog/post/fff-147) (O(n²) → O(n); shared-latency penalty), [#158 The end of the 32 bit era](https://www.factorio.com/blog/post/fff-158) (dropping a platform to avoid cross-architecture desyncs), [#188 Bug, Bug, Desync](https://factorio.com/blog/post/fff-188), [#340 Deep desyncs](https://www.factorio.com/blog/post/fff-340) (iteration order and recomputed derived state as root causes). Also the [Desynchronization](https://wiki.factorio.com/Desynchronization) and [Replay system](https://wiki.factorio.com/Replay_system) wiki pages.
+- [Glenn Fiedler, "Deterministic Lockstep"](https://gafferongames.com/post/deterministic_lockstep/) · ["Floating Point Determinism"](https://gafferongames.com/post/floating_point_determinism/) (including the Hargreaves/MotoGP and Pandemic Studios quotes) · ["Snapshot Interpolation"](https://gafferongames.com/post/snapshot_interpolation/) (the 2–4 player recommendation) · ["Fix Your Timestep!"](https://gafferongames.com/post/fix_your_timestep/).
+- [GGPO](https://www.ggpo.net/) — rollback requires "a fully deterministic peer-to-peer engine".
+- [Blizzard `s2protocol`](https://github.com/Blizzard/s2protocol) — StarCraft II replays as init data plus an event log.
+
+### Deterministic simulation in JavaScript specifically
+
+- [Rune, "Making JS deterministic for fun and glory"](https://developers.rune.ai/blog/making-js-deterministic-for-fun-and-glory) — 31 patched `Math` operations via `Math.fround`, seeded mulberry32, patched sort comparator, ESLint plugin.
+- [Rune, server-side logic determinism rules](https://developers.rune.ai/docs/how-it-works/server-side-logic) — the banned list (`async`/`await`, `Date`, `fetch`, regexes, `this`) and the library allowlist.
+- [0 A.D. / Wildfire Games — "Question: deterministic JavaScript"](https://wildfiregames.com/forum/topic/24731-question-deterministic-javascript/) — a shipped RTS with a JavaScript simulation layer; seeded RNG, overridden `Math`, `for...in` order warnings.
+
 ### Infrastructure documentation
 
 - [nginx `ngx_http_proxy_module`](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_buffering) — `proxy_buffering` default on, `X-Accel-Buffering`, `proxy_read_timeout` default 60 s.
@@ -978,4 +1164,4 @@ Every number in §5 and §6.2 came from running the real `sim.ts` under
 were deliberately not committed — they are throwaway measurement scripts
 against a throwaway prototype. What they do is described precisely enough in
 each section to rebuild in an hour, and the conformance harness proposed in
-§6.3 is the version worth actually committing.
+§6.4 is the version worth actually committing.
