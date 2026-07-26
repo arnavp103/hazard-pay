@@ -62,7 +62,7 @@ import {
   shotOf,
 } from "./battlefield-space/fire-render.ts";
 import { createSpaceBattle, type RosterMode, type SpaceMode } from "./battlefield-space/space.ts";
-import { buildBoard } from "./board.ts";
+import { buildBoard, FLOOR_EXTENT } from "./board.ts";
 import { buildUnit, HERO_HEIGHT, LEG_LENGTH, type UnitRig } from "./figure.ts";
 import { flatLights, INK, MARK_LAYER } from "./flat.ts";
 import {
@@ -666,7 +666,12 @@ export function mountCombatSandbox(host: HTMLElement, options: MountOptions = {}
   const fire: FireMode = options.fire ?? "none";
   const scene = new THREE.Scene();
   scene.add(...flatLights());
-  const board = buildBoard();
+  // The floor has to reach the frustum corners, and pulling back to fit a big
+  // board pushes them well past the bake-off's 62 units. Derived from the
+  // frame rather than from the board: it is the *camera* that ran off the edge.
+  const reach = (STAGE_WIDTH / (2 * PX_PER_UNIT * zoom) + STAGE_HEIGHT / (PX_PER_UNIT * zoom))
+    * Math.SQRT2;
+  const board = buildBoard({ floor: Math.max(FLOOR_EXTENT, Math.ceil(reach * 2)) });
   scene.add(board.group);
   // The cover layer is variant B only, and its cost folds into the board's so
   // the report keeps saying "what does the environment cost" in one number.

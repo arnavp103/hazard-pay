@@ -73,7 +73,6 @@ import {
 import {
   type CameraMode,
   type CostReport,
-  defaultZoom,
   type HeroAnim,
   isCameraMode,
   mountCombatSandbox,
@@ -216,6 +215,10 @@ export function CombatSandboxPrototype() {
     const seed = readOptional("seed", -2147483648, 2147483647);
     const startAt = readOptional("start", 0, 600);
     const sliceSeconds = readOptional("slice", 0, 600);
+    // #100 round 4: only forwarded when the URL actually sets it. Passing the
+    // view's default unconditionally would silently override `camera=fit`,
+    // because `zoom` wins over the camera treatment by design.
+    const zoom = readOptional("zoom", 0.2, 4);
     const handle = mountCombatSandbox(host, {
       anim: readAnim(),
       approach: params().get("approach") !== "0",
@@ -234,7 +237,7 @@ export function CombatSandboxPrototype() {
       size: readSize(),
       space: readSpace(),
       view: currentView,
-      zoom: readNumber("zoom", defaultZoom(currentView), 0.2, 4),
+      ...(zoom === undefined ? {} : { zoom }),
       ...(freeze === undefined ? {} : { freezeMs: freeze }),
       ...(seed === undefined ? {} : { seed }),
       ...(startAt === undefined ? {} : { startAt }),

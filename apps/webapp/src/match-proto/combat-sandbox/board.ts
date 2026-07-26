@@ -83,12 +83,28 @@ function stack(batch: FlatBatch, spec: Stack): void {
   );
 }
 
-export function buildBoard(): BoardBuild {
+/**
+ * Floor side, in world units, at the bake-off's framing. Big enough that the
+ * ortho frustum never sees the floor's own edge at crowd zoom.
+ */
+export const FLOOR_EXTENT = 62;
+
+/**
+ * `floor` overrides that side length, and exists for #100 round 4 only.
+ *
+ * Pulling the camera back to fit a 40x40 board puts the frustum corners past
+ * 62 world units, and the floor's own edge shows up as black wedges in the
+ * corners of the shot. That is a property of this prototype's set dressing, not
+ * of the camera treatment being tested, and leaving it in would have made the
+ * pull-back captures look worse than pulling back actually is.
+ *
+ * Defaulted so every existing caller — every bake-off lane — gets the same
+ * 62x62 floor it has always had, byte for byte.
+ */
+export function buildBoard({ floor = FLOOR_EXTENT } = {}): BoardBuild {
   const batch = new FlatBatch();
 
-  // Big enough that the ortho frustum never sees the floor's own edge, even
-  // pulled back to crowd zoom.
-  batch.add(quad(62, 62), FLOOR, { at: [0, -0.002, 0] });
+  batch.add(quad(floor, floor), FLOOR, { at: [0, -0.002, 0] });
 
   // Quiet floor bands — the same large low-contrast masses the SVG board
   // used to keep the playable lane from competing with the units.
