@@ -4,11 +4,9 @@
     "commit": "",
     "pr": ""
   },
+  "autoMemoryEnabled": false,
   "permissions": {
     "allow": [
-      "Read(.worktrees/**)",
-      "Edit(.worktrees/**)",
-      "Write(.worktrees/**)",
       "Bash(git worktree *)"
     ]
   }
