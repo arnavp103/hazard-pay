@@ -35,6 +35,7 @@ import {
   type CostReport,
   CROWD_ZOOM,
   type HeroAnim,
+  LINEUP_ZOOM,
   mountCombatSandbox,
   type SandboxHandle,
   type SceneView,
@@ -157,7 +158,7 @@ export function CombatSandboxPrototype() {
       view: currentView,
       zoom: readNumber(
         "zoom",
-        currentView === "crowd" ? CROWD_ZOOM : (currentView === "lineup" ? 0.95 : COMBAT_ZOOM),
+        currentView === "crowd" ? CROWD_ZOOM : (currentView === "lineup" ? LINEUP_ZOOM : COMBAT_ZOOM),
         0.2,
         4,
       ),

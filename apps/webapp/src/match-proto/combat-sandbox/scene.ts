@@ -65,6 +65,8 @@ export const CROWD_ZOOM = 0.55;
 const RIGHT = new THREE.Vector3(Math.SQRT1_2, 0, -Math.SQRT1_2);
 const UP = new THREE.Vector3(-0.35355, 0.86603, -0.35355);
 const VIEW = new THREE.Vector3(0.61237, 0.5, 0.61237);
+/** Ground axis whose screen projection is purely vertical; positive is nearer. */
+const FORWARD = new THREE.Vector3(Math.SQRT1_2, 0, Math.SQRT1_2);
 
 export type HeroAnim = "attack" | "idle" | "march" | "turn" | "walk";
 
@@ -85,6 +87,21 @@ export type SceneView = "crowd" | "hero" | "lineup";
 const LINEUP = (["crew", "opfor"] as const).flatMap((faction) =>
   (["hero", "fodder"] as Tier[]).flatMap((tier) =>
     ARCHETYPE_NAMES.map((archetype) => ({ archetype, faction, tier }))));
+
+const LINEUP_SPACING = 1.28;
+/**
+ * Laid out as a grid, not one long row. A single row of twelve runs straight
+ * through the market stack and the foundry block at its ends, and the board is
+ * not moving — it is the shared bake-off board. Six a row keeps every unit in
+ * the open lane, and a new archetype adds a column or a row rather than
+ * pushing someone into a wall.
+ */
+const LINEUP_COLUMNS = Math.min(6, LINEUP.length);
+const LINEUP_ROW_GAP = 3.4;
+export const LINEUP_ZOOM = Math.min(
+  0.95,
+  STAGE_WIDTH / (2 * PX_PER_UNIT * (((LINEUP_COLUMNS - 1) / 2) * LINEUP_SPACING + 1.2)),
+);
 
 export interface CostReport {
   view: SceneView;
@@ -440,9 +457,8 @@ export function mountCombatSandbox(host: HTMLElement, options: MountOptions = {}
   const layers = options.layers ?? ALL_LAYERS;
   const scale = options.scale ?? 1;
   const marking = options.mark ?? true;
-  const lineupSpacing = Math.min(1.28, 13.2 / Math.max(1, LINEUP.length));
   const zoom = options.zoom
-    ?? (view === "crowd" ? CROWD_ZOOM : (view === "lineup" ? 0.95 : COMBAT_ZOOM));
+    ?? (view === "crowd" ? CROWD_ZOOM : (view === "lineup" ? LINEUP_ZOOM : COMBAT_ZOOM));
   const width = Math.round(STAGE_WIDTH * scale);
   const height = Math.round(STAGE_HEIGHT * scale);
   const pxPerUnit = PX_PER_UNIT * scale;
@@ -472,14 +488,20 @@ export function mountCombatSandbox(host: HTMLElement, options: MountOptions = {}
     });
     drives = battle.units;
   } else if (view === "lineup") {
+    const rows = Math.ceil(LINEUP.length / LINEUP_COLUMNS);
     drives = LINEUP.map((entry, index) => {
       const drive = makeDrive(index * 5 + 3);
-      const offset = (index - (LINEUP.length - 1) / 2) * lineupSpacing;
+      const column = index % LINEUP_COLUMNS;
+      const row = Math.floor(index / LINEUP_COLUMNS);
+      const across = (column - (LINEUP_COLUMNS - 1) / 2) * LINEUP_SPACING;
+      // Front row nearer the camera; rows are laid along the approach axis so
+      // the offset is purely screen-vertical and nothing shifts sideways.
+      const depth = ((rows - 1) / 2 - row) * LINEUP_ROW_GAP;
       drive.archetype = entry.archetype;
       drive.tier = entry.tier;
       drive.side = entry.faction === "crew" ? 0 : 1;
-      drive.x = RIGHT.x * offset;
-      drive.z = RIGHT.z * offset;
+      drive.x = RIGHT.x * across + FORWARD.x * depth;
+      drive.z = RIGHT.z * across + FORWARD.z * depth;
       return drive;
     });
   } else {
@@ -615,6 +637,9 @@ export function mountCombatSandbox(host: HTMLElement, options: MountOptions = {}
   // filmstrip. Captures are therefore not a separate code path that can drift
   // from what the browser shows — they are the same steps, replayed.
 
+  // Integer steps, same as the sim: the renderer's clock must not drift away
+  // from the state's, or a capture stops landing on the frame it names.
+  let simSteps = 0;
   let simTime = 0;
 
   const publish = (): void => {
@@ -656,11 +681,11 @@ export function mountCombatSandbox(host: HTMLElement, options: MountOptions = {}
   };
 
   const advanceTo = (to: number): void => {
-    let guard = 0;
-    while (simTime + FIXED_STEP <= to + 1e-9 && guard < 40000) {
-      simTime += FIXED_STEP;
+    const wanted = Math.min(Math.floor(to / FIXED_STEP + 1e-9), simSteps + 40000);
+    while (simSteps < wanted) {
+      simSteps += 1;
+      simTime = simSteps * FIXED_STEP;
       stepOnce(simTime, FIXED_STEP);
-      guard += 1;
     }
   };
 

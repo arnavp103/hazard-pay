@@ -127,9 +127,19 @@ function browser(args, { quiet = false } = {}) {
   });
 }
 
-/** Runs JS in the page and returns its value as a string. */
+/**
+ * Runs JS in the page and returns its value.
+ *
+ * `--json` because the plain output re-serialises strings with quotes, and a
+ * base64 PNG that silently keeps its quotes writes a corrupt file.
+ */
 function evaluate(script) {
-  return browser(["eval", script], { quiet: true }).trim();
+  const raw = browser(["eval", "--json", script], { quiet: true }).trim();
+  const envelope = JSON.parse(raw);
+  if (envelope.success !== true) {
+    throw new Error(`eval failed: ${JSON.stringify(envelope.error)}`);
+  }
+  return envelope.data.result;
 }
 
 function has(command) {
@@ -155,8 +165,7 @@ function openShot(base, query, scale) {
   const url = `${base}/combat-sandbox?capture=1&${query}${separator}`;
   browser(["open", url], { quiet: true });
   for (let attempt = 0; attempt < 60; attempt += 1) {
-    const ready = evaluate("typeof window.__combatSandbox === 'object'");
-    if (ready.includes("true")) {
+    if (evaluate("typeof window.__combatSandbox === 'object'") === true) {
       return url;
     }
     execFileSync("agent-browser", ["wait", "250"], { stdio: "ignore" });
@@ -237,8 +246,8 @@ async function main() {
   // The cost report is evidence, not decoration: crowd-scale draw calls and
   // frame budget are half of what a lane is judged on.
   openShot(options.url, "view=crowd&freeze=9000", options.scale);
-  const cost = evaluate("JSON.stringify(window.__combatSandbox.cost())");
-  writeFileSync(join(options.out, "cost-report.json"), `${cost}\n`);
+  const cost = evaluate("window.__combatSandbox.cost()");
+  writeFileSync(join(options.out, "cost-report.json"), `${JSON.stringify(cost, null, 2)}\n`);
   console.log("  cost-report.json");
 
   browser(["close"], { quiet: true });
