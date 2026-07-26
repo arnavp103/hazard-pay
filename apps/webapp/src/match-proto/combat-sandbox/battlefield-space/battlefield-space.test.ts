@@ -16,17 +16,30 @@
 import { Vector3 } from "three";
 import { describe, expect, it } from "vitest";
 
+import { profileOf } from "../archetypes.ts";
 import {
   advanceBattle,
   battleAt,
   cloneBattle,
   createBattle,
   type SimState,
+  type SimUnit,
   stepsFor,
 } from "../sim.ts";
+import { postureOf } from "./approach-field.ts";
 import { isInsideFootprint } from "./cover-behaviours.ts";
 import {
+  coverFacingOf,
+  DUCKED,
+  OPEN,
+  PEEKING,
+  shieldedFrom,
+  usableFaces,
+} from "./directional-cover.ts";
+import {
   boardFor,
+  type BoardProp,
+  bodyRadius,
   COVER_DENSITIES,
   densityReport,
   GRID,
@@ -53,6 +66,11 @@ const COVER_PROPS = DENSE.props;
 
 function suppressed(state: SimState): number {
   return state.units.reduce((sum, unit) => sum + unit.suppressedShots, 0);
+}
+
+/** A prop with nothing but a footprint — `usableFaces` reads nothing else. */
+function fakeProp(sx: number, sy: number): BoardProp {
+  return { cells: { cx0: 0, cx1: sx, cy0: 0, cy1: sy } } as BoardProp;
 }
 
 describe("the port of lane 5's occupancy model", () => {
@@ -433,5 +451,153 @@ describe("round 2 — cover once the roster is all shooters", () => {
       const battle = advanceBattle(createSpaceBattle("plaza", { roster }), stepsFor(20));
       expect(`${roster}: ${String(suppressed(battle))}`).toBe(`${roster}: 0`);
     }
+  });
+});
+
+/* ---------------------------------------------------------------------- */
+/* Round 3 — melee uses cover, and cover has a facing                      */
+/* ---------------------------------------------------------------------- */
+
+function attacking(state: SimState): number {
+  return state.units.filter((unit) => unit.attackStep >= 0).length;
+}
+
+function swordsOf(state: SimState): SimUnit[] {
+  return state.units.filter((unit) => {
+    const profile = profileOf(unit.archetype, unit.tier);
+    return postureOf(profile.standoff, profile.attackRange) === "assault";
+  });
+}
+
+describe("round 3 — the shared cost field", () => {
+  it("routes melee, and routes nobody when the approach is off", () => {
+    const on = advanceBattle(createSpaceBattle("cover", { density: "spread" }), stepsFor(3));
+    const off = advanceBattle(
+      createSpaceBattle("cover", { approach: false, density: "spread" }),
+      stepsFor(3),
+    );
+    expect(on.units.some((unit) => unit.approachCell >= 0)).toBe(true);
+    expect(off.units.every((unit) => unit.approachCell === -1)).toBe(true);
+  });
+
+  it("only ever routes swords — a shooter wants a post, not a path", () => {
+    const state = advanceBattle(createSpaceBattle("cover", { density: "spread" }), stepsFor(3));
+    for (const unit of state.units) {
+      if (unit.approachCell < 0) { continue; }
+      const profile = profileOf(unit.archetype, unit.tier);
+      expect(postureOf(profile.standoff, profile.attackRange)).not.toBe("firing");
+    }
+  });
+
+  it("puts every waypoint on a tile a body may actually stand on", () => {
+    const board = boardFor("spread");
+    const state = advanceBattle(createSpaceBattle("cover", { density: "spread" }), stepsFor(4));
+    for (const unit of state.units) {
+      if (unit.approachCell < 0) { continue; }
+      expect(walkable(board, unit.approachCell % GRID, Math.floor(unit.approachCell / GRID)))
+        .toBe(true);
+    }
+  });
+
+  it("does not bring round 1's clustering bug back", () => {
+    // Round 1 zeroed melee's appetite because giving everyone one dropped
+    // attacks 78 %. The crowd term and the lane offset exist so that the fight
+    // still happens with the appetite on; this is the assertion that says so.
+    for (const density of COVER_DENSITIES) {
+      const on = advanceBattle(createSpaceBattle("cover", { density }), stepsFor(20));
+      const off = advanceBattle(
+        createSpaceBattle("cover", { approach: false, density }),
+        stepsFor(20),
+      );
+      const before = off.units.reduce((sum, unit) => sum + (unit.firedAtStep >= 0 ? 1 : 0), 0);
+      const after = on.units.reduce((sum, unit) => sum + (unit.firedAtStep >= 0 ? 1 : 0), 0);
+      expect(`${density}: ${String(after >= before * 0.6)}`).toBe(`${density}: true`);
+      expect(`${density}: ${String(attacking(on) > 0)}`).toBe(`${density}: true`);
+    }
+  });
+
+  it("carries the approach flag through a slice boundary", () => {
+    const state = createSpaceBattle("cover", { approach: false, density: "spread" });
+    const back = JSON.parse(JSON.stringify(advanceBattle(state, stepsFor(2)))) as SimState;
+    expect(back.approachMode).toBe(0);
+    expect(advanceBattle(back, stepsFor(2)).units.every((unit) => unit.approachCell === -1))
+      .toBe(true);
+  });
+
+  it("still replays exactly with melee routing", () => {
+    const once = battleAt(6, { coverDensity: 1, coverMode: true });
+    const twice = battleAt(6, { coverDensity: 1, coverMode: true });
+    expect(twice).toEqual(once);
+  });
+});
+
+describe("round 3 — cover is directional", () => {
+  const board = boardFor("dense");
+  const radius = bodyRadius("fodder");
+
+  it("protects from the direction the body is tucked behind", () => {
+    const prop = COVER_PROPS.find((entry) => entry.cover === "full");
+    expect(prop).toBeDefined();
+    if (prop === undefined) { return; }
+    const rect = worldRectOf(prop.cells);
+    // Standing just past the +x face, so the prop covers the -x direction.
+    const x = rect.x1 + radius + 0.1;
+    const z = (rect.z0 + rect.z1) / 2;
+    const facing = coverFacingOf(board, x, z, radius);
+    expect(facing).toBeDefined();
+    if (facing === undefined) { return; }
+    // A shot from further along +x arrives inside the arc: cover holds.
+    expect(shieldedFrom(facing, x, z, x + 6, z)).toBe(true);
+    // A shot from the side ignores it entirely — the ruling's whole content.
+    expect(shieldedFrom(facing, x, z, x, z + 6)).toBe(false);
+    expect(shieldedFrom(facing, x, z, x, z - 6)).toBe(false);
+  });
+
+  it("offers an elongated prop only its long faces", () => {
+    // A 3x1 fence runs along x, so you shelter behind its z faces, not its ends.
+    expect(usableFaces(fakeProp(3, 1))).toEqual({ alongX: false, alongZ: true });
+    expect(usableFaces(fakeProp(1, 3))).toEqual({ alongX: true, alongZ: false });
+    // A square mass protects on all four.
+    expect(usableFaces(fakeProp(2, 2))).toEqual({ alongX: true, alongZ: true });
+  });
+
+  it("lets a flanking shot through cover that would have stopped it head-on", () => {
+    const state = advanceBattle(createSpaceBattle("cover", { density: "dense" }), stepsFor(20));
+    const flanked = state.units.reduce((sum, unit) => sum + unit.flankedShots, 0);
+    expect(flanked).toBeGreaterThan(0);
+  });
+});
+
+describe("round 3 — the three exposure states", () => {
+  it("never lets a ducked body attack", () => {
+    const state = createSpaceBattle("cover", { density: "dense" });
+    for (let step = 0; step < stepsFor(20); step += 1) {
+      advanceBattle(state, 1);
+      for (const unit of state.units) {
+        if (unit.coverState === DUCKED) { expect(unit.attackStep).toBeLessThan(0); }
+      }
+    }
+  });
+
+  it("never lets a sword peek — it has no weapon to expose", () => {
+    const state = createSpaceBattle("cover", { density: "dense" });
+    for (let step = 0; step < stepsFor(20); step += 1) {
+      advanceBattle(state, 1);
+      for (const unit of swordsOf(state)) {
+        expect(unit.coverState).not.toBe(PEEKING);
+      }
+    }
+    expect(swordsOf(state).length).toBeGreaterThan(0);
+  });
+
+  it("makes shooters buy their shots with exposure", () => {
+    const state = advanceBattle(createSpaceBattle("cover", { density: "dense" }), stepsFor(20));
+    expect(state.units.reduce((sum, unit) => sum + unit.peekSteps, 0)).toBeGreaterThan(0);
+    expect(state.units.reduce((sum, unit) => sum + unit.duckedSteps, 0)).toBeGreaterThan(0);
+  });
+
+  it("leaves every body in the open in the plaza — nothing to duck behind", () => {
+    const state = advanceBattle(createSpaceBattle("plaza"), stepsFor(20));
+    expect(state.units.every((unit) => unit.coverState === OPEN)).toBe(true);
   });
 });

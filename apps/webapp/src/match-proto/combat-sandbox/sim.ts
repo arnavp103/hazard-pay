@@ -140,13 +140,18 @@ function makeUnit(
     aimZ: z + Math.cos(facing) * 4,
     angularVelocity: 0,
     approachCell: -1,
+    approachSteps: 0,
     archetype,
     attackStep: -1,
     ax: 0,
     az: 0,
     cooldownSteps: 0,
     coverCell: -1,
+    coverState: 0,
+    duckedSteps: 0,
     exposedSteps: 0,
+    flankedShots: 0,
+    peekSteps: 0,
     facing,
     firedAtStep: -1,
     hitAtStep: -1,
@@ -188,6 +193,7 @@ export function createBattle(options: BattleOptions = {}): SimState {
   const fodderArchetypeAt = options.fodderArchetypeAt ?? defaultFodderArchetype;
 
   const state: SimState = {
+    approachMode: options.approachMode === false ? 0 : 1,
     coverDensity: options.coverDensity ?? 0,
     coverMode: options.coverMode === true ? 1 : 0,
     randomState: seedRandom(seed),

@@ -26,6 +26,9 @@
  *   density=dense|spread|sparse  #100 round 2: how much cover — 32 / 16 / 8
  *                            authored props. Default dense, which is round 1's
  *                            board unchanged
+ *   approach=0               #100 round 3: turn melee's covered approach OFF,
+ *                            i.e. reproduce rounds 1-2 where only shooters
+ *                            used cover. Default on.
  *   roster=mixed|ranged|split    #100 round 2: composition — the bake-off mix,
  *                            all shooters, or shooters vs swords
  *   fire=none|hitscan|bolt   #100 round 2: how a ranged attack is drawn.
@@ -187,6 +190,7 @@ export function CombatSandboxPrototype() {
     const sliceSeconds = readOptional("slice", 0, 600);
     const handle = mountCombatSandbox(host, {
       anim: readAnim(),
+      approach: params().get("approach") !== "0",
       base: readBase(),
       density: readDensity(),
       fire: readFire(),

@@ -80,8 +80,35 @@ export interface SimUnit {
    * that has to survive a slice boundary.
    */
   approachCell: number;
-  /** Steps this unit has spent on a tile its enemies can see. Round 3 metric. */
+  /**
+   * Round 3 metric: steps spent **closing** with a clear line to the enemy.
+   *
+   * Counted only while the target is out of reach, which is the correction that
+   * makes the number mean anything. A body in contact is at 1.1 units and
+   * `sightBetween` cannot occlude a line that short, so counting every step
+   * would make "exposed" a synonym for "fighting" and a covered approach could
+   * never move it. What a covered approach buys is cheaper *travel*; this is
+   * the denominator that measures travel.
+   */
   exposedSteps: number;
+  /** Steps spent with a target out of reach — the approach itself. */
+  approachSteps: number;
+
+  // --- #100 round 3: the directional-cover ruling -------------------------
+  /**
+   * Stance: 0 open, 1 ducked, 2 peeking. See `directional-cover.ts`.
+   *
+   * The renderer reads this to lower the silhouette, which is the ruling's own
+   * justification for the model — a ducked body and a peeking body differ in
+   * *height*, and height is the channel that survives 22-48 px.
+   */
+  coverState: number;
+  /** Steps spent ducked. */
+  duckedSteps: number;
+  /** Steps spent peeking — exposure this unit bought in order to shoot. */
+  peekSteps: number;
+  /** Shots this unit landed by coming in outside its target's protected arc. */
+  flankedShots: number;
   /** 0..1 of this unit's target hidden from it by a prop, this step. */
   sightOcclusion: number;
   /** Attacks this unit has held or spoiled because the line was covered. */
@@ -118,6 +145,17 @@ export interface SimState {
    * that only sets `coverMode` gets round 1's fight unchanged.
    */
   coverDensity: number;
+  /**
+   * #100 round 3: 1 lets melee route over the shared cost field — the covered
+   * approach — and 0 reproduces rounds 1 and 2, where melee's cover appetite
+   * was zeroed and only shooters used cover.
+   *
+   * It exists as a switch rather than as a rewrite because the ticket's whole
+   * question is *what changes when melee uses cover*, and that is only
+   * answerable by running the same fight both ways. Ignored when `coverMode`
+   * is 0 — there is nothing to route around in the plaza.
+   */
+  approachMode: number;
 }
 
 /**
@@ -158,4 +196,10 @@ export interface BattleOptions {
    * string-to-index mapping.
    */
   coverDensity?: number;
+  /**
+   * #100 round 3: melee's covered approach. Default **on** when `coverMode` is
+   * set — round 3's position is that both archetypes want cover — and set
+   * `false` to get rounds 1 and 2 back for the A/B.
+   */
+  approachMode?: boolean;
 }

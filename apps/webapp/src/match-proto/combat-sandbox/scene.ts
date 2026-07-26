@@ -45,6 +45,9 @@ import { authoredKeyTotal, BASE_KEY_COUNT, type BaseDensity } from "./authored.t
 // Round 2 adds `density` (how much cover), `roster` (who is fighting) and
 // `fire` (whether a shot is drawn at all — see `fire-render.ts`'s header).
 import { buildCoverBoard } from "./battlefield-space/cover-board.ts";
+// Registers the duck/peek silhouettes at module scope. Imported for the side
+// effect, exactly as `cover-behaviours.ts` registers its behaviours.
+import "./battlefield-space/cover-poses.ts";
 import type { CoverDensity } from "./battlefield-space/cover-model.ts";
 import {
   type FireMode,
@@ -206,6 +209,11 @@ export interface MountOptions {
   density?: CoverDensity;
   /** #100 round 2. Composition: the mixed roster, all shooters, or ranged vs melee. */
   roster?: RosterMode;
+  /**
+   * #100 round 3. Melee's covered approach. Default on; `false` reproduces
+   * rounds 1 and 2, where only shooters used cover.
+   */
+  approach?: boolean;
   /**
    * #100 round 2. Whether a ranged attack draws anything. `"none"` (default) is
    * the status quo across every lane on #64. **A prototype stand-in, not an art
@@ -528,6 +536,7 @@ export function mountCombatSandbox(host: HTMLElement, options: MountOptions = {}
 
   if (view === "crowd") {
     battle = createSpaceBattle(space, {
+      approach: options.approach ?? true,
       density,
       fodderPerSide: options.fodderPerSide ?? 18,
       heroesPerSide: options.heroesPerSide ?? 2,

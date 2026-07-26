@@ -68,6 +68,12 @@ export interface SpaceOptions extends BattleOptions {
   density?: CoverDensity;
   /** Composition. Default `mixed` — round 1's roster. */
   roster?: RosterMode;
+  /**
+   * Round 3's variable: melee's covered approach. Default on. `false` runs
+   * rounds 1 and 2, where only shooters used cover — which is the baseline
+   * every round-3 number is read against.
+   */
+  approach?: boolean;
 }
 
 /**
@@ -100,9 +106,10 @@ function archetypeUnder(roster: RosterMode, unit: SimUnit): Archetype | undefine
  * inside a crate is a bug the *placement* has to solve, not the sim.
  */
 export function createSpaceBattle(space: SpaceMode, options: SpaceOptions = {}): SimState {
-  const { density = "dense", roster = "mixed", ...battleOptions } = options;
+  const { approach = true, density = "dense", roster = "mixed", ...battleOptions } = options;
   const state = createBattle({
     ...battleOptions,
+    approachMode: approach,
     coverDensity: densityIndex(density),
     coverMode: space === "cover",
   });

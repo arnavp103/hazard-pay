@@ -82,6 +82,15 @@ import {
   RESISTANCES,
 } from "./approach-field.ts";
 import {
+  besideAProp,
+  coverFacingOf,
+  DUCKED,
+  PEEK_HIT,
+  PEEKING,
+  shieldedFrom,
+  stanceFor,
+} from "./directional-cover.ts";
+import {
   blockedAt,
   bodyRadius,
   boardFor,
@@ -200,7 +209,15 @@ export const seekCoverCell: Behaviour = {
     // The shared field, point-evaluated. Round 2's post score knew only about
     // the unit's own target; a post can be perfectly covered from that one body
     // and stand in the open with respect to the other nineteen.
-    const seen = exposureFor(board, ctx.state, unit.side).exposure;
+    //
+    // Gated on `approachMode` with melee's route, deliberately: the A/B in the
+    // metrics table is then "round 3's field, or round 2 exactly", with no
+    // third state where half the change is in. That does mean the table's
+    // ranged columns move for two reasons at once — said plainly rather than
+    // buried, because it is the one place the comparison is not clean.
+    const seen = ctx.state.approachMode === 0
+      ? undefined
+      : exposureFor(board, ctx.state, unit.side).exposure;
     let bestScore = Infinity;
     let bestCell = -1;
     for (let index = 0; index < board.props.length; index += 1) {
@@ -223,7 +240,7 @@ export const seekCoverCell: Behaviour = {
       if (sight.occlusion < 0.2) { continue; }
       const value = Math.max(0, 1 - Math.abs(sight.occlusion - COVER_SWEET) / COVER_SWEET);
       const cell = post.cy * GRID + post.cx;
-      const score = walk - value * COVER_PULL + (seen[cell] ?? 0) * EXPOSURE_PULL;
+      const score = walk - value * COVER_PULL + (seen?.[cell] ?? 0) * EXPOSURE_PULL;
       if (score < bestScore) {
         bestScore = score;
         bestCell = cell;
@@ -263,7 +280,10 @@ export const seekApproach: Behaviour = {
   name: "seekApproach",
   phase: "acquire",
   step(unit, ctx) {
-    if (!isOn(ctx)) { return; }
+    if (!isOn(ctx) || ctx.state.approachMode === 0) {
+      unit.approachCell = -1;
+      return;
+    }
     const posture = postureOf(ctx.profile.standoff, ctx.profile.attackRange);
     const target = targetOf(unit, ctx);
     if (posture === "firing" || target === undefined) {
@@ -359,7 +379,15 @@ export const readSightline: Behaviour = {
     // reads the same number in both directions — so a clear line *out* is a
     // clear line *in*, and a step spent with one is a step spent exposed. It is
     // the same threshold the shared field uses, so the two agree.
-    if (sight.occlusion < EXPOSED_AT) { unit.exposedSteps += 1; }
+    //
+    // **Only while closing.** A body in contact is 1.1 units from its target and
+    // `sightBetween` excludes the ends of the segment, so nothing can occlude a
+    // line that short: counting every step would make "exposed" mean "fighting"
+    // and no approach, covered or not, could ever move the number.
+    if (Math.hypot(target.x - unit.x, target.z - unit.z) > ctx.profile.attackRange) {
+      unit.approachSteps += 1;
+      if (sight.occlusion < EXPOSED_AT) { unit.exposedSteps += 1; }
+    }
     // Slide around whatever is in the way rather than grinding into it. The
     // side is the short way round, from the sign of the cross product — no
     // extra sightline evaluation and no per-unit coin to remember.
@@ -462,30 +490,98 @@ export const avoidFootprints: Behaviour = {
 };
 
 /**
- * A shot into cover is held, or taken and spoiled.
+ * The stance this body is in: open, ducked, or peeking.
  *
- * Runs after the built-in `attackCycle`, so it sees the attack the cycle just
- * started (`attackStep === 0`) and can cancel it before a single frame of
- * wind-up is drawn. Cancelling rather than spoiling the release is the choice
- * with a picture attached: #97 measured that 42 % of the army is mid-wind-up at
- * any instant, so the visible consequence of cover is *fewer telegraphs on
- * screen*, not more misses.
+ * The directional-cover ruling's visible half. Runs in `steer` so the value is
+ * settled before `blockedFire` reads it in `act`, and before the renderer draws
+ * the frame — a body that ducks reads as a *shorter silhouette*, which is the
+ * channel the ruling picked precisely because it survives 22-48 px where pose
+ * detail does not.
+ *
+ * Melee never peeks. That is the line that makes the two archetypes differ in
+ * their animation *set* rather than only in their numbers.
+ */
+export const coverStance: Behaviour = {
+  doc: "duck, peek, or stand in the open — the directional-cover stance",
+  name: "coverStance",
+  phase: "steer",
+  step(unit, ctx) {
+    if (!isOn(ctx)) { return; }
+    const board = boardOf(ctx);
+    const target = targetOf(unit, ctx);
+    const inReach = target !== undefined
+      && Math.hypot(target.x - unit.x, target.z - unit.z) <= ctx.profile.attackRange;
+    // A cheap tile-adjacency pre-filter before the per-prop scan: most bodies
+    // on a `spread` board are nowhere near anything, and this runs every step
+    // for every unit rather than on retarget steps.
+    const facing = besideAProp(board, unit.x, unit.z)
+      ? coverFacingOf(board, unit.x, unit.z, bodyRadius(unit.tier))
+      : undefined;
+    const canPeek = postureOf(ctx.profile.standoff, ctx.profile.attackRange) === "firing";
+    unit.coverState = stanceFor(unit, facing, canPeek, inReach);
+    if (unit.coverState === DUCKED) { unit.duckedSteps += 1; }
+    if (unit.coverState === PEEKING) { unit.peekSteps += 1; }
+  },
+};
+
+/**
+ * Whether this attack happens at all, under the directional model.
+ *
+ * Rounds 1 and 2 asked one question — "how much of my target is hidden" — and
+ * rolled against it in both directions. The ruling replaces that with two
+ * questions with different answers:
+ *
+ *   1. **Can I attack?** A ducked body cannot. It has to come up first, and
+ *      coming up is what `coverStance` charges it for.
+ *   2. **Is my target actually protected from *me*?** Only if my line arrives
+ *      inside the arc its prop covers. From the side, its cover is worth
+ *      nothing — which is what makes flanking mechanically real.
+ *
+ * A shot at a target that is ducked *and* shielded from this angle is held
+ * rather than thrown away, keeping round 1's finding that the visible
+ * consequence of cover is fewer telegraphs on screen and not more misses.
+ * `flankedShots` counts the other outcome: cover that was present, and bypassed.
  */
 export const blockedFire: Behaviour = {
-  doc: "hold or spoil an attack whose line into the target is covered",
+  doc: "hold an attack the stance forbids or the target's facing defeats",
   name: "blockedFire",
   phase: "act",
   step(unit, ctx) {
     if (!isOn(ctx) || unit.attackStep !== 0) { return; }
-    const occlusion = unit.sightOcclusion;
-    if (occlusion <= 0.01) { return; }
-    const denied = occlusion >= FIRE_BLOCK || nextRandom(unit) < occlusion;
-    if (!denied) { return; }
-    unit.attackStep = -1;
-    unit.cooldownSteps = HOLD_STEPS;
-    unit.suppressedShots += 1;
+    // 1. A ducked body has no shot to take.
+    if (unit.coverState === DUCKED) {
+      hold(unit);
+      return;
+    }
+    const target = targetOf(unit, ctx);
+    if (target === undefined) { return; }
+    const board = boardOf(ctx);
+    const facing = besideAProp(board, target.x, target.z)
+      ? coverFacingOf(board, target.x, target.z, bodyRadius(target.tier))
+      : undefined;
+    // 2. No cover on the target at all, or the wrong side of it: the shot goes.
+    if (facing === undefined || !shieldedFrom(facing, target.x, target.z, unit.x, unit.z)) {
+      if (facing !== undefined) { unit.flankedShots += 1; }
+      return;
+    }
+    if (target.coverState === DUCKED) {
+      hold(unit);
+      return;
+    }
+    // 3. Peeking: hittable from the cover direction, but safer than the open.
+    //    The magnitude is arbitrary and flagged in `directional-cover.ts`.
+    if (target.coverState === PEEKING && nextRandom(unit) > PEEK_HIT) {
+      hold(unit);
+    }
   },
 };
+
+/** Cancel the attack the cycle just started, before a frame of it is drawn. */
+function hold(unit: SimUnit): void {
+  unit.attackStep = -1;
+  unit.cooldownSteps = HOLD_STEPS;
+  unit.suppressedShots += 1;
+}
 
 /**
  * A body never ends a step inside a prop's footprint.
@@ -629,6 +725,7 @@ BEHAVIOURS.push(
   holdCover,
   followApproach,
   avoidFootprints,
+  coverStance,
   blockedFire,
   clampToFootprints,
 );

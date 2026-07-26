@@ -72,6 +72,8 @@ import {
   type WorldRect,
   worldRectOf,
 } from "./cover-model.ts";
+import { postureOf } from "./approach-field.ts";
+import { IN_COVER_AT } from "./cover-behaviours.ts";
 import { firesOrdnance } from "./fire-render.ts";
 import { createSpaceBattle, type RosterMode, type SpaceMode } from "./space.ts";
 
@@ -305,6 +307,56 @@ interface Sample {
   rangedAtStandoff: number;
   /** Attacks released since t=0. Counted per step, not sampled. */
   shotsFired: number;
+
+  /* --- round 3: does melee do something different from ranged? --------- */
+  meleeUnits: number;
+  /** Swords whose target is inside their reach. Melee's whole job. */
+  meleeInReach: number;
+  /**
+   * Formation depth s.d. **per archetype**, along the approach axis.
+   *
+   * Round 2 read one number for the whole army and found ranged holds tighter
+   * in the open plaza than on any cover board. Split by archetype it becomes
+   * answerable whether that is shooters holding a line or swords running past
+   * them, which the pooled number cannot distinguish.
+   */
+  meleeDepthSd: number;
+  rangedDepthSd: number;
+  /**
+   * Of the steps spent **closing**, the share spent with a clear line to the
+   * enemy. The covered approach's own scoreboard: 100 % is walking across the
+   * open, 0 % is arriving without ever being seen.
+   */
+  meleeExposed: number;
+  rangedExposed: number;
+  /** Steps the swords spent closing at all — the denominator, stated. */
+  meleeApproachSteps: number;
+
+  /* --- the directional-cover ruling ------------------------------------ */
+  /** Share of all steps each archetype spent ducked behind a prop. */
+  meleeDucked: number;
+  rangedDucked: number;
+  /**
+   * Share of steps shooters spent peeking — the exposure they bought in order
+   * to shoot. Melee never peeks, so there is deliberately no melee column.
+   */
+  rangedPeeking: number;
+  /**
+   * Attacks that landed by coming in outside the target's protected arc.
+   *
+   * Under the symmetric model rounds 1-2 used this number could not exist:
+   * cover either stopped a line or it did not, and going round the side changed
+   * nothing. It is the ruling's mechanical content, counted.
+   */
+  flankedShots: number;
+  /**
+   * Mean distance to the nearest friendly, for swords only. The round-1
+   * clustering bug, measured directly: if the covered approach funnels bodies
+   * this collapses, and no amount of suppression makes that acceptable.
+   */
+  meleeNearestFriendly: number;
+  /** Swords standing where a prop hides them from their target. */
+  meleeInCover: number;
 }
 
 /**
@@ -366,16 +418,61 @@ function sampleOf(
   let rangedOcclusionSum = 0;
   let rangedWithTarget = 0;
   let rangedAtStandoff = 0;
+  // Round 3. Depth is measured on side 0 only, like the pooled number above, so
+  // the two are read against the same bodies — but reach, exposure and crowding
+  // count both sides, because "did the swords get there" is a question about the
+  // whole fight and `split` puts every sword on one side.
+  const meleeDepth: number[] = [];
+  const rangedDepth: number[] = [];
+  let meleeUnits = 0;
+  let meleeInReach = 0;
+  let meleeInCover = 0;
+  let meleeExposedSteps = 0;
+  let meleeApproachSteps = 0;
+  let rangedExposedSteps = 0;
+  let rangedApproachSteps = 0;
+  let meleeNearestSum = 0;
+  let meleeDuckedSteps = 0;
+  let rangedDuckedSteps = 0;
+  let rangedPeekSteps = 0;
   for (const unit of units) {
     const profile = profileOf(unit.archetype, unit.tier);
     const shooter = firesOrdnance(profile.standoff);
     if (shooter) { rangedUnits += 1; }
+    const sword = postureOf(profile.standoff, profile.attackRange) === "assault";
+    if (sword) {
+      meleeUnits += 1;
+      meleeExposedSteps += unit.exposedSteps;
+      meleeApproachSteps += unit.approachSteps;
+      meleeDuckedSteps += unit.duckedSteps;
+      if (unit.sightOcclusion >= IN_COVER_AT) { meleeInCover += 1; }
+      let nearest = Infinity;
+      for (const other of units) {
+        if (other.id === unit.id || other.side !== unit.side) { continue; }
+        nearest = Math.min(nearest, Math.hypot(other.x - unit.x, other.z - unit.z));
+      }
+      meleeNearestSum += Number.isFinite(nearest) ? nearest : 0;
+    } else if (shooter) {
+      rangedExposedSteps += unit.exposedSteps;
+      rangedApproachSteps += unit.approachSteps;
+      rangedDuckedSteps += unit.duckedSteps;
+      rangedPeekSteps += unit.peekSteps;
+    }
+    if (unit.side === 0) {
+      const along = (unit.x + unit.z) / Math.SQRT2;
+      if (sword) {
+        meleeDepth.push(along);
+      } else if (shooter) {
+        rangedDepth.push(along);
+      }
+    }
     const target = byId.get(unit.targetId);
     if (target !== undefined) {
       const gap = Math.hypot(target.x - unit.x, target.z - unit.z);
       if (gap <= profile.attackRange) {
         inReach += 1;
         if (shooter) { rangedInReach += 1; }
+        if (sword) { meleeInReach += 1; }
       }
       if (shooter) {
         rangedWithTarget += 1;
@@ -400,8 +497,22 @@ function sampleOf(
   }
 
   const count = Math.max(1, units.length);
+  const steps = Math.max(1, state.step);
   return {
     attacking,
+    meleeDepthSd: standardDeviation(meleeDepth),
+    flankedShots: units.reduce((sum, unit) => sum + unit.flankedShots, 0),
+    meleeApproachSteps,
+    meleeDucked: meleeUnits === 0 ? 0 : meleeDuckedSteps / (meleeUnits * steps),
+    meleeExposed: meleeApproachSteps === 0 ? 0 : meleeExposedSteps / meleeApproachSteps,
+    meleeInCover,
+    meleeInReach,
+    meleeNearestFriendly: meleeUnits === 0 ? 0 : meleeNearestSum / meleeUnits,
+    meleeUnits,
+    rangedDepthSd: standardDeviation(rangedDepth),
+    rangedDucked: rangedUnits === 0 ? 0 : rangedDuckedSteps / (rangedUnits * steps),
+    rangedPeeking: rangedUnits === 0 ? 0 : rangedPeekSteps / (rangedUnits * steps),
+    rangedExposed: rangedApproachSteps === 0 ? 0 : rangedExposedSteps / rangedApproachSteps,
     bboxH: Math.round(y1 - y0),
     bboxW: Math.round(x1 - x0),
     coveredByBoardArt: coveredByArt / count,
@@ -432,12 +543,23 @@ interface Variant {
   space: SpaceMode;
   density: CoverDensity;
   roster: RosterMode;
+  /** Round 3's variable. `false` is rounds 1–2: only shooters used cover. */
+  approach?: boolean;
 }
 
 interface Run extends Variant {
   samples: Sample[];
   /** Wall-clock ms to simulate one 4-second slice, for the #97 comparison. */
   msPerSlice: number;
+  /**
+   * Seconds until **half** the swords have their target inside reach, or -1 if
+   * that never happens inside the 20 s window.
+   *
+   * The median rather than the first: one sword arriving is a body that started
+   * close, and the ticket asks how long a *covered approach* costs, which is a
+   * question about the army. Measured every step, not at the sample times.
+   */
+  meleeContactT: number;
 }
 
 /**
@@ -450,35 +572,53 @@ interface Run extends Variant {
 function run(variant: Variant): Run {
   const board = boardFor(variant.density);
   const world = occludersOf(board, variant.space);
-  const state = createSpaceBattle(variant.space, {
+  const open = (): SimState => createSpaceBattle(variant.space, {
+    approach: variant.approach ?? true,
     density: variant.density,
     roster: variant.roster,
   });
+  const state = open();
   const samples: Sample[] = [];
   const wanted = new Set(SAMPLE_AT.map(stepsFor));
   let shots = 0;
   if (wanted.has(0)) { samples.push(sampleOf(state, board, variant.space, world, 0)); }
   const last = Math.max(...SAMPLE_AT.map(stepsFor));
+  let contactStep = -1;
   for (let step = 0; step < last; step += 1) {
     advanceBattle(state, 1);
     for (const unit of state.units) {
       if (unit.firedAtStep === state.step) { shots += 1; }
     }
+    if (contactStep < 0 && halfTheSwordsAreInReach(state)) { contactStep = state.step; }
     if (wanted.has(state.step)) {
       samples.push(sampleOf(state, board, variant.space, world, shots));
     }
   }
-  const timed = createSpaceBattle(variant.space, {
-    density: variant.density,
-    roster: variant.roster,
-  });
+  const timed = open();
   const started = performance.now();
   advanceBattle(timed, stepsFor(4));
   return {
     ...variant,
+    meleeContactT: contactStep < 0 ? -1 : Number((contactStep * FIXED_STEP).toFixed(2)),
     msPerSlice: Number((performance.now() - started).toFixed(1)),
     samples,
   };
+}
+
+/** The time-to-contact predicate, checked every step rather than at samples. */
+function halfTheSwordsAreInReach(state: SimState): boolean {
+  const byId = new Map(state.units.map((unit) => [unit.id, unit]));
+  let swords = 0;
+  let arrived = 0;
+  for (const unit of state.units) {
+    const profile = profileOf(unit.archetype, unit.tier);
+    if (postureOf(profile.standoff, profile.attackRange) !== "assault") { continue; }
+    swords += 1;
+    const target = byId.get(unit.targetId);
+    if (target === undefined) { continue; }
+    if (Math.hypot(target.x - unit.x, target.z - unit.z) <= profile.attackRange) { arrived += 1; }
+  }
+  return swords > 0 && arrived * 2 >= swords;
 }
 
 /* --- report ------------------------------------------------------------- */
@@ -521,25 +661,54 @@ function atTime(
   ];
 }
 
+/**
+ * Rounds 1-2's tables, pinned to `approach: false`.
+ *
+ * These sections say "round 2" and they now have to keep meaning it: round 3
+ * changed the default, and leaving these on the default would have silently
+ * rewritten round 2's published numbers under round 2's own headings. The A/B
+ * in the round-3 section is where the change is supposed to show up.
+ */
 const MIXED: Variant[] = [
-  { density: "dense", key: "plaza", label: "A — open plaza", roster: "mixed", space: "plaza" },
-  { density: "dense", key: "dense", label: "B — cover, dense (round 1)", roster: "mixed", space: "cover" },
-  { density: "spread", key: "spread", label: "B — cover, spread", roster: "mixed", space: "cover" },
-  { density: "sparse", key: "sparse", label: "B — cover, sparse", roster: "mixed", space: "cover" },
+  { approach: false, density: "dense", key: "plaza", label: "A — open plaza", roster: "mixed", space: "plaza" },
+  { approach: false, density: "dense", key: "dense", label: "B — cover, dense (round 1)", roster: "mixed", space: "cover" },
+  { approach: false, density: "spread", key: "spread", label: "B — cover, spread", roster: "mixed", space: "cover" },
+  { approach: false, density: "sparse", key: "sparse", label: "B — cover, sparse", roster: "mixed", space: "cover" },
 ];
 
 const RANGED: Variant[] = [
-  { density: "dense", key: "ranged-plaza", label: "ranged — open plaza", roster: "ranged", space: "plaza" },
-  { density: "dense", key: "ranged-dense", label: "ranged — cover, dense", roster: "ranged", space: "cover" },
-  { density: "spread", key: "ranged-spread", label: "ranged — cover, spread", roster: "ranged", space: "cover" },
-  { density: "sparse", key: "ranged-sparse", label: "ranged — cover, sparse", roster: "ranged", space: "cover" },
+  { approach: false, density: "dense", key: "ranged-plaza", label: "ranged — open plaza", roster: "ranged", space: "plaza" },
+  { approach: false, density: "dense", key: "ranged-dense", label: "ranged — cover, dense", roster: "ranged", space: "cover" },
+  { approach: false, density: "spread", key: "ranged-spread", label: "ranged — cover, spread", roster: "ranged", space: "cover" },
+  { approach: false, density: "sparse", key: "ranged-sparse", label: "ranged — cover, sparse", roster: "ranged", space: "cover" },
 ];
 
 const SPLIT: Variant[] = [
-  { density: "dense", key: "split-plaza", label: "ranged vs melee — plaza", roster: "split", space: "plaza" },
-  { density: "dense", key: "split-dense", label: "ranged vs melee — dense", roster: "split", space: "cover" },
-  { density: "spread", key: "split-spread", label: "ranged vs melee — spread", roster: "split", space: "cover" },
-  { density: "sparse", key: "split-sparse", label: "ranged vs melee — sparse", roster: "split", space: "cover" },
+  { approach: false, density: "dense", key: "split-plaza", label: "ranged vs melee — plaza", roster: "split", space: "plaza" },
+  { approach: false, density: "dense", key: "split-dense", label: "ranged vs melee — dense", roster: "split", space: "cover" },
+  { approach: false, density: "spread", key: "split-spread", label: "ranged vs melee — spread", roster: "split", space: "cover" },
+  { approach: false, density: "sparse", key: "split-sparse", label: "ranged vs melee — sparse", roster: "split", space: "cover" },
+];
+
+/**
+ * Round 3's A/B, at the ruled configuration.
+ *
+ * `spread` density and `hitscan` fire are not reopened, so every pair below is
+ * the same board and the same roster with melee's covered approach switched on
+ * and off. The `dense` and `sparse` pairs are there for one reason: the ticket
+ * asks whether *melee having a reason to want props* changes the density
+ * answer, and that cannot be read off `spread` alone.
+ */
+const APPROACH: Variant[] = [
+  { approach: false, density: "spread", key: "r2-mixed-spread", label: "mixed, spread — r2 (melee ignores cover)", roster: "mixed", space: "cover" },
+  { approach: true, density: "spread", key: "r3-mixed-spread", label: "mixed, spread — r3 (melee routes)", roster: "mixed", space: "cover" },
+  { approach: false, density: "spread", key: "r2-split-spread", label: "split, spread — r2", roster: "split", space: "cover" },
+  { approach: true, density: "spread", key: "r3-split-spread", label: "split, spread — r3", roster: "split", space: "cover" },
+  { approach: false, density: "dense", key: "r2-mixed-dense", label: "mixed, dense — r2", roster: "mixed", space: "cover" },
+  { approach: true, density: "dense", key: "r3-mixed-dense", label: "mixed, dense — r3", roster: "mixed", space: "cover" },
+  { approach: false, density: "sparse", key: "r2-mixed-sparse", label: "mixed, sparse — r2", roster: "mixed", space: "cover" },
+  { approach: true, density: "sparse", key: "r3-mixed-sparse", label: "mixed, sparse — r3", roster: "mixed", space: "cover" },
+  { approach: true, density: "dense", key: "r3-plaza", label: "mixed, plaza — no cover at all", roster: "mixed", space: "plaza" },
 ];
 
 function main(): void {
@@ -551,7 +720,8 @@ function main(): void {
   const mixed = MIXED.map(run);
   const ranged = RANGED.map(run);
   const split = SPLIT.map(run);
-  const all = [...mixed, ...ranged, ...split];
+  const approach = APPROACH.map(run);
+  const all = [...mixed, ...ranged, ...split, ...approach];
 
   const densities: DensityRow[] = COVER_DENSITIES.map((density) => densityReport(boardFor(density)));
   const dense = boardFor("dense");
@@ -683,6 +853,80 @@ function main(): void {
       ["attempts denied by cover", (s) => pct(deniedShare(s))],
       ["depth s.d.", (s) => s.depthSd.toFixed(2)],
     ])),
+    "",
+    "## Round 3 — melee uses cover",
+    "",
+    "Rounds 1 and 2 zeroed melee's cover appetite as a fix for clustering, so",
+    "half the army ignored cover by construction and the archetype comparison",
+    "was never run. Each pair below is the **same board, same roster, same",
+    "seed** with melee's covered approach off (r2) and on (r3).",
+    "",
+    "### Do the two archetypes now do different things?",
+    "",
+    "The question the round is for. `exposed` is the share of steps a body spent",
+    "with a clear line to the enemy — the thing a covered approach is supposed",
+    "to buy down, and the thing a firing position is supposed to *keep* on its",
+    "own terms. If the two columns move together, the archetypes still converge.",
+    "",
+    table(atTime(approach, 20, [
+      ["swords exposed", (s) => pct(s.meleeExposed)],
+      ["shooters exposed", (s) => pct(s.rangedExposed)],
+      ["swords in cover", (s) => `${String(s.meleeInCover)}/${String(s.meleeUnits)}`],
+      ["sword steps spent closing", (s) => String(s.meleeApproachSteps)],
+      ["sword depth s.d.", (s) => s.meleeDepthSd.toFixed(2)],
+      ["shooter depth s.d.", (s) => s.rangedDepthSd.toFixed(2)],
+    ])),
+    "",
+    "### The stances, and flanking",
+    "",
+    "The directional ruling, counted. `ducked` and `peeking` are shares of all",
+    "steps; melee has no peek column because melee never peeks. `flanked` is",
+    "attacks that landed by arriving outside the target's protected arc — a",
+    "number that **could not exist** under the symmetric model rounds 1-2 used,",
+    "where going round the side of a crate changed nothing.",
+    "",
+    table(atTime(approach, 20, [
+      ["swords ducked", (s) => pct(s.meleeDucked)],
+      ["shooters ducked", (s) => pct(s.rangedDucked)],
+      ["shooters peeking", (s) => pct(s.rangedPeeking)],
+      ["flanking hits", (s) => String(s.flankedShots)],
+      ["shots fired, total", (s) => String(s.shotsFired)],
+    ])),
+    "",
+    "### Did the fight still happen?",
+    "",
+    "Round 1's clustering bug, watched directly. `nearest friendly` is the",
+    "measurement that would have caught it: bodies converging on the same good",
+    "tiles collapse it. Attacks falling while that number falls is the bug",
+    "coming back; attacks holding while it holds is the fix working.",
+    "",
+    table(atTime(approach, 20, [
+      ["swords in reach", (s) => `${String(s.meleeInReach)}/${String(s.meleeUnits)}`],
+      ["all bodies in reach", (s) => `${String(s.inReach)}/40`],
+      ["mid-attack", (s) => String(s.attacking)],
+      ["shots fired, total", (s) => String(s.shotsFired)],
+      ["attempts denied by cover", (s) => pct(deniedShare(s))],
+      ["nearest friendly, swords", (s) => s.meleeNearestFriendly.toFixed(2)],
+    ])),
+    "",
+    "### Time to contact",
+    "",
+    "Seconds until half the swords have their target inside reach. `-1` means",
+    "it never happened inside the 20 s window — which is the failure mode a",
+    "covered approach risks, and the number that says whether it happened.",
+    "",
+    table([
+      ["variant", "half the swords in reach at", "sword depth s.d. @20", "swords exposed @20"],
+      ...approach.map((entry) => {
+        const last = entry.samples[entry.samples.length - 1];
+        return [
+          entry.label,
+          entry.meleeContactT < 0 ? "never" : `${entry.meleeContactT.toFixed(2)} s`,
+          last === undefined ? "-" : last.meleeDepthSd.toFixed(2),
+          last === undefined ? "-" : pct(last.meleeExposed),
+        ];
+      }),
+    ]),
     "",
     "## Cost",
     "",
