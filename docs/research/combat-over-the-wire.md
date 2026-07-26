@@ -17,19 +17,26 @@ resolution to a client that animates it — and does [ADR 0004](../adr/0004-matc
 
 **Ship the slice as a small number of match events carrying quantised sampled
 motion — not one match event per unit per frame, and not a seed.** Concretely:
-one match event per slice (or a handful, chunked by second), whose payload is a
-packed 10 Hz position/facing track plus the discrete outcomes at full time
-resolution, with the client interpolating between samples and running the
-existing procedural animation layers on top. Measured, that is **13.9 KiB
-uncompressed, 12.2 KiB brotli, 18.6 KiB after the base64 that SSE's text-only
-wire forces** for a 5-second 40-unit slice. Deterministic re-simulation from a
-seed would be 173 bytes, but it buys a ~14 KiB saving in exchange for making
-bit-identical floating point across Node and every browser engine a permanent
-correctness requirement — and §6 shows this specific sim already depends on
-`Math.hypot`, which ECMA-262 leaves implementation-approximated. **ADR 0004
-survives**; nothing here pressures SSE, the atomic transaction, or the phase
-state machine. What it does pressure is the unwritten assumption that a match
-event is a small semantic record — §8.
+a handful of match events per slice (chunked by second), whose payload is a
+10 Hz position/facing track plus the discrete outcomes at full time resolution,
+with the client interpolating between samples and running the existing
+procedural animation layers on top. Measured on the real sim, a 5-second
+40-unit slice costs **11.1 KiB on the wire as quantised-integer JSON under
+brotli**, or **8.6 KiB** if you delta-code it into base64'd binary. Either is
+~15 kbit/s sustained.
+
+Deterministic re-simulation from a seed would be **173 bytes** — but it buys
+that ~10 KiB in exchange for making bit-identical floating point across Node
+and every browser engine a permanent correctness requirement. §6 shows this
+specific sim already calls `Math.hypot` (which ECMA-262 marks
+implementation-approximated) in three hot paths, and that Mozilla has stated
+outright that Firefox does not use the same `sin`/`cos`/`tan` implementation as
+V8. **The 10 KiB is not worth it.**
+
+**ADR 0004 survives.** Nothing here pressures SSE, the atomic transaction, the
+phase state machine, or the no-payload NOTIFY rule — the last of which turns
+out to have been exactly right. What it does pressure is the unstated
+assumption that a match event is a small semantic record (§8).
 
 ---
 
@@ -238,16 +245,51 @@ Four things fall out of that table:
 2. **Field selection alone is a 5.2× win** (5253 → 1016 KiB raw), before any
    other change. Most of the "thousands of records" problem is that `SimUnit`
    has 12 fields the client cannot see.
-3. **Compression does most of the remaining work on JSON, and almost none on
+3. **Compression does most of the remaining work on JSON, and much less on
    packed binary.** JSON @10 Hz goes 171.7 → 21.5 KiB brotli (8.0×); packed
    binary goes 13.9 → 12.2 KiB (1.14×). The packed form is already near its
-   entropy. So the *right* comparison is **21.5 KiB (JSON+brotli) vs 12.2 KiB
-   (packed+brotli)** — packed binary wins by 1.8×, not by the 12× the raw
-   column suggests. Given that SSE forces base64 on binary (below), JSON's
-   simplicity is worth serious consideration.
+   entropy, so the raw column badly overstates binary's advantage. The
+   shoot-out below settles it properly.
 4. **Everything below A2@10 Hz is noise.** The gap between the best enumerated
-   form (12.2 KiB) and the seed (173 B) is ~12 KiB per slice. §7 puts that in
-   context.
+   form and the seed is ~10 KiB per slice. §7 puts that in context.
+
+### Encoding shoot-out at the recommended sample rate
+
+Same 2,040 samples (40 units × 51 frames at 10 Hz), every encoding measured
+end-to-end. `br5`/`br11` are brotli qualities.
+
+| Encoding | raw | gzip -9 | brotli q11 |
+| --- | ---: | ---: | ---: |
+| packed binary, 7 B/unit | 13.9 KiB | 12.7 KiB | 12.2 KiB |
+| ↳ base64'd (SSE-legal) | 18.6 KiB | 13.5 KiB | 13.4 KiB |
+| **packed binary, delta-coded per unit** | 13.9 KiB | 8.2 KiB | **6.9 KiB** |
+| ↳ **base64'd (SSE-legal)** | 18.6 KiB | 10.1 KiB | **8.6 KiB** |
+| JSON floats 3 dp, tuple rows | 54.8 KiB | 17.8 KiB | 11.4 KiB |
+| **JSON quantised integers, tuple rows** | 40.9 KiB | 16.9 KiB | **11.1 KiB** |
+
+Three conclusions, and the third is the one that should drive the decision:
+
+- **Delta coding is the single biggest encoding win.** Storing each unit's
+  track as first-difference `int16`s takes brotli from 12.2 → 6.9 KiB (1.8×),
+  because a unit moves ≤16 mm between 10 Hz samples so nearly every delta is a
+  small number. This costs about ten lines of code.
+- **base64 is a real but survivable tax on compressibility, not just size.**
+  Encoding to base64 misaligns byte boundaries and hurts the compressor:
+  measured **+10% for the packed track and +24% for the delta-coded track**
+  under brotli. (A general benchmark on *random* binary shows base64 can cost
+  3×; that does not reproduce here, because this payload is highly structured
+  either way. Worth knowing that the penalty is payload-dependent.)
+- **Plain quantised-integer JSON is within 30% of the elaborate option.**
+  11.1 KiB versus 8.6 KiB, for no binary packing, no base64, no delta codec,
+  and a payload a human can read in devtools. On a 5-second slice that
+  difference is 2.5 KiB. **Ship the JSON; keep delta-coded binary in the back
+  pocket for when 40 units becomes 200.**
+
+One caveat inherited from a published benchmark: brotli quality is not always
+monotonic in output size. It *is* on this payload (q4 → 16.5 KiB, q11 →
+11.1 KiB for JSON integers, decreasing throughout), but the effect is real
+enough elsewhere that the compression level should be picked by measuring the
+actual payload rather than assuming q11 wins.
 
 ### SSE framing overhead — the tax for one-record-per-match-event
 
@@ -279,12 +321,12 @@ The SSE wire is UTF-8 text, so a packed binary track must be base64'd
 | 42,137 B (@30 Hz) | 56,184 B | +33.3% |
 | 14,045 B (@10 Hz) | **18,728 B** | +33.3% |
 
-Measured end-to-end for the recommended shape: packed @10 Hz is 13.9 KiB
-binary → 18.6 KiB base64 → **13.5 KiB gzipped on the wire**. Note gzip claws
-back most of the base64 expansion (base64 of compressed-looking data still has
-structure), so the final wire cost lands within ~10% of the brotli'd JSON at
-the same rate. **The encoding choice barely matters; the sample rate is
-everything.**
+The 4/3 ratio is exact (RFC 4648 encodes 24-bit groups as 4 characters, padded
+to a 4-character quantum). But the size expansion is not the real cost —
+the compressibility loss is, and it is payload-dependent: measured **+10% for
+the packed track, +24% for the delta-coded track** under brotli (shoot-out
+above). The takeaway is not "avoid binary" but **"the encoding choice is worth
+2.5 KiB out of 11; the sample rate is worth an order of magnitude."**
 
 ### Postgres storage — the tax for one-row-per-match-event
 
@@ -312,14 +354,16 @@ A 5-second slice animated over ~5 seconds of wall clock:
 | Approach | Per slice (wire) | Sustained | 12-slice match | ×10 spectators |
 | --- | ---: | ---: | ---: | ---: |
 | A1b @60 Hz JSON, brotli | 93.4 KiB | 153 kbit/s | 1.1 MiB | 11 MiB |
-| A2 @10 Hz JSON, brotli | 21.5 KiB | 35 kbit/s | 258 KiB | 2.5 MiB |
-| **A3 @10 Hz packed, b64+gzip** | **13.5 KiB** | **22 kbit/s** | 162 KiB | 1.6 MiB |
+| A2 @10 Hz JSON floats, brotli | 11.4 KiB | 19 kbit/s | 137 KiB | 1.3 MiB |
+| **A2 @10 Hz JSON integers, brotli** | **11.1 KiB** | **18 kbit/s** | 133 KiB | 1.3 MiB |
+| A3 @10 Hz delta-packed, b64+brotli | 8.6 KiB | 14 kbit/s | 103 KiB | 1.0 MiB |
 | C hybrid, brotli | 1.3 KiB | 2 kbit/s | 16 KiB | 156 KiB |
 | B seed | 173 B | negligible | 2 KiB | 20 KiB |
 
-The recommended option is **22 kbit/s sustained per viewer**. For reference that
-is a fraction of a low-bitrate audio stream. There is no bandwidth problem here
-— only a *record-count* problem, and batching solves that.
+The recommended option is **18 kbit/s sustained per viewer** — a fraction of a
+low-bitrate audio stream, and about 133 KiB for a whole match. There is no
+bandwidth problem here. There was only ever a *record-count* problem, and
+batching solves it.
 
 ---
 
@@ -330,8 +374,140 @@ language guarantees, and what this specific sim actually does when you poke it.
 
 ### 6.1 What ECMAScript guarantees, and what it does not
 
-*(Primary-source citations — spec clauses and V8 documentation — collected in
-§10 and referenced inline.)*
+The headline is better than folklore suggests: **basic float arithmetic is
+exactly specified and bit-identical everywhere.** The hazard is narrower and
+sharper than "floats are unreliable" — it is a specific, enumerable list of
+library functions the spec deliberately leaves loose.
+
+#### Guaranteed — safe to rely on
+
+- **`+ - * /` are correctly-rounded IEEE 754-2019 binary64.** ECMA-262
+  [Number::add](https://262.ecma-international.org/16.0/index.html#sec-numeric-types-number-add)
+  §6.1.6.1.7: "It performs addition according to the rules of IEEE 754-2019
+  binary double-precision arithmetic." Same wording for
+  [multiply](https://262.ecma-international.org/16.0/index.html#sec-numeric-types-number-multiply)
+  and [divide](https://262.ecma-international.org/16.0/index.html#sec-numeric-types-number-divide).
+  The Number type *is* binary64
+  ([§6.1.6.1](https://262.ecma-international.org/16.0/index.html#sec-ecmascript-language-types-number-type)).
+- **Therefore no FMA contraction and no x87 80-bit intermediates.** Because
+  each operation is individually specified to round to binary64, an engine may
+  not fuse `a*b+c` into one rounding or keep intermediates wide. The classic
+  C/C++ cross-platform float hazard does not apply to JavaScript. This is a
+  spec guarantee, not a platform accident.
+- **`Math.sqrt` is correctly rounded.**
+  [§21.3.2.33](https://262.ecma-international.org/16.0/index.html#sec-math.sqrt)
+  returns "𝔽(the square root of ℝ(n))" — an exact real mapped through
+  round-to-nearest. It is conspicuously *absent* from the approximated list
+  below.
+- **Own-property key order is fully specified.**
+  [OrdinaryOwnPropertyKeys](https://262.ecma-international.org/16.0/index.html#sec-ordinaryownpropertykeys)
+  §10.1.11.1: array-index keys ascending numerically, then string keys in
+  creation order, then symbols. This backs `Object.keys`/`entries`/`values`
+  and `JSON.stringify`.
+- **`Map`/`Set` iterate in insertion order.**
+  [§24.1.3.5](https://262.ecma-international.org/16.0/index.html#sec-map.prototype.foreach):
+  "in key insertion order." Prefer these over plain objects for sim state — an
+  object keyed by numeric unit id silently reorders keys numerically.
+- **`Array.prototype.sort` is stable, since ES2019.**
+  [SortIndexedProperties](https://262.ecma-international.org/16.0/index.html#sec-sortindexedproperties)
+  §23.1.3.30.1 requires `π(j) < π(k)` when the comparator returns 0 — "i.e.,
+  the sort is stable." V8 implemented this by replacing QuickSort with TimSort
+  in v7.0 / Chrome 70 ([v8.dev/blog/array-sort](https://v8.dev/blog/array-sort),
+  which states the old algorithm "is not a stable algorithm").
+- **`Number` → string → `Number` is lossless.**
+  [Number::toString](https://262.ecma-international.org/16.0/index.html#sec-numeric-types-number-tostring)
+  §6.1.6.1.20 requires the shortest representation that round-trips exactly
+  ("𝔽(s × radix^(n−k)) is x… k is as small as possible"). JSON numbers are
+  therefore an exact wire format for doubles — relevant to Option A, not just
+  Option B.
+
+#### Not guaranteed — the actual hazard list
+
+- **`Math.random` is unusable and unseedable.**
+  [§21.3.2.28](https://262.ecma-international.org/16.0/index.html#sec-math.random):
+  values are chosen "using an implementation-defined algorithm or strategy",
+  and — decisively — "Each `Math.random` function created for distinct realms
+  must produce a distinct sequence of values." The spec *mandates* divergence.
+  V8 switched from MWC1616 to xorshift128+ in v4.9 / Chrome 49
+  ([v8.dev/blog/math-random](https://v8.dev/blog/math-random)), confirming the
+  algorithm is an implementation detail. **The sim already does the right
+  thing**: `makeRandom` is a userland seeded generator built from `Math.imul`
+  and 32-bit integer ops, all exactly specified.
+- **A long list of `Math` functions is explicitly approximated.**
+  [§21.3.2 Note](https://262.ecma-international.org/16.0/index.html#sec-function-properties-of-the-math-object):
+  the behaviour of "**acos, acosh, asin, asinh, atan, atanh, atan2, cbrt, cos,
+  cosh, exp, expm1, hypot, log, log1p, log2, log10, pow, random, sin, sinh,
+  tan, and tanh** is not precisely specified here… some latitude is allowed in
+  the choice of approximation algorithms." fdlibm is "recommended (but not
+  specified by this standard)". "Implementation-approximated" is a defined term
+  meaning "defined in whole or in part by an external source"
+  ([§4.4.1](https://262.ecma-international.org/16.0/index.html#sec-terms-and-definitions-implementation-approximated)).
+- **`Math.hypot` is on that list** —
+  [§21.3.2.19](https://262.ecma-international.org/16.0/index.html#sec-math.hypot)
+  step 7 returns "an implementation-approximated Number value". **The sim calls
+  `Math.hypot` in three hot paths.** §6.2 measures what that costs.
+- **The `**` operator is on that list too, and this is the easy one to miss.**
+  `Math.pow` is defined as `Number::exponentiate`
+  ([§6.1.6.1.3](https://262.ecma-international.org/16.0/index.html#sec-numeric-types-number-exponentiate)),
+  which "returns an implementation-approximated value" — and the `**` operator
+  uses the same abstract operation. So **`x ** 2` is not guaranteed to equal
+  `x * x`**. `retarget()` in the sim uses `(other.x - unit.x) ** 2`.
+- **Engines genuinely differ, and this is confirmed by the engine teams.**
+  V8 ships its own fdlibm port
+  ([`src/base/ieee754.cc`](https://chromium.googlesource.com/v8/v8/+/refs/heads/main/src/base/ieee754.cc),
+  "adapted from fdlibm… modified significantly by Google Inc."). Mozilla states
+  that **Firefox deliberately does not**: "For performance reasons, Firefox
+  currently doesn't use the cross-platform fdlibm for `Math.cos`, `Math.sin`,
+  and `Math.tan`… and instead chooses to use the local, platform-supplied math
+  library", noting that "Chromium/V8 uses fdlibm for these functions"
+  ([Mozilla dev-platform](https://groups.google.com/a/mozilla.org/g/dev-platform/c/0dxAO-JsoXI/m/eEhjM9VsAgAJ)).
+  SpiderMonkey later added fdlibm "to get consistent results across platforms"
+  as an *option*, not a default
+  ([spidermonkey.dev newsletter](https://spidermonkey.dev/blog/2021/09/10/newsletter-firefox-92-93.html)).
+- **Even the same engine family drifts across versions and operating systems.**
+  V8 replaced its custom `tanh` with `std::tanh`
+  ([commit c1486295ae5](https://chromium.googlesource.com/v8/v8/+/c1486295ae5)),
+  which means `Math.tanh` now reads the host libm — so the *same* V8 can return
+  different last bits on macOS and Linux. **"Server and client both run V8" is
+  not a determinism argument**: version skew and OS skew each break it.
+- **`for...in` order is not specified.**
+  [§14.7.5.9](https://262.ecma-international.org/16.0/index.html#sec-enumerate-object-properties):
+  "The mechanics and order of enumerating the properties is not specified."
+  Use `Object.keys` or `Map`.
+- **Sort stability only holds for a *consistent* comparator.** §23.1.3.30.1:
+  "The sort order is implementation-defined if SortCompare is not a consistent
+  comparator." A comparator returning 0 for distinct elements is fine; one that
+  is non-transitive, or returns NaN (silently coerced to +0), makes the whole
+  sort implementation-defined. Always tiebreak on a stable unique id.
+- **`-0` does not survive JSON.**
+  [Number::toString](https://262.ecma-international.org/16.0/index.html#sec-numeric-types-number-tostring)
+  step 2 returns `"0"` for −0𝔽, so `JSON.parse(JSON.stringify(-0))` is `+0`.
+  `structuredClone` *does* preserve it
+  ([HTML structured data](https://html.spec.whatwg.org/multipage/structured-data.html)),
+  so the two are not interchangeable. Easy to produce accidentally via `x * -1`.
+- **NaN bit patterns are implementation-defined.**
+  [§6.1.6.1](https://262.ecma-international.org/16.0/index.html#sec-ecmascript-language-types-number-type):
+  the many IEEE NaNs are "represented in ECMAScript as a single special NaN
+  value", and the bit pattern observable through an ArrayBuffer is "not
+  necessarily the same as the internal representation". **Directly relevant to
+  the state-hashing technique in §6.2** — hashing a `Float64Array`'s bytes is
+  only sound if NaN can never enter state. Assert against it.
+- **`Date.now()` and `localeCompare` must never touch the sim.**
+  [§21.4.3.1](https://262.ecma-international.org/16.0/index.html#sec-date.now)
+  is wall-clock; `localeCompare` is "implementation-defined locale-sensitive"
+  ([§22.1.3.12](https://262.ecma-international.org/16.0/index.html#sec-string.prototype.localecompare))
+  and depends on ICU build options that genuinely differ between Node
+  (`small-icu` builds exist) and browsers.
+
+#### The enforcement point
+
+That hazard list is mechanically checkable. If Option B is ever pursued, the
+sim package should carry an ESLint `no-restricted-properties` /
+`no-restricted-syntax` rule banning the §21.3.2 list plus the `**` operator,
+`Math.random`, `Date.now` and `localeCompare` — because the failure mode is a
+silent 1-ULP divergence that appears only under cross-runtime load, which is
+precisely the kind of bug that never shows up in the test suite. This repo
+already centralises rules in `packages/config`, so it is a natural fit.
 
 ### 6.2 What this sim actually does under perturbation — measured
 
@@ -357,9 +533,26 @@ t=5s    max position delta 3.140e-15   units bit-differing 40/40   different tar
 So: **37.7% of distance computations in this sim differ in the last bit
 depending on which spelling you use**, and within 5 seconds every unit's state
 differs bit-wise. That is exactly the class of difference two engines can
-produce for the same source. But note the second column — the *physical*
-divergence is 3.1e-15 world units on a field ~30 units across. Invisible by
-about 14 orders of magnitude.
+produce for the same source, and it is not hypothetical — §6.1 has Mozilla
+saying in writing that Firefox uses a different `sin`/`cos`/`tan` than V8. But
+note the second column: the *physical* divergence is 3.1e-15 world units on a
+field ~30 units across. Invisible by about 14 orders of magnitude.
+
+The companion test is the `**` operator. `retarget()` computes
+`(other.x - unit.x) ** 2`, and `Number::exponentiate` is
+implementation-approximated (§6.1), so `x ** 2` is *not guaranteed* to equal
+`x * x`. Measured in V8:
+
+```
+dx ** 2 !== dx * dx:  0 / 468,000 pairs (0.00%)
+t=1s and t=5s with `** 2` replaced by `d * d`: bit-identical
+```
+
+V8 happens to agree. **That agreement is luck, not a guarantee** — it is
+exactly the kind of thing that silently differs on another engine, and it is
+the single easiest hazard on the list to miss, because `** 2` looks like
+arithmetic rather than a library call. Replace it with `d * d` regardless of
+which option wins; it is free.
 
 **Is the system chaotic or contracting?** This is the question that decides
 whether tiny divergence matters, and the answer is the surprise of this
