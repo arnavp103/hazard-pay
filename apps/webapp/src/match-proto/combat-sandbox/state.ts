@@ -69,6 +69,14 @@ export interface SimUnit {
    * so one unit's draws cannot shift another's — see `mixSeed`.
    */
   randomState: number;
+
+  // --- #100 battlefield space: only read when `SimState.coverMode` is 1 ----
+  /** Chosen cover tile as `cy * GRID + cx`, or -1 for none. */
+  coverCell: number;
+  /** 0..1 of this unit's target hidden from it by a prop, this step. */
+  sightOcclusion: number;
+  /** Attacks this unit has held or spoiled because the line was covered. */
+  suppressedShots: number;
 }
 
 export interface SimState {
@@ -84,6 +92,14 @@ export interface SimState {
   randomState: number;
   /** Step index the next target re-acquisition is due at. */
   retargetAtStep: number;
+  /**
+   * #100 battlefield space. 1 runs the tiles-and-cover behaviours, 0 runs the
+   * open plaza. A number rather than a boolean because everything on this
+   * interface is a number, and it lives on the state rather than in a module
+   * flag so `battleAt(t, options)` stays a pure function and a slice boundary
+   * still round-trips through JSON with its board model intact.
+   */
+  coverMode: number;
 }
 
 /**
@@ -112,4 +128,9 @@ export interface BattleOptions {
    * ranged behind, one in three swapped so silhouettes interleave.
    */
   fodderArchetypeAt?: (rank: number, index: number) => Archetype;
+  /**
+   * #100: run the tiles-and-cover behaviours. Default off, so every existing
+   * caller keeps the open-plaza fight it already had, unchanged.
+   */
+  coverMode?: boolean;
 }

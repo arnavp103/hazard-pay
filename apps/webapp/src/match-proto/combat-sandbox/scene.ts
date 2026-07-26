@@ -40,13 +40,16 @@ import * as THREE from "three";
 import { ALL_LAYERS, type LayerFlags, UnitAnimator } from "./animator.ts";
 import { ARCHETYPE_NAMES } from "./archetypes.ts";
 import { authoredKeyTotal, BASE_KEY_COUNT, type BaseDensity } from "./authored.ts";
+// #100 battlefield space. `space=cover` adds the tile-grid cover layer and
+// turns on the cover behaviours; `space=plaza` (the default) is untouched.
+import { buildCoverBoard } from "./battlefield-space/cover-board.ts";
+import { createSpaceBattle, type SpaceMode } from "./battlefield-space/space.ts";
 import { buildBoard } from "./board.ts";
 import { buildUnit, HERO_HEIGHT, LEG_LENGTH, type UnitRig } from "./figure.ts";
 import { flatLights, INK, MARK_LAYER } from "./flat.ts";
 import {
   advanceBattle,
   ATTACK_STEPS,
-  createBattle,
   FIXED_STEP,
   RELEASE_AT,
   type SimState,
@@ -127,6 +130,10 @@ export interface CostReport {
   programs: number;
   boardMeshes: number;
   boardTriangles: number;
+  /** #100: authored cover props drawn. 0 in the open-plaza variant. */
+  coverProps: number;
+  /** #100: which battlefield-space variant this frame is. */
+  space: SpaceMode;
   meshesPerHero: number;
   meshesPerFodder: number;
   /** Extra draw calls the hero marking shell costs, per marked hero. */
@@ -169,6 +176,13 @@ export interface MountOptions {
   mark?: boolean;
   /** Tile N deterministic frames into one contact sheet instead of animating. */
   strip?: { frames: number; fps: number; from: number; columns: number };
+  /**
+   * #100. `"plaza"` (default) is the sandbox's continuous-space fight;
+   * `"cover"` adds the tile grid, prop footprints and sightlines.
+   */
+  space?: SpaceMode;
+  /** #100. Draw the tile grid and blocked/roofed cells. Debug overlay. */
+  grid?: boolean;
 }
 
 /**
@@ -464,16 +478,23 @@ export function mountCombatSandbox(host: HTMLElement, options: MountOptions = {}
   renderer.setClearColor("#1b1220");
   host.append(renderer.domElement);
 
+  const space: SpaceMode = options.space ?? "plaza";
   const scene = new THREE.Scene();
   scene.add(...flatLights());
   const board = buildBoard();
   scene.add(board.group);
+  // The cover layer is variant B only, and its cost folds into the board's so
+  // the report keeps saying "what does the environment cost" in one number.
+  const cover = space === "cover"
+    ? buildCoverBoard({ grid: options.grid ?? false })
+    : undefined;
+  if (cover !== undefined) { scene.add(cover.group); }
 
   let battle: SimState | undefined;
   let drives: SimUnit[];
 
   if (view === "crowd") {
-    battle = createBattle({
+    battle = createSpaceBattle(space, {
       fodderPerSide: options.fodderPerSide ?? 18,
       heroesPerSide: options.heroesPerSide ?? 2,
       ...(options.seed === undefined ? {} : { seed: options.seed }),
@@ -601,8 +622,9 @@ export function mountCombatSandbox(host: HTMLElement, options: MountOptions = {}
     authoredKeysPerClip: BASE_KEY_COUNT[base],
     authoredKeysTotal: authoredKeyTotal(base),
     base,
-    boardMeshes: board.cost.meshes,
-    boardTriangles: Math.round(board.cost.triangles),
+    boardMeshes: board.cost.meshes + (cover?.cost.meshes ?? 0),
+    boardTriangles: Math.round(board.cost.triangles + (cover?.cost.triangles ?? 0)),
+    coverProps: cover?.drawn ?? 0,
     drawCalls: 0,
     fodder: fodderCount,
     fps: 0,
@@ -615,6 +637,7 @@ export function mountCombatSandbox(host: HTMLElement, options: MountOptions = {}
     meshesPerHero: heroMeshes,
     programs: 0,
     simTime: 0,
+    space,
     stage: { height, pixelRatio: 1, width, zoom },
     triangles: 0,
     trianglesPerFodder: Math.round(fodderTriangles),
