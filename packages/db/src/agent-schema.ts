@@ -74,6 +74,15 @@ export const lane = pgTable(
     uniqueIndex("lane_one_foreground_per_leader_idx")
       .on(table.leaderName)
       .where(sql`${table.kind} = 'foreground'`),
+    // Lane index filters (#58): `leader` and `config_hash` are equality
+    // lookups over otherwise-unindexed columns (the foreground partial
+    // unique index above only covers `kind = 'foreground'` rows, and
+    // `config_hash`'s FK indexes the referenced `leader_config.hash` side,
+    // not this one). `kind`/`status` stay unindexed on purpose — two and
+    // three values respectively, low enough cardinality that an index rarely
+    // beats a scan even before the lane index's 500-row cap.
+    index("lane_leader_name_idx").on(table.leaderName),
+    index("lane_config_hash_idx").on(table.configHash),
   ],
 );
 
@@ -110,7 +119,22 @@ export const laneEvent = pgTable(
     payload: jsonb("payload").notNull(),
     occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (table) => [primaryKey({ columns: [table.laneId, table.seq] })],
+  (table) => [
+    primaryKey({ columns: [table.laneId, table.seq] }),
+    // The `model` lane-index filter (#58) and the lane summary's derived
+    // `model` field both resolve "this lane's most recent model turn" —
+    // an EXISTS check and a `DISTINCT ON (lane_id) ... ORDER BY seq DESC`
+    // scoped to `type = 'model_turn'`. A partial index on that predicate
+    // keeps both off a full `lane_event` scan; the jsonb `payload` path
+    // itself (`payload->'model'->>'modelId'`) is left unindexed; per-lane
+    // model-turn counts stay small at admin scale, so filtering that last
+    // step in memory is cheap. (Drizzle does support expression indexes —
+    // `index(...).on(sql\`(payload->'model'->>'modelId')\`) — a jsonb path
+    // index is the follow-up if this ever needs to scale past one lane at a
+    // time.)
+    index("lane_event_model_turn_idx").on(table.laneId, table.seq)
+      .where(sql`${table.type} = 'model_turn'`),
+  ],
 );
 
 /**
