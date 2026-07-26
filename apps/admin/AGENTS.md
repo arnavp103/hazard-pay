@@ -51,6 +51,16 @@ lane read routes. The split of knowledge is deliberate:
   NOT admin-local: they come from the contract's re-exported
   `builtinToolReceipt` (CONTEXT.md: Receipt) — never duck-type
   `output.laneId`.
+- `src/lib/lane-filters.ts` + `src/components/lane-filters.tsx` — the
+  `/lanes` index's filter chips (#58): `leader`/`kind`/`status`/
+  `configHash`/`model`, the same optional fields `GET /lanes` accepts.
+  `validateLaneSearch` is the route's `validateSearch` — the URL is the
+  source of truth for filter state, so a filtered view survives a reload
+  and is shareable by copying the link. `kind`/`status` chips are the
+  fixed runtime vocab, always shown in full; `leader`/`model`/`configHash`
+  chips are the distinct values seen in the currently-loaded (already
+  filtered) rows — a simple faceted-search approximation, not a separate
+  facets query.
 
 `src/routes/index.tsx` is still the hello screen with a canned
 leaders/lanes snapshot (labeled as such); its "Open lane trace" button now
@@ -67,11 +77,17 @@ itself is tested in `packages/agent`'s lane suite.
 Same as webapp: `makeQueryClient` defaults (staleTime 15s, refetch on
 focus, retry 1) live in `src/router.tsx`. Query keys here start with
 `["admin", <surface>]`. Polling is overworld-tier and set per query site:
-the lane index refetches every 15s, the transcript every 5s — no realtime
-transport on admin surfaces (#24 ruling). The transcript's "load next
-page" advances a `seq > lastSeen` cursor, but the interval refetch re-runs
-every loaded page (TanStack infinite-query semantics); a true tail-only
-poll is deliberate follow-up material.
+the lane index refetches every 15s, the transcript tail every 5s — no
+realtime transport on admin surfaces (#24 ruling).
+
+The transcript (#58) is two queries, not one: an infinite query paginates
+the backlog only (`fetchNextPage` advancing a `seq > lastSeen` cursor, no
+`refetchInterval`), and once it's caught up (`!hasNextPage`) a second plain
+`useQuery` polls `after: lastSeenSeq` on its own 5s interval. A `useEffect`
+manually appends whatever the tail query returns onto the infinite query's
+cached last page (`queryClient.setQueryData`) rather than letting a
+refetch re-run every loaded page — a long transcript's poll cost stays
+flat in the number of lane events already loaded.
 
 ## Gotchas
 

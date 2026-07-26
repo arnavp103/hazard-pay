@@ -32,6 +32,7 @@ function laneSummary(kind: LaneSummary["kind"]): LaneSummary {
     wokeAt: null,
     lastEventAt: null,
     eventCounts: { input: 0, modelTurn: 0, toolResult: 0, compaction: 0, total: 0 },
+    model: null,
   };
 }
 

@@ -2,14 +2,16 @@ import type { LaneEventPayload } from "@hazard-pay/agent/envelope";
 import type { LaneEventRow, LaneRow } from "@hazard-pay/db";
 import { errAsync, type ResultAsync } from "neverthrow";
 
-import type { LaneEventRecord, LaneSummary, LaneTracePage } from "../contract/index.ts";
+import type { LaneEventRecord, LaneListFilter, LaneSummary, LaneTracePage } from "../contract/index.ts";
 import type { AppCtx } from "../context.ts";
 import {
   findLaneById,
   listLaneEventsAfter,
   listLaneRows,
+  listLatestModelPerLane,
   tallyLaneEvents,
   type LaneEventTally,
+  type LaneModelRow,
 } from "../db/index.ts";
 import type { ApiError } from "./errors.ts";
 
@@ -17,14 +19,20 @@ import type { ApiError } from "./errors.ts";
  * Read-only lane queries for the admin trace viewer (#24). No mutation
  * surface here on purpose — the runtime in `@hazard-pay/agent` is the only
  * writer of lanes and lane events (ADR 0003 §4).
+ *
+ * `filter` (#58) is optional and additive: every field independently
+ * narrows the result, and an absent (or all-empty) filter reproduces the
+ * original unfiltered index exactly.
  */
 export function listLanes(
   ctx: Pick<AppCtx, "db">,
+  filter?: LaneListFilter,
 ): ResultAsync<{ lanes: LaneSummary[] }, ApiError> {
-  return listLaneRows(ctx.db)
+  return listLaneRows(ctx.db, filter)
     .andThen((rows) => tallyLaneEvents(ctx.db).map((tallies) => ({ rows, tallies })))
-    .map(({ rows, tallies }) => ({
-      lanes: rows.map((row) => toLaneSummary(row, tallies)),
+    .andThen(({ rows, tallies }) => listLatestModelPerLane(ctx.db).map((models) => ({ rows, tallies, models })))
+    .map(({ rows, tallies, models }) => ({
+      lanes: rows.map((row) => toLaneSummary(row, tallies, models)),
     }));
 }
 
@@ -39,18 +47,20 @@ export function getLaneTrace(
         message: `no lane ${args.laneId}`,
       });
     }
-    return tallyLaneEvents(ctx.db, row.id).andThen((tallies) =>
-      // limit + 1: one extra row answers `hasMore` without a count query.
-      listLaneEventsAfter(ctx.db, { laneId: row.id, after: args.after, limit: args.limit + 1 })
-        .map((events) => ({
-          lane: toLaneSummary(row, tallies),
-          events: events.slice(0, args.limit).map(toLaneEventRecord),
-          hasMore: events.length > args.limit,
-        })));
+    return tallyLaneEvents(ctx.db, row.id)
+      .andThen((tallies) => listLatestModelPerLane(ctx.db, row.id).map((models) => ({ tallies, models })))
+      .andThen(({ tallies, models }) =>
+        // limit + 1: one extra row answers `hasMore` without a count query.
+        listLaneEventsAfter(ctx.db, { laneId: row.id, after: args.after, limit: args.limit + 1 })
+          .map((events) => ({
+            lane: toLaneSummary(row, tallies, models),
+            events: events.slice(0, args.limit).map(toLaneEventRecord),
+            hasMore: events.length > args.limit,
+          })));
   });
 }
 
-function toLaneSummary(row: LaneRow, tallies: LaneEventTally[]): LaneSummary {
+function toLaneSummary(row: LaneRow, tallies: LaneEventTally[], models: LaneModelRow[]): LaneSummary {
   const mine = tallies.filter((tally) => tally.laneId === row.id);
   const totalOf = (type: LaneEventTally["type"]): number =>
     mine.find((tally) => tally.type === type)?.total ?? 0;
@@ -76,6 +86,7 @@ function toLaneSummary(row: LaneRow, tallies: LaneEventTally[]): LaneSummary {
       compaction: totalOf("compaction"),
       total: mine.reduce((sum, tally) => sum + tally.total, 0),
     },
+    model: models.find((entry) => entry.laneId === row.id)?.modelId ?? null,
   };
 }
 

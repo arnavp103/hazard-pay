@@ -82,6 +82,9 @@ test("GET /lanes lists the foreground lane and its spawned mission with tallies"
     parentLaneId: null,
     // input + 3 model turns + 2 tool results, straight from the wake.
     eventCounts: { input: 1, modelTurn: 3, toolResult: 2, compaction: 0, total: 6 },
+    // The lane index filters test (#58): derived from the most recent
+    // model_turn lane event, not a stamped column.
+    model: "mock-model",
   });
   expect(foreground?.configHash).toMatch(/^[0-9a-f]{64}$/);
   expect(foreground?.lastEventAt).not.toBeNull();
@@ -91,7 +94,77 @@ test("GET /lanes lists the foreground lane and its spawned mission with tallies"
     leaderName: "hello",
     parentLaneId: foregroundId,
     eventCounts: { input: 1, modelTurn: 0, toolResult: 0, compaction: 0, total: 1 },
+    // No model turns yet — nothing to derive a model from.
+    model: null,
   });
+});
+
+/**
+ * `GET /lanes` query-param filters (#58): additive to the contract (every
+ * field optional, AND'd together), exercised against the same seeded pair —
+ * one "hello" foreground lane and its spawned "hello" mission, sharing a
+ * leader and config hash, differing in `kind` and in whether they have a
+ * model turn yet.
+ */
+test("GET /lanes?leader= matches leaderName exactly", async () => {
+  const matching = await fetch(`${baseUrl}/lanes?leader=hello`);
+  expect((await matching.json() as { lanes: LaneSummary[] }).lanes).toHaveLength(2);
+
+  const none = await fetch(`${baseUrl}/lanes?leader=nobody`);
+  expect((await none.json() as { lanes: LaneSummary[] }).lanes).toHaveLength(0);
+});
+
+test("GET /lanes?kind= narrows to foreground or mission lanes", async () => {
+  const missions = await fetch(`${baseUrl}/lanes?kind=mission`);
+  const missionBody = (await missions.json()) as { lanes: LaneSummary[] };
+  expect(missionBody.lanes.map((l) => l.id)).toEqual([missionId]);
+
+  const foregrounds = await fetch(`${baseUrl}/lanes?kind=foreground`);
+  const foregroundBody = (await foregrounds.json()) as { lanes: LaneSummary[] };
+  expect(foregroundBody.lanes.map((l) => l.id)).toEqual([foregroundId]);
+});
+
+test("GET /lanes?status= matches the wake-claim status", async () => {
+  const open = await fetch(`${baseUrl}/lanes?status=open`);
+  expect((await open.json() as { lanes: LaneSummary[] }).lanes).toHaveLength(2);
+
+  const closed = await fetch(`${baseUrl}/lanes?status=closed`);
+  expect((await closed.json() as { lanes: LaneSummary[] }).lanes).toHaveLength(0);
+});
+
+test("GET /lanes?configHash= matches the stamped leader-config hash exactly", async () => {
+  const list = await fetch(`${baseUrl}/lanes`);
+  const [sample] = (await list.json() as { lanes: LaneSummary[] }).lanes;
+  if (sample === undefined) {
+    throw new Error("seed produced no lanes to sample a config hash from");
+  }
+
+  // Both seeded lanes are the "hello" leader, so they share one config hash.
+  const matching = await fetch(`${baseUrl}/lanes?configHash=${sample.configHash}`);
+  expect((await matching.json() as { lanes: LaneSummary[] }).lanes).toHaveLength(2);
+
+  const none = await fetch(`${baseUrl}/lanes?configHash=not-a-real-config-hash`);
+  expect((await none.json() as { lanes: LaneSummary[] }).lanes).toHaveLength(0);
+});
+
+test("GET /lanes?model= matches a lane's most recent model turn, via an EXISTS join — not a stamped column", async () => {
+  const matching = await fetch(`${baseUrl}/lanes?model=mock-model`);
+  const matchingBody = (await matching.json()) as { lanes: LaneSummary[] };
+  // Only the foreground lane has taken a model turn; the mission hasn't woken.
+  expect(matchingBody.lanes.map((l) => l.id)).toEqual([foregroundId]);
+
+  const none = await fetch(`${baseUrl}/lanes?model=gpt-not-invented-yet`);
+  expect((await none.json() as { lanes: LaneSummary[] }).lanes).toHaveLength(0);
+});
+
+test("GET /lanes combines filters with AND", async () => {
+  const response = await fetch(`${baseUrl}/lanes?leader=hello&kind=foreground`);
+  const body = (await response.json()) as { lanes: LaneSummary[] };
+  expect(body.lanes.map((l) => l.id)).toEqual([foregroundId]);
+
+  const empty = await fetch(`${baseUrl}/lanes?leader=hello&kind=mission&model=mock-model`);
+  // The mission matches leader+kind but has no model turn — AND excludes it.
+  expect((await empty.json() as { lanes: LaneSummary[] }).lanes).toHaveLength(0);
 });
 
 test("GET /lanes/{id}/events returns the seq-ordered transcript with envelope payloads", async () => {

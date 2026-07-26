@@ -1,26 +1,50 @@
-import { ListRow, ListRowGroup, Panel } from "@hazard-pay/ui";
+import { Button, ListRow, ListRowGroup, Panel } from "@hazard-pay/ui";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 
+import { LaneFilterBar } from "../components/lane-filters.tsx";
 import { api } from "../lib/api.ts";
+import { hasActiveLaneFilter, type LaneFilters, validateLaneSearch } from "../lib/lane-filters.ts";
 import { formatTime, laneTitle, shortHash, shortId } from "../lib/trace-format.ts";
 
 export const Route = createFileRoute("/lanes/")({
+  // The URL is the source of truth for filter state (#58): a filtered view
+  // survives a reload and is shareable by copying the link.
+  validateSearch: validateLaneSearch,
   component: LanesScreen,
 });
 
 /**
  * The lane index (#24): every lane the runtime has written, with per-type
  * lane event tallies, straight from `GET /lanes`. Real data or an honest
- * empty state — never canned rows on this screen.
+ * empty state — never canned rows on this screen. Filter chips (#58) narrow
+ * the same query by `leader`/`kind`/`status`/`configHash`/`model`, all
+ * optional query params the api added additively.
  */
 function LanesScreen() {
   const navigate = useNavigate();
+  const filters = Route.useSearch();
   const { data, error } = useQuery({
-    queryKey: ["admin", "lanes"],
-    queryFn: () => api.lanes.list(),
+    queryKey: ["admin", "lanes", filters],
+    queryFn: () => api.lanes.list(filters),
     refetchInterval: 15_000,
   });
+
+  const setFilter = <K extends keyof LaneFilters>(key: K, value: NonNullable<LaneFilters[K]>) => {
+    void navigate({
+      to: "/lanes",
+      search: (prev) => {
+        const next = { ...prev };
+        if (next[key] === value) {
+          delete next[key];
+        } else {
+          next[key] = value;
+        }
+        return next;
+      },
+    });
+  };
+  const clearFilters = () => void navigate({ to: "/lanes", search: {} });
 
   return (
     <main className="hp-noise min-h-screen p-8">
@@ -42,6 +66,13 @@ function LanesScreen() {
           </Link>
         </header>
 
+        <LaneFilterBar
+          filters={filters}
+          lanes={data?.lanes ?? []}
+          onToggle={setFilter}
+          onClear={clearFilters}
+        />
+
         {error !== null && (
           <Panel title="API unreachable" tone="magenta">
             <p className="font-data text-[11px] leading-relaxed text-ink-dim">
@@ -57,7 +88,7 @@ function LanesScreen() {
           </Panel>
         )}
 
-        {data !== undefined && data.lanes.length === 0 && (
+        {data !== undefined && data.lanes.length === 0 && !hasActiveLaneFilter(filters) && (
           <Panel title="No lanes yet" meta="empty database">
             <div className="flex flex-col gap-2 font-data text-[11px] leading-relaxed text-ink-dim">
               <p>
@@ -82,6 +113,17 @@ function LanesScreen() {
           </Panel>
         )}
 
+        {data !== undefined && data.lanes.length === 0 && hasActiveLaneFilter(filters) && (
+          <Panel title="No matching lanes" meta="filtered to zero">
+            <div className="flex flex-col gap-2 font-data text-[11px] leading-relaxed text-ink-dim">
+              <p>No lane matches the active filters.</p>
+              <Button variant="ghost" size="sm" className="self-start" onClick={clearFilters}>
+                clear filters
+              </Button>
+            </div>
+          </Panel>
+        )}
+
         {data !== undefined && data.lanes.length > 0 && (
           <Panel
             title="Lanes"
@@ -96,7 +138,7 @@ function LanesScreen() {
                   status={lane.status === "closed" ? "closed" : "running"}
                   index={String(index + 1).padStart(2, "0")}
                   title={laneTitle(lane)}
-                  meta={`lane ${shortId(lane.id)} · cfg ${shortHash(lane.configHash)} · ${lane.status}${lane.lastEventAt === null ? "" : ` · last ${formatTime(lane.lastEventAt)}`}`}
+                  meta={`lane ${shortId(lane.id)} · cfg ${shortHash(lane.configHash)}${lane.model === null ? "" : ` · ${lane.model}`} · ${lane.status}${lane.lastEventAt === null ? "" : ` · last ${formatTime(lane.lastEventAt)}`}`}
                   trailing={`${lane.eventCounts.total} lane events · ${lane.eventCounts.modelTurn} turns`}
                   onClick={() => void navigate({ to: "/lanes/$laneId", params: { laneId: lane.id } })}
                 />
