@@ -10,11 +10,17 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as CombatSandboxRouteImport } from './routes/combat-sandbox'
 import { Route as MatchProtoRouteImport } from './routes/match-proto'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CombatSandboxRoute = CombatSandboxRouteImport.update({
+  id: '/combat-sandbox',
+  path: '/combat-sandbox',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MatchProtoRoute = MatchProtoRouteImport.update({
@@ -25,27 +31,31 @@ const MatchProtoRoute = MatchProtoRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/combat-sandbox': typeof CombatSandboxRoute
   '/match-proto': typeof MatchProtoRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/combat-sandbox': typeof CombatSandboxRoute
   '/match-proto': typeof MatchProtoRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/combat-sandbox': typeof CombatSandboxRoute
   '/match-proto': typeof MatchProtoRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/match-proto'
+  fullPaths: '/' | '/combat-sandbox' | '/match-proto'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/match-proto'
-  id: '__root__' | '/' | '/match-proto'
+  to: '/' | '/combat-sandbox' | '/match-proto'
+  id: '__root__' | '/' | '/combat-sandbox' | '/match-proto'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  CombatSandboxRoute: typeof CombatSandboxRoute
   MatchProtoRoute: typeof MatchProtoRoute
 }
 
@@ -56,6 +66,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/combat-sandbox': {
+      id: '/combat-sandbox'
+      path: '/combat-sandbox'
+      fullPath: '/combat-sandbox'
+      preLoaderRoute: typeof CombatSandboxRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/match-proto': {
@@ -70,6 +87,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  CombatSandboxRoute: CombatSandboxRoute,
   MatchProtoRoute: MatchProtoRoute,
 }
 export const routeTree = rootRouteImport
