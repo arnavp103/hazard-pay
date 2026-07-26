@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { parseRemoteHeads, parseWorktreeList, validateBranchName } from "./worktree.ts";
+import {
+  isManagedWorktreePath,
+  parseRemoteHeads,
+  parseWorktreeList,
+  validateBranchName,
+} from "./worktree.ts";
 
 test("validateBranchName accepts typical branch names", () => {
   assert.equal(validateBranchName("issue-23-agent"), undefined);
@@ -116,4 +121,19 @@ test("parseRemoteHeads builds a set of remote refs", () => {
 
 test("parseRemoteHeads returns an empty set for empty output", () => {
   assert.equal(parseRemoteHeads("").size, 0);
+});
+
+test("isManagedWorktreePath recognizes the managed worktree root", () => {
+  const root = "/repo";
+  assert.ok(isManagedWorktreePath(root, "/repo/.claude/worktrees/agent-abc123"));
+});
+
+test("isManagedWorktreePath rejects the main checkout and anything outside the managed root", () => {
+  const root = "/repo";
+  assert.equal(isManagedWorktreePath(root, "/repo"), false);
+  assert.equal(isManagedWorktreePath(root, "/repo/apps/cli"), false);
+  assert.equal(isManagedWorktreePath(root, "/elsewhere/.claude/worktrees/thing"), false);
+  // a sibling directory that merely starts with the same prefix string
+  // must not be misclassified as managed
+  assert.equal(isManagedWorktreePath(root, "/repo/.claude/worktrees-backup/thing"), false);
 });

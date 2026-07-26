@@ -39,9 +39,13 @@ Every brief must contain, explicitly:
 - **Context list**: the ticket + comments, the map's Notes, the specific ADRs and
   decision tickets it implements, relevant `research/*` branches. Name them;
   agents don't reliably go looking.
-- **Workflow**: follow `/implement` (worktree → draft PR first → incremental
-  pushes → green gate → /code-review → `gh pr ready`). Agents never merge, never
-  close issues, never remove their own worktree.
+- **Workflow**: follow `/implement`. Agents dispatched with harness worktree
+  isolation are ALREADY in a worktree under `.claude/worktrees/` — brief them
+  not to create a second one, and to push with `git push origin
+  HEAD:<ticket-branch>` since the harness assigns an auto-named branch.
+  From there: draft PR first → incremental pushes → green gate →
+  /code-review → `gh pr ready`. Agents never merge, never close issues, never
+  remove their own worktree.
 - **Scope fence**: which dirs are theirs, which shared files they may touch, who
   else is flying concurrently and where conflicts will be resolved (by the
   director, at merge time — agents don't coordinate laterally).
@@ -143,9 +147,14 @@ Be tactical per dispatch — the model is a dial, not an identity:
 
 Environment facts agents keep rediscovering; brief them or fix them:
 
-- `.claude/` is deny-listed for Read/Edit/Write file tools (Bash mostly works).
-  Consequence: worktrees live at `<repo>/.worktrees/<branch>`, not
-  `.claude/worktrees/` — file tools work normally there. Skills are readable at
+- `.claude/` is not deny-listed for Read/Edit/Write file tools. Claude Code
+  hard-gates *entering* a worktree outside `.claude/worktrees/` with an
+  approval prompt no permission setting can suppress, so all worktrees live
+  under `.claude/worktrees/`. An agent dispatched with harness worktree
+  isolation is already inside its worktree: never call `EnterWorktree` with a
+  model-supplied path, and never create a second worktree. Push with
+  `git push origin HEAD:<ticket-branch>` since the worktree's own branch is
+  auto-named, not the ticket branch. Skills are readable at
   `.agents/skills/<name>/SKILL.md` (the `.claude/skills` symlinks are not).
 - Skills carrying `disable-model-invocation: true` are invisible to agents'
   Skill tool. `/implement` deliberately dropped the flag; keep it dropped.
@@ -167,8 +176,8 @@ Environment facts agents keep rediscovering; brief them or fix them:
   a port mapping changed.
 - The harness's `isolation: worktree` auto-creates `agent-*` worktrees on
   auto-named branches under `.claude/worktrees/`; work pushed from there must
-  target the ticket branch explicitly (`git push origin HEAD:<branch>`). Prefer
-  skill-managed worktrees.
+  target the ticket branch explicitly (`git push origin HEAD:<branch>`).
+  Never create a second worktree on top of it.
 - Secrets: the root `.env` is loaded via `@hazard-pay/env`'s checkout-root
   resolution (worktree-safe). Agents never read or print `.env` contents;
   presence checks only.
@@ -179,9 +188,10 @@ Environment facts agents keep rediscovering; brief them or fix them:
 - The scratchpad directory is shared across agent sessions of one conversation:
   stage files under a per-task subdirectory (`stage-issue-<n>/`), never at the
   scratchpad root, or you'll clobber another agent's staging tree.
-- The Skill tool serves `.claude/skills/*` symlinked skills fine despite the
-  file-tool read-deny on that tree — the deny applies to Read/Edit/Write, not
-  skill invocation.
+- The Skill tool serves `.claude/skills/*` symlinked skills fine even though
+  Read/Edit/Write on that specific symlink path fails. Read the real file at
+  `.agents/skills/<name>/SKILL.md` instead when you need Read/Edit/Write on
+  it directly.
 - lint-staged autofixes at commit time make committed files drift from any
   scratchpad staging copies; after committing, treat the worktree (via
   `git show`/`git diff`), not your staging copies, as truth.

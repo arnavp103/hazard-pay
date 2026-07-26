@@ -14,32 +14,19 @@ to `main` directly.
 
 ## 1. Worktree first
 
-Before any other work, set up an isolated worktree (skip if you're already inside
-one — check whether `git rev-parse --git-common-dir` differs from `.git`).
-Preferred path — the dev CLI does fetch, branch off `origin/main`, worktree add,
-and `pnpm install` in one step, then prints the PR-flow checklist:
+You are dispatched already inside an isolated worktree under
+`.claude/worktrees/`, on an auto-named branch. **Do not create another
+worktree.** Never call `EnterWorktree` with a model-supplied path, never run
+`hazard-pay worktree new`, never run `git worktree add`.
 
-```bash
-./apps/cli/bin/hazard-pay worktree new <branch>
-cd .worktrees/<branch>
-```
+Name your ticket branch `issue-<n>-<short-slug>` when working a ticket (e.g.
+`issue-14-scaffold-db`), otherwise `<type>/<short-slug>` matching the commit
+type you expect to lead with. Push there explicitly, since your worktree's
+own branch is auto-named, not the ticket branch:
+`git push origin HEAD:<ticket-branch>`.
 
-Fallback (manual git), if the CLI is unavailable:
-
-```bash
-git fetch origin
-git worktree add .worktrees/<branch> -b <branch> origin/main
-cd .worktrees/<branch>
-pnpm install
-```
-
-Branch naming: `issue-<n>-<short-slug>` when working a ticket (e.g.
-`issue-14-scaffold-db`), otherwise `<type>/<short-slug>` matching the commit type
-you expect to lead with. `.worktrees/` is gitignored; never commit anything under
-it from the parent checkout. Worktrees live at the repo root — not under
-`.claude/` — because the `.claude/` tree is deny-listed for agent file tools.
-Lifecycle: `hazard-pay worktree clean` removes worktrees (in `.worktrees/` and
-legacy `.claude/worktrees/`) whose branch is merged into `origin/main` or whose
+Lifecycle: `hazard-pay worktree clean` removes worktrees under
+`.claude/worktrees/` whose branch is merged into `origin/main` or whose
 remote branch is gone — the orchestrator runs it, not you.
 
 ## Agent constraints

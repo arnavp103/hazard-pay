@@ -3,16 +3,20 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import { printSummary } from "./output.ts";
 
-/** Where `worktree new` creates agent worktrees (repo-relative). */
-export const WORKTREES_DIR = ".worktrees";
+/**
+ * Where `worktree new` creates worktrees, and the root `worktree clean`
+ * sweeps (repo-relative).
+ */
+export const WORKTREES_DIR = ".claude/worktrees";
 
 /**
- * All roots `worktree clean` sweeps. `.claude/worktrees/` is the legacy
- * location (still used by the harness's own auto-isolation); `.worktrees/`
- * is the current one — the `.claude/` tree is deny-listed for agent file
- * tools, so worktrees now live outside it.
+ * Whether `worktreePath` falls under the managed worktree root relative to
+ * `root`. Pure — exported for tests.
  */
-export const MANAGED_WORKTREE_DIRS = [".worktrees", ".claude/worktrees"] as const;
+export function isManagedWorktreePath(root: string, worktreePath: string): boolean {
+  const prefix = path.join(root, WORKTREES_DIR) + path.sep;
+  return path.resolve(worktreePath).startsWith(prefix);
+}
 
 /**
  * Validate a branch/worktree name. Full branch names are accepted as-is
@@ -160,7 +164,7 @@ function upstreamRef(root: string, branch: string): string | undefined {
 
 /**
  * `hazard-pay worktree new <branch>`: fetch origin, create `<branch>` off
- * `origin/main`, add a worktree at `.worktrees/<branch>`, install
+ * `origin/main`, add a worktree at `.claude/worktrees/<branch>`, install
  * dependencies, and print the PR-flow checklist.
  */
 export function worktreeNew(name: string | undefined): void {
@@ -193,11 +197,11 @@ export function worktreeNew(name: string | undefined): void {
 }
 
 /**
- * `hazard-pay worktree clean`: remove worktrees under the managed roots
- * (`.worktrees/`, `.claude/worktrees/`) whose branch is merged into
- * `origin/main` or whose remote branch is gone, then delete their local
- * branches and prune. Skips (with a warning) the main checkout, the current
- * worktree, and anything dirty, locked, or detached.
+ * `hazard-pay worktree clean`: remove worktrees under `.claude/worktrees/`
+ * whose branch is merged into `origin/main` or whose remote branch is gone,
+ * then delete their local branches and prune. Skips (with a warning) the
+ * main checkout, the current worktree, and anything dirty, locked, or
+ * detached.
  */
 export function worktreeClean(options: { dryRun: boolean }): void {
   const { dryRun } = options;
@@ -207,7 +211,6 @@ export function worktreeClean(options: { dryRun: boolean }): void {
   const remoteHeads = parseRemoteHeads(git(["ls-remote", "--heads", "origin"], root));
 
   const entries = parseWorktreeList(git(["worktree", "list", "--porcelain"], root));
-  const managedPrefixes = MANAGED_WORKTREE_DIRS.map((dir) => path.join(root, dir) + path.sep);
   const currentTop = tryGit(["rev-parse", "--show-toplevel"]);
   let removed = 0;
   let kept = 0;
@@ -218,8 +221,8 @@ export function worktreeClean(options: { dryRun: boolean }): void {
 
   for (const entry of entries) {
     const worktreePath = path.resolve(entry.path);
-    if (!managedPrefixes.some((prefix) => worktreePath.startsWith(prefix))) {
-      continue; // never the main checkout, never anything outside the managed roots
+    if (!isManagedWorktreePath(root, worktreePath)) {
+      continue; // never the main checkout, never anything outside the managed root
     }
     const label = path.relative(root, worktreePath);
     if (entry.detached || entry.branch === undefined) {
