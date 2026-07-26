@@ -22,7 +22,7 @@ import { getCurrentPlayer, renamePlayerHandle, requireSessionUserId } from "./do
 import { getLatestTick, toTickSnapshot } from "./domain/tick.ts";
 import { registerAuthRoutes } from "./routes/auth.ts";
 import { registerTelemetryRoute } from "./routes/telemetry.ts";
-import { registerTickStreamRoute } from "./routes/tick-stream.ts";
+import { registerTickStreamRoute, type TickStreamIntervals } from "./routes/tick-stream.ts";
 
 /**
  * The server half of the pre-cut process seam (ADR 0002 §3): everything
@@ -106,6 +106,11 @@ export interface BuildServerOptions {
    * template-cloned database). Defaults to `env.DATABASE_URL`.
    */
   listenConnectionString?: string;
+  /**
+   * Heartbeat/safety-repoll interval overrides for the tick stream (#107
+   * tests need sub-second cadences; production omits this).
+   */
+  tickStreamIntervals?: TickStreamIntervals;
 }
 
 export async function buildServer(
@@ -156,7 +161,7 @@ export async function buildServer(
   app.addHook("onClose", async () => {
     await listener.close();
   });
-  registerTickStreamRoute(app, ctx, listener);
+  registerTickStreamRoute(app, ctx, listener, options.tickStreamIntervals);
 
   const contractHandler = new OpenAPIHandler(router);
   app.all("/*", async (request, reply) => {

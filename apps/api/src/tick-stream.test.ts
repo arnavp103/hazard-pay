@@ -1,9 +1,10 @@
 import { createTestDatabase } from "@hazard-pay/db/testing";
 import env from "@hazard-pay/env";
 import { createLogger } from "@hazard-pay/observability";
-import { expect, test } from "vitest";
+import { expect, test, vi } from "vitest";
 
 import { recordDueTicks } from "./db/index.ts";
+import type { TickStreamIntervals } from "./routes/tick-stream.ts";
 import { buildServer } from "./server.ts";
 
 /**
@@ -20,12 +21,14 @@ interface StreamServer {
   close: () => Promise<void>;
 }
 
-async function startStreamServer(): Promise<StreamServer> {
+async function startStreamServer(
+  tickStreamIntervals?: TickStreamIntervals,
+): Promise<StreamServer> {
   const testDb = await createTestDatabase();
   const logger = createLogger("api-test", { level: "silent", mirrorToStdout: false });
   const app = await buildServer(
     { db: testDb.db, logger, env },
-    { listenConnectionString: testDb.connectionString },
+    { listenConnectionString: testDb.connectionString, tickStreamIntervals },
   );
   await app.listen({ port: 0, host: "127.0.0.1" });
   const address = app.server.address();
@@ -50,6 +53,8 @@ interface SseEvent {
 
 interface SseClient {
   next: (timeoutMs?: number) => Promise<SseEvent>;
+  /** Raw comment lines (`:connected`, `:hb`, ...) seen so far, in order. */
+  comments: string[];
   close: () => void;
 }
 
@@ -69,6 +74,7 @@ async function connectStream(
   const decoder = new TextDecoder();
   const queue: SseEvent[] = [];
   const waiters: ((event: SseEvent) => void)[] = [];
+  const comments: string[] = [];
   let buffer = "";
   void (async () => {
     for (;;) {
@@ -79,10 +85,15 @@ async function connectStream(
       buffer += decoder.decode(value, { stream: true });
       let boundary = buffer.indexOf("\n\n");
       while (boundary !== -1) {
-        const frame = parseFrame(buffer.slice(0, boundary));
+        const raw = buffer.slice(0, boundary);
+        const frame = parseFrame(raw);
         buffer = buffer.slice(boundary + 2);
         boundary = buffer.indexOf("\n\n");
         if (frame === undefined) {
+          const comment = raw.split("\n").find((line) => line.startsWith(":"));
+          if (comment !== undefined) {
+            comments.push(comment);
+          }
           continue;
         }
         const waiter = waiters.shift();
@@ -111,6 +122,7 @@ async function connectStream(
           resolve(event);
         });
       }),
+    comments,
     close: () => controller.abort(),
   };
 }
@@ -212,6 +224,26 @@ test("a fresh connection is primed with the newest tick only", async () => {
     expect(primed.id).toBe(String(latest.at(-1)?.id));
   } finally {
     stream?.close();
+    await server.close();
+  }
+});
+
+test("the heartbeat cadence is decoupled from the safety re-poll (#107)", async () => {
+  // Tiny-but-real intervals, an order of magnitude apart, so several
+  // heartbeats land before a single safety re-poll could plausibly have
+  // fired — proof the two are independent timers, not one 60s timer wearing
+  // two hats.
+  const server = await startStreamServer({ heartbeatMs: 20, safetyRepollMs: 5_000 });
+  const stream = await connectStream(server.baseUrl);
+  try {
+    await vi.waitFor(
+      () => {
+        expect(stream.comments.filter((line) => line === ":hb").length).toBeGreaterThanOrEqual(3);
+      },
+      { timeout: 2_000, interval: 10 },
+    );
+  } finally {
+    stream.close();
     await server.close();
   }
 });
