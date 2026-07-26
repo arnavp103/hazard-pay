@@ -18,11 +18,34 @@ import type { ApiServer } from "../server.ts";
  */
 const SAFETY_REPOLL_MS = 60_000;
 
+/**
+ * The `:hb\n\n` keep-alive cadence (#107), deliberately decoupled from
+ * `SAFETY_REPOLL_MS`. That interval is a data-freshness fallback for a
+ * missed NOTIFY; this one exists purely so the connection never goes quiet
+ * on an idle proxy. nginx's `proxy_read_timeout` and AWS ALB's idle timeout
+ * both default to 60s and close a connection that "does not transmit
+ * anything" within that window — a heartbeat that also fires at 60s is a
+ * race, not a keep-alive. The WHATWG spec's own guidance is a comment line
+ * "every 15 seconds or so"; this sits inside that 15-30s band.
+ */
+const HEARTBEAT_MS = 20_000;
+
+/** Test-only interval overrides (see `tick-stream.test.ts`); production
+ * callers omit this and get `HEARTBEAT_MS` / `SAFETY_REPOLL_MS`. */
+export interface TickStreamIntervals {
+  heartbeatMs?: number;
+  safetyRepollMs?: number;
+}
+
 export function registerTickStreamRoute(
   app: ApiServer,
   ctx: Pick<AppCtx, "db">,
   listener: TickListener,
+  intervals: TickStreamIntervals = {},
 ): void {
+  const heartbeatMs = intervals.heartbeatMs ?? HEARTBEAT_MS;
+  const safetyRepollMs = intervals.safetyRepollMs ?? SAFETY_REPOLL_MS;
+
   app.get("/ticks/stream", async (request, reply) => {
     // A fresh EventSource has no Last-Event-ID header; its cursor starts
     // unknown and is primed to one-before-the-newest tick on the first
@@ -80,13 +103,19 @@ export function registerTickStreamRoute(
     };
 
     const unsubscribe = listener.subscribe(() => void pump());
-    const repoll = setInterval(() => {
-      // Comment frame doubles as a keep-alive through idle proxies.
+    // Two independent timers sharing one connection: a fast heartbeat so an
+    // idle proxy never closes on us, and the slower safety re-poll that
+    // covers a dropped NOTIFY. They used to be the same 60s timer, which
+    // raced nginx's and ALB's default idle timeout exactly (#107).
+    const heartbeat = setInterval(() => {
       reply.raw.write(":hb\n\n");
+    }, heartbeatMs);
+    const repoll = setInterval(() => {
       void pump();
-    }, SAFETY_REPOLL_MS);
+    }, safetyRepollMs);
 
     request.raw.on("close", () => {
+      clearInterval(heartbeat);
       clearInterval(repoll);
       unsubscribe();
       reply.raw.end();
