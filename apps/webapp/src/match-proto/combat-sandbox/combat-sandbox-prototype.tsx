@@ -23,6 +23,16 @@
  *   space=plaza|cover        #100 battlefield space: open plaza (default) or
  *                            the tile grid with footprints and sightlines
  *   grid=1                   #100 debug overlay: tiles, blocked and roofed cells
+ *   density=dense|spread|sparse  #100 round 2: how much cover — 32 / 16 / 8
+ *                            authored props. Default dense, which is round 1's
+ *                            board unchanged
+ *   roster=mixed|ranged|split    #100 round 2: composition — the bake-off mix,
+ *                            all shooters, or shooters vs swords
+ *   fire=none|hitscan|bolt   #100 round 2: how a ranged attack is drawn.
+ *                            Default none, the status quo of every art lane.
+ *                            A PROTOTYPE STAND-IN, not an art proposal — read
+ *                            battlefield-space/fire-render.ts before judging a
+ *                            look off it
  *
  * Nothing here is an art-direction commitment. See `README.md`.
  */
@@ -33,7 +43,14 @@ import { StatusChip } from "@hazard-pay/ui";
 
 import { ALL_LAYERS, type LayerFlags, NO_LAYERS } from "./animator.ts";
 import { BASE_DENSITIES, BASE_KEY_COUNT, type BaseDensity } from "./authored.ts";
-import { isSpaceMode, type SpaceMode } from "./battlefield-space/space.ts";
+import { type CoverDensity, isCoverDensity } from "./battlefield-space/cover-model.ts";
+import { type FireMode, isFireMode } from "./battlefield-space/fire-render.ts";
+import {
+  isRosterMode,
+  isSpaceMode,
+  type RosterMode,
+  type SpaceMode,
+} from "./battlefield-space/space.ts";
 import {
   type CostReport,
   defaultZoom,
@@ -96,6 +113,18 @@ function readSpace(): SpaceMode {
   return isSpaceMode(raw) ? raw : "plaza";
 }
 
+function readDensity(): CoverDensity {
+  return isCoverDensity(params().get("density")) ? params().get("density") as CoverDensity : "dense";
+}
+
+function readRoster(): RosterMode {
+  return isRosterMode(params().get("roster")) ? params().get("roster") as RosterMode : "mixed";
+}
+
+function readFire(): FireMode {
+  return isFireMode(params().get("fire")) ? params().get("fire") as FireMode : "none";
+}
+
 function readBase(): BaseDensity {
   const candidate = params().get("base");
   return BASE_DENSITIES.includes(candidate as BaseDensity)
@@ -141,6 +170,9 @@ export function CombatSandboxPrototype() {
   const [anim] = useState<HeroAnim>(readAnim);
   const [base] = useState<BaseDensity>(readBase);
   const [space] = useState<SpaceMode>(readSpace);
+  const [density] = useState<CoverDensity>(readDensity);
+  const [roster] = useState<RosterMode>(readRoster);
+  const [fire] = useState<FireMode>(readFire);
   const capture = isCaptureMode();
   const animInfo = heroAnimations.find((item) => item.key === anim) ?? heroAnimations[0];
 
@@ -156,12 +188,15 @@ export function CombatSandboxPrototype() {
     const handle = mountCombatSandbox(host, {
       anim: readAnim(),
       base: readBase(),
+      density: readDensity(),
+      fire: readFire(),
       fodderPerSide: readNumber("fodder", 18, 0, 40),
       grid: params().get("grid") === "1",
       heroesPerSide: readNumber("heroes", 2, 0, 6),
       layers: readLayers(),
       mark: params().get("mark") !== "0",
       motion: params().get("motion") === "1",
+      roster: readRoster(),
       scale: readNumber("scale", 1, 1, 3),
       space: readSpace(),
       view: currentView,
@@ -201,8 +236,11 @@ export function CombatSandboxPrototype() {
           </StatusChip>
           {view === "crowd" && (
             <StatusChip tone="neutral">
-              {space === "cover" ? "space=cover — tiles + footprints" : "space=plaza — open"}
+              {space === "cover" ? `space=cover · density=${density}` : "space=plaza — open"}
             </StatusChip>
+          )}
+          {view === "crowd" && (
+            <StatusChip tone="neutral">{`roster=${roster} · fire=${fire}`}</StatusChip>
           )}
         </header>
       )}

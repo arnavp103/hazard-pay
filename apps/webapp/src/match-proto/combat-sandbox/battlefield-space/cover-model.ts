@@ -49,6 +49,21 @@
  * is the cheapest honest measurement of what variant B would cost the art
  * lanes, because the snap error is computable (`snapReport`) rather than
  * argued about.
+ *
+ * ## Round 2: density is a parameter, not a constant
+ *
+ * Round 1 shipped one board — lane 5's density, 32 authored props on a 20x20
+ * grid — and its two uncomfortable numbers (only 21 of 40 units reach a target,
+ * and "harder to parse") could equally well be properties of *that density* as
+ * of cover as such. So the board is now built by `boardFor(density)` and the
+ * manifest below is the **densest** point on the axis, not the only one.
+ *
+ * The thinner is deliberately a rule and not a second hand-authored layout:
+ * `thin()` keeps a fixed count of authored props, chosen farthest-point from
+ * each other and from `board.ts`'s free-placed masses. One knob, monotone, and
+ * `dense` keeps all 32 — byte-for-byte round 1's board — so a difference
+ * between two densities is attributable to density and to nothing else. A
+ * second authored layout would have confounded spacing with taste.
  */
 
 import { FODDER_HEIGHT, heightOf, type Tier } from "../units.ts";
@@ -436,48 +451,211 @@ function retrofitPropOf(entry: RetrofitEntry): BoardProp {
 }
 
 /**
- * The manifest variant B runs on: authored cover plus retrofitted set
- * dressing, in a fixed order. Behaviours iterate this array by index and break
- * ties on index, so the order is part of the determinism contract.
+ * The full manifest: authored cover plus retrofitted set dressing, in a fixed
+ * order. Behaviours iterate a board's prop array by index and break ties on
+ * index, so this order is part of the determinism contract — and the thinner
+ * below preserves it, so a prop's index is stable across densities too.
  */
-export const COVER_PROPS: readonly BoardProp[] = [
+const ALL_PROPS: readonly BoardProp[] = [
   ...RETROFIT.map(retrofitPropOf),
   ...AUTHORED.map(propOf),
 ];
 
 /**
  * The props that exist in the open-plaza variant too — `board.ts`'s set
- * dressing, which is already on screen in both. Used to measure how much cover
- * the *existing* free-placed art incidentally provides, which is the honest
- * baseline variant B has to beat.
+ * dressing, which is already on screen in both, at every density. Used to
+ * measure how much cover the *existing* free-placed art incidentally provides,
+ * which is the honest baseline variant B has to beat.
  */
-export const RETROFIT_PROPS: readonly BoardProp[] = COVER_PROPS.filter((prop) => prop.retrofit);
+export const RETROFIT_PROPS: readonly BoardProp[] = ALL_PROPS.filter((prop) => prop.retrofit);
 
-const blockedCells = new Set<number>();
-for (const prop of COVER_PROPS) {
-  for (let cy = Math.max(0, prop.cells.cy0); cy < Math.min(GRID, prop.cells.cy1); cy += 1) {
-    for (let cx = Math.max(0, prop.cells.cx0); cx < Math.min(GRID, prop.cells.cx1); cx += 1) {
-      blockedCells.add(cy * GRID + cx);
-    }
-  }
+/* ------------------------------------------------------------------ */
+/* Density                                                             */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Three points on the spacing axis. **The axis, not three boards** — see the
+ * header. `dense` is round 1's board unchanged.
+ */
+export type CoverDensity = "dense" | "sparse" | "spread";
+
+export const COVER_DENSITIES: readonly CoverDensity[] = ["dense", "spread", "sparse"];
+
+export function isCoverDensity(value: string | null): value is CoverDensity {
+  return value === "dense" || value === "sparse" || value === "spread";
 }
 
-const shadedCells = new Set<number>();
-for (const prop of COVER_PROPS) {
-  const roof = prop.roof;
-  if (roof === undefined) { continue; }
-  for (let cy = prop.cells.cy0 + roof.oy; cy < prop.cells.cy0 + roof.oy + roof.sy; cy += 1) {
-    for (let cx = prop.cells.cx0 + roof.ox; cx < prop.cells.cx0 + roof.ox + roof.sx; cx += 1) {
-      if (cx < 0 || cy < 0 || cx >= GRID || cy >= GRID) { continue; }
-      shadedCells.add(cy * GRID + cx);
+/**
+ * Authored cover props kept at each density — a halving each step, so a trend
+ * across three points is visible rather than inferred from two.
+ *
+ * A **count** rather than a spacing threshold, after the first build tried the
+ * threshold and it was useless: the manifest is clustered into four quadrants,
+ * so a minimum gap of 1.9 tiles took 32 props to 3 and 3.6 tiles took it to 1.
+ * There is no threshold that lands near 16 — the axis is a cliff, not a ramp.
+ * A count plus farthest-point selection gives the same "spread the cover out"
+ * meaning with a knob that can actually be set. The spacing that results is the
+ * *outcome*, and `densityReport` prints it.
+ */
+export const DENSITY_PROPS: Record<CoverDensity, number> = {
+  dense: 32,
+  sparse: 8,
+  spread: 16,
+};
+
+/**
+ * The tightest pair of **authored** props — what the density knob actually
+ * bought. Retrofits are excluded because several of them overlap each other on
+ * the grid (round 1's outward-snap finding), which pins any board's minimum at
+ * zero and says nothing about the cover we chose to place.
+ */
+function minGapOf(all: readonly BoardProp[]): number {
+  const props = all.filter((prop) => !prop.retrofit);
+  let smallest = Infinity;
+  for (let a = 0; a < props.length; a += 1) {
+    for (let b = a + 1; b < props.length; b += 1) {
+      const one = props[a];
+      const two = props[b];
+      if (one === undefined || two === undefined) { continue; }
+      smallest = Math.min(smallest, gapBetween(one.cells, two.cells));
     }
   }
+  return Number.isFinite(smallest) ? smallest : 0;
+}
+
+/** Clear floor between two cell rects, in tiles. 0 if they touch or overlap. */
+function gapBetween(a: CellRect, b: CellRect): number {
+  const dx = Math.max(0, a.cx0 - b.cx1, b.cx0 - a.cx1);
+  const dy = Math.max(0, a.cy0 - b.cy1, b.cy0 - a.cy1);
+  return Math.hypot(dx, dy);
+}
+
+/**
+ * Keep `count` authored props, chosen farthest-point: repeatedly take whichever
+ * remaining prop has the largest clear floor to everything already kept, ties
+ * to the lower manifest index.
+ *
+ * `board.ts`'s free-placed masses seed the kept set and are never dropped —
+ * they are real art, on screen whatever this prototype decides, so thinning
+ * them would be measuring a board nobody proposed. Seeding with them also makes
+ * the first authored pick the one farthest from the market stack and the
+ * foundry block, which is what "spread the cover out" has to mean on a board
+ * that already has two large masses on it.
+ */
+function thin(count: number): BoardProp[] {
+  const authored = ALL_PROPS.filter((prop) => !prop.retrofit);
+  if (count >= authored.length) { return [...ALL_PROPS]; }
+  const kept: BoardProp[] = ALL_PROPS.filter((prop) => prop.retrofit);
+  const pool = [...authored];
+  while (kept.length - RETROFIT_PROPS.length < count && pool.length > 0) {
+    let bestAt = 0;
+    let bestGap = -1;
+    for (let i = 0; i < pool.length; i += 1) {
+      const prop = pool[i];
+      if (prop === undefined) { continue; }
+      let nearest = Infinity;
+      for (const other of kept) { nearest = Math.min(nearest, gapBetween(prop.cells, other.cells)); }
+      if (nearest > bestGap) {
+        bestGap = nearest;
+        bestAt = i;
+      }
+    }
+    const taken = pool.splice(bestAt, 1)[0];
+    if (taken !== undefined) { kept.push(taken); }
+  }
+  // Back into manifest order, so a prop's index means the same thing at every
+  // density and a tie broken on index is broken the same way.
+  const rank = new Map(ALL_PROPS.map((prop, index) => [prop.id, index]));
+  return kept.sort((a, b) => (rank.get(a.id) ?? 0) - (rank.get(b.id) ?? 0));
+}
+
+/**
+ * One board at one density: the props, and everything derived from them that
+ * is worth computing once.
+ *
+ * A board is passed explicitly to every query rather than read from a module
+ * global, because two densities are simulated in the same process by
+ * `measure.ts` and a global would silently leak one run's board into the next.
+ */
+export interface CoverBoard {
+  density: CoverDensity;
+  /**
+   * Smallest clear floor between two authored props, in tiles. An outcome of
+   * the density knob, not the knob itself.
+   */
+  minGap: number;
+  /** Every prop on this board, retrofits first, in manifest order. */
+  props: readonly BoardProp[];
+  /** Authored cover only — what this variant asks the art lanes to build. */
+  authored: readonly BoardProp[];
+  /** Girth-shrunk silhouettes, parallel to `props`. Sight, soft. */
+  silhouettes: readonly WorldRect[];
+  /** The same, but `undefined` for anything that is not `board.ts` art. */
+  retrofitSilhouettes: readonly (WorldRect | undefined)[];
+  blocked: ReadonlySet<number>;
+  shaded: ReadonlySet<number>;
+}
+
+function buildBoard(density: CoverDensity): CoverBoard {
+  const props = thin(DENSITY_PROPS[density]);
+  const blocked = new Set<number>();
+  for (const prop of props) {
+    for (let cy = Math.max(0, prop.cells.cy0); cy < Math.min(GRID, prop.cells.cy1); cy += 1) {
+      for (let cx = Math.max(0, prop.cells.cx0); cx < Math.min(GRID, prop.cells.cx1); cx += 1) {
+        blocked.add(cy * GRID + cx);
+      }
+    }
+  }
+  const shaded = new Set<number>();
+  for (const prop of props) {
+    const roof = prop.roof;
+    if (roof === undefined) { continue; }
+    for (let cy = prop.cells.cy0 + roof.oy; cy < prop.cells.cy0 + roof.oy + roof.sy; cy += 1) {
+      for (let cx = prop.cells.cx0 + roof.ox; cx < prop.cells.cx0 + roof.ox + roof.sx; cx += 1) {
+        if (cx < 0 || cy < 0 || cx >= GRID || cy >= GRID) { continue; }
+        shaded.add(cy * GRID + cx);
+      }
+    }
+  }
+  const silhouettes = props.map(silhouetteRect);
+  return {
+    authored: props.filter((prop) => !prop.retrofit),
+    blocked,
+    density,
+    minGap: minGapOf(props),
+    props,
+    retrofitSilhouettes: props.map((prop, index) => (prop.retrofit ? silhouettes[index] : undefined)),
+    shaded,
+    silhouettes,
+  };
+}
+
+const BOARDS = new Map<CoverDensity, CoverBoard>();
+
+/** The board at one density. Built once, then shared — boards are immutable. */
+export function boardFor(density: CoverDensity): CoverBoard {
+  const cached = BOARDS.get(density);
+  if (cached !== undefined) { return cached; }
+  const built = buildBoard(density);
+  BOARDS.set(density, built);
+  return built;
+}
+
+/** `SimState.coverDensity` is an index into `COVER_DENSITIES`; this decodes it. */
+export function densityAt(index: number): CoverDensity {
+  return COVER_DENSITIES[index] ?? "dense";
+}
+
+/** The inverse — what a `SimState` stores. */
+export function densityIndex(density: CoverDensity): number {
+  const at = COVER_DENSITIES.indexOf(density);
+  return at < 0 ? 0 : at;
 }
 
 /** May a body stand on this tile? Off-board is not walkable. */
-export function walkable(cx: number, cy: number): boolean {
+export function walkable(board: CoverBoard, cx: number, cy: number): boolean {
   if (cx < 0 || cy < 0 || cx >= GRID || cy >= GRID) { return false; }
-  return !blockedCells.has(cy * GRID + cx);
+  return !board.blocked.has(cy * GRID + cx);
 }
 
 /**
@@ -490,9 +668,9 @@ export function walkable(cx: number, cy: number): boolean {
  * (see `overlappingRetrofits`). Per-prop clamping puts a body in a pocket it
  * cannot leave; the union does not have pockets.
  */
-export function blockedAt(cx: number, cy: number): boolean {
+export function blockedAt(board: CoverBoard, cx: number, cy: number): boolean {
   if (cx < 0 || cy < 0 || cx >= GRID || cy >= GRID) { return false; }
-  return blockedCells.has(cy * GRID + cx);
+  return board.blocked.has(cy * GRID + cx);
 }
 
 /**
@@ -501,12 +679,12 @@ export function blockedAt(cx: number, cy: number): boolean {
  * into its neighbour — the foundry block and the crate pair beside it are
  * 15 mm apart in world space and share a tile on the grid.
  */
-export function overlappingRetrofits(): string[] {
+export function overlappingRetrofits(board: CoverBoard): string[] {
   const out: string[] = [];
-  for (let a = 0; a < COVER_PROPS.length; a += 1) {
-    for (let b = a + 1; b < COVER_PROPS.length; b += 1) {
-      const one = COVER_PROPS[a];
-      const two = COVER_PROPS[b];
+  for (let a = 0; a < board.props.length; a += 1) {
+    for (let b = a + 1; b < board.props.length; b += 1) {
+      const one = board.props[a];
+      const two = board.props[b];
       if (one === undefined || two === undefined) { continue; }
       const cellsApart = one.cells.cx1 <= two.cells.cx0
         || two.cells.cx1 <= one.cells.cx0
@@ -520,19 +698,62 @@ export function overlappingRetrofits(): string[] {
 }
 
 /** Is this tile under a roof? Roofed tiles stay walkable — they are shaded. */
-export function underRoof(cx: number, cy: number): boolean {
-  return shadedCells.has(cy * GRID + cx);
+export function underRoof(board: CoverBoard, cx: number, cy: number): boolean {
+  return board.shaded.has(cy * GRID + cx);
 }
 
 /** Walkable tiles, in a deterministic order. */
-export function walkableCells(): { cx: number; cy: number }[] {
+export function walkableCells(board: CoverBoard): { cx: number; cy: number }[] {
   const out: { cx: number; cy: number }[] = [];
   for (let cy = 0; cy < GRID; cy += 1) {
     for (let cx = 0; cx < GRID; cx += 1) {
-      if (walkable(cx, cy)) { out.push({ cx, cy }); }
+      if (walkable(board, cx, cy)) { out.push({ cx, cy }); }
     }
   }
   return out;
+}
+
+export interface DensityRow {
+  density: CoverDensity;
+  minGap: number;
+  authoredProps: number;
+  totalProps: number;
+  blockedTiles: number;
+  walkableTiles: number;
+  /** Blocked tiles as a share of the board. The density number, stated plainly. */
+  blockedFraction: number;
+  /**
+   * Mean clear floor from a walkable tile to the nearest prop, in tiles. The
+   * number a body actually feels: how far you can walk before something is in
+   * the way.
+   */
+  meanFloorToProp: number;
+}
+
+/** What a density actually came out as, rather than what the knob asked for. */
+export function densityReport(board: CoverBoard): DensityRow {
+  const open = walkableCells(board);
+  let sum = 0;
+  for (const cell of open) {
+    let nearest = Infinity;
+    for (const prop of board.props) {
+      nearest = Math.min(nearest, gapBetween(
+        { cx0: cell.cx, cx1: cell.cx + 1, cy0: cell.cy, cy1: cell.cy + 1 },
+        prop.cells,
+      ));
+    }
+    sum += Number.isFinite(nearest) ? nearest : 0;
+  }
+  return {
+    authoredProps: board.authored.length,
+    blockedFraction: board.blocked.size / (GRID * GRID),
+    blockedTiles: board.blocked.size,
+    density: board.density,
+    meanFloorToProp: open.length === 0 ? 0 : sum / open.length,
+    minGap: board.minGap,
+    totalProps: board.props.length,
+    walkableTiles: open.length,
+  };
 }
 
 /** A body's radius on the floor. Used by the footprint clamp. */
@@ -558,11 +779,6 @@ export function silhouetteRect(prop: BoardProp): WorldRect {
   const halfZ = ((rect.z1 - rect.z0) / 2) * prop.girth;
   return { x0: midX - halfX, x1: midX + halfX, z0: midZ - halfZ, z1: midZ + halfZ };
 }
-
-const SILHOUETTES = COVER_PROPS.map(silhouetteRect);
-const RETROFIT_SILHOUETTES = COVER_PROPS.map(
-  (prop, index) => (prop.retrofit ? SILHOUETTES[index] : undefined),
-);
 
 /**
  * Slab test: the parametric range of `[from, to]` inside an axis-aligned rect,
@@ -617,13 +833,14 @@ const NO_SIGHT: Sight = { by: -1, occlusion: 0 };
  * occluded by the thing it is standing against.
  */
 export function sightBetween(
+  board: CoverBoard,
   fromX: number,
   fromZ: number,
   eyeY: number,
   toX: number,
   toZ: number,
   targetHeight: number,
-  props: readonly (WorldRect | undefined)[] = SILHOUETTES,
+  props: readonly (WorldRect | undefined)[] = board.silhouettes,
 ): Sight {
   const dx = toX - fromX;
   const dz = toZ - fromZ;
@@ -638,7 +855,7 @@ export function sightBetween(
     if (hit === undefined) { continue; }
     const u = Math.max(hit.near, 0);
     if (u <= 0.03 || u >= 0.97) { continue; }
-    const prop = COVER_PROPS[index];
+    const prop = board.props[index];
     if (prop === undefined) { continue; }
     const d1 = u * span;
     const grazeY = eyeY + ((prop.height - eyeY) * span) / d1;
@@ -652,8 +869,13 @@ export function sightBetween(
   return { by, occlusion: best };
 }
 
-/** The same test against `board.ts`'s existing set dressing alone. */
+/**
+ * The same test against `board.ts`'s existing set dressing alone — the cover
+ * the board already had before this prototype authored anything. Identical at
+ * every density, which is what makes it the baseline.
+ */
 export function retrofitSightBetween(
+  board: CoverBoard,
   fromX: number,
   fromZ: number,
   eyeY: number,
@@ -661,7 +883,16 @@ export function retrofitSightBetween(
   toZ: number,
   targetHeight: number,
 ): Sight {
-  return sightBetween(fromX, fromZ, eyeY, toX, toZ, targetHeight, RETROFIT_SILHOUETTES);
+  return sightBetween(
+    board,
+    fromX,
+    fromZ,
+    eyeY,
+    toX,
+    toZ,
+    targetHeight,
+    board.retrofitSilhouettes,
+  );
 }
 
 /* ------------------------------------------------------------------ */
@@ -679,6 +910,7 @@ export function retrofitSightBetween(
  * the same feature.
  */
 export function coverFaceCells(
+  board: CoverBoard,
   prop: BoardProp,
   threatX: number,
   threatZ: number,
@@ -690,24 +922,25 @@ export function coverFaceCells(
   if (Math.abs(awayX) >= Math.abs(awayZ)) {
     const cx = awayX >= 0 ? prop.cells.cx1 : prop.cells.cx0 - 1;
     for (let cy = prop.cells.cy0 - 1; cy <= prop.cells.cy1; cy += 1) {
-      if (walkable(cx, cy)) { cells.push({ cx, cy }); }
+      if (walkable(board, cx, cy)) { cells.push({ cx, cy }); }
     }
     return cells;
   }
   const cy = awayZ >= 0 ? prop.cells.cy1 : prop.cells.cy0 - 1;
   for (let cx = prop.cells.cx0 - 1; cx <= prop.cells.cx1; cx += 1) {
-    if (walkable(cx, cy)) { cells.push({ cx, cy }); }
+    if (walkable(board, cx, cy)) { cells.push({ cx, cy }); }
   }
   return cells;
 }
 
 /** The middle of that face, when a single representative tile is enough. */
 export function coverPostCell(
+  board: CoverBoard,
   prop: BoardProp,
   threatX: number,
   threatZ: number,
 ): { cx: number; cy: number } | undefined {
-  const face = coverFaceCells(prop, threatX, threatZ);
+  const face = coverFaceCells(board, prop, threatX, threatZ);
   return face[Math.floor(face.length / 2)];
 }
 

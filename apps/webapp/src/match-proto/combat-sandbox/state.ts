@@ -100,6 +100,15 @@ export interface SimState {
    * still round-trips through JSON with its board model intact.
    */
   coverMode: number;
+  /**
+   * #100 round 2: which prop density the cover board is built at — an index
+   * into `battlefield-space/cover-model.ts`'s `COVER_DENSITIES`
+   * (`0 dense | 1 spread | 2 sparse`). An index rather than the string for the
+   * same reason `coverMode` is a number: this interface is plain numbers so a
+   * slice boundary survives JSON. 0 is round 1's board, so an existing caller
+   * that only sets `coverMode` gets round 1's fight unchanged.
+   */
+  coverDensity: number;
 }
 
 /**
@@ -133,4 +142,11 @@ export interface BattleOptions {
    * caller keeps the open-plaza fight it already had, unchanged.
    */
   coverMode?: boolean;
+  /**
+   * #100 round 2: prop density, as an index into `COVER_DENSITIES`. Default 0
+   * (dense) — round 1's board. Passed as an index rather than the union so
+   * this file stays free of a `battlefield-space` import; `space.ts` owns the
+   * string-to-index mapping.
+   */
+  coverDensity?: number;
 }

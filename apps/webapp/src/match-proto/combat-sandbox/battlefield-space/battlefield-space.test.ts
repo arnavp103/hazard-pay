@@ -13,6 +13,7 @@
  *      resume, which is what every downstream ticket is standing on.
  */
 
+import { Vector3 } from "three";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -25,7 +26,9 @@ import {
 } from "../sim.ts";
 import { isInsideFootprint } from "./cover-behaviours.ts";
 import {
-  COVER_PROPS,
+  boardFor,
+  COVER_DENSITIES,
+  densityReport,
   GRID,
   overlappingRetrofits,
   RETROFIT_PROPS,
@@ -36,11 +39,17 @@ import {
   walkableCells,
   worldRectOf,
 } from "./cover-model.ts";
+import { firesOrdnance, isFireMode, shotOf } from "./fire-render.ts";
 import {
   createSpaceBattle,
+  type RosterMode,
   unitsInsideFootprints,
   unitsOnWalkableTiles,
 } from "./space.ts";
+
+/** Round 1's board — the density every round-1 claim was measured against. */
+const DENSE = boardFor("dense");
+const COVER_PROPS = DENSE.props;
 
 function suppressed(state: SimState): number {
   return state.units.reduce((sum, unit) => sum + unit.suppressedShots, 0);
@@ -56,7 +65,7 @@ describe("the port of lane 5's occupancy model", () => {
   });
 
   it("leaves a walkable board rather than a maze", () => {
-    const walkables = walkableCells().length;
+    const walkables = walkableCells(DENSE).length;
     expect(walkables).toBeGreaterThan(GRID * GRID * 0.6);
     expect(walkables).toBeLessThan(GRID * GRID);
   });
@@ -66,7 +75,7 @@ describe("the port of lane 5's occupancy model", () => {
     // colliding would be an authoring bug. Every overlap on this board is a
     // pair involving a retrofitted, free-placed prop — which is the finding,
     // asserted below rather than tolerated here.
-    for (const pair of overlappingRetrofits()) {
+    for (const pair of overlappingRetrofits(DENSE)) {
       const ids = pair.split(" + ");
       const props = COVER_PROPS.filter((prop) => ids.includes(prop.id));
       expect(`${pair}: ${String(props.some((prop) => prop.retrofit))}`).toBe(`${pair}: true`);
@@ -78,7 +87,7 @@ describe("the port of lane 5's occupancy model", () => {
     // tile on the grid. That is the concrete cost of putting existing set
     // dressing on a grid, and it is why occupancy is a union of claims rather
     // than a per-prop test.
-    const overlaps = overlappingRetrofits();
+    const overlaps = overlappingRetrofits(DENSE);
     expect(overlaps.length).toBeGreaterThan(0);
     expect(overlaps).toContain("board-foundry + board-crate");
   });
@@ -91,7 +100,7 @@ describe("the port of lane 5's occupancy model", () => {
       if (roof === undefined) { continue; }
       // The row of the roof that is NOT over the prop's own mass.
       const cy = prop.cells.cy0 + roof.oy + roof.sy - 1;
-      expect(walkable(prop.cells.cx0 + roof.ox, cy)).toBe(true);
+      expect(walkable(DENSE, prop.cells.cx0 + roof.ox, cy)).toBe(true);
     }
   });
 
@@ -112,7 +121,7 @@ describe("the port of lane 5's occupancy model", () => {
 describe("sightlines", () => {
   it("reads zero across an empty stretch of floor", () => {
     // A lane with nothing in it: two cells apart on a clear diagonal corner.
-    const sight = sightBetween(-10.8, 10.8, 0.9, -8.5, 10.8, 1.48);
+    const sight = sightBetween(DENSE, -10.8, 10.8, 0.9, -8.5, 10.8, 1.48);
     expect(sight.occlusion).toBe(0);
   });
 
@@ -122,7 +131,7 @@ describe("sightlines", () => {
     if (container === undefined) { return; }
     const rect = worldRectOf(container.cells);
     const midZ = (rect.z0 + rect.z1) / 2;
-    const sight = sightBetween(rect.x0 - 3, midZ, 0.9, rect.x1 + 1, midZ, 1.48);
+    const sight = sightBetween(DENSE, rect.x0 - 3, midZ, 0.9, rect.x1 + 1, midZ, 1.48);
     expect(sight.occlusion).toBeGreaterThan(0.8);
   });
 
@@ -135,6 +144,7 @@ describe("sightlines", () => {
     // still crossed, the 0.14-girth silhouette is not.
     const offset = TILE / 3;
     const sight = sightBetween(
+      DENSE,
       rect.x0 - 3,
       (rect.z0 + rect.z1) / 2 + offset,
       0.9,
@@ -155,7 +165,7 @@ describe("variant A — the open plaza", () => {
 
   it("walks bodies through the props, which is the thing variant B fixes", () => {
     const plaza = advanceBattle(createSpaceBattle("plaza"), stepsFor(10));
-    expect(unitsInsideFootprints(plaza)).toBeGreaterThan(0);
+    expect(unitsInsideFootprints(DENSE, plaza)).toBeGreaterThan(0);
   });
 
   it("never suppresses a shot — no cover exists to suppress it", () => {
@@ -169,14 +179,14 @@ describe("variant B — tiles and cover", () => {
     for (let step = 0; step < stepsFor(20); step += 1) {
       advanceBattle(battle, 1);
       if (step % 60 !== 0) { continue; }
-      const inside = battle.units.filter(isInsideFootprint).map((unit) => unit.id);
+      const inside = battle.units.filter((unit) => isInsideFootprint(DENSE, unit)).map((unit) => unit.id);
       expect(`step ${String(step)}: ${inside.join(",")}`).toBe(`step ${String(step)}: `);
     }
   });
 
   it("keeps the crowd on the board", () => {
     const battle = advanceBattle(createSpaceBattle("cover"), stepsFor(20));
-    expect(unitsOnWalkableTiles(battle)).toBe(battle.units.length);
+    expect(unitsOnWalkableTiles(DENSE, battle)).toBe(battle.units.length);
   });
 
   it("stops fire — cover is consequential, not decorative", () => {
@@ -212,6 +222,7 @@ describe("determinism and the slice API, with cover on", () => {
     const boundary = battleAt(2, { coverMode: true });
     const shipped = JSON.parse(JSON.stringify(boundary)) as SimState;
     expect(shipped.coverMode).toBe(1);
+    expect(shipped.coverDensity).toBe(0);
     expect(advanceBattle(shipped, stepsFor(2))).toEqual(battleAt(4, { coverMode: true }));
   });
 
@@ -233,6 +244,194 @@ describe("determinism and the slice API, with cover on", () => {
     for (const unit of battle.units) {
       expect(Number.isFinite(unit.x)).toBe(true);
       expect(Number.isFinite(unit.z)).toBe(true);
+    }
+  });
+});
+
+/* ====================================================================== */
+/* Round 2 — density, roster, and drawing a shot                          */
+/* ====================================================================== */
+
+describe("round 2 — the density axis", () => {
+  it("is monotone: fewer props, more floor, at every step", () => {
+    const rows = COVER_DENSITIES.map((density) => densityReport(boardFor(density)));
+    for (let i = 1; i < rows.length; i += 1) {
+      const looser = rows[i];
+      const tighter = rows[i - 1];
+      if (looser === undefined || tighter === undefined) { continue; }
+      expect(looser.authoredProps).toBeLessThan(tighter.authoredProps);
+      expect(looser.walkableTiles).toBeGreaterThan(tighter.walkableTiles);
+      expect(looser.meanFloorToProp).toBeGreaterThan(tighter.meanFloorToProp);
+    }
+  });
+
+  it("leaves round 1's board untouched at `dense`", () => {
+    // The whole comparison rests on this: `dense` is not a re-authored board,
+    // it is the one round 1 measured. Thinning at a zero gap is the identity.
+    expect(boardFor("dense").authored).toHaveLength(32);
+    expect(boardFor("dense").props).toHaveLength(42);
+    expect(walkableCells(boardFor("dense"))).toHaveLength(268);
+  });
+
+  it("never drops a board.ts prop — those are real art, not our choice", () => {
+    for (const density of COVER_DENSITIES) {
+      const retrofits = boardFor(density).props.filter((prop) => prop.retrofit);
+      expect(`${density}: ${String(retrofits.length)}`)
+        .toBe(`${density}: ${String(RETROFIT_PROPS.length)}`);
+    }
+  });
+
+  it("keeps props in manifest order, which ties break on", () => {
+    // `seekCoverCell` breaks ties on prop index and `sightBetween` returns one.
+    // If thinning reordered the array, the same manifest entry could score
+    // differently at two densities for a reason nobody authored.
+    const denseIds = boardFor("dense").props.map((prop) => prop.id);
+    for (const density of COVER_DENSITIES) {
+      const ids = boardFor(density).props.map((prop) => prop.id);
+      expect(denseIds.filter((id) => ids.includes(id))).toEqual(ids);
+    }
+  });
+
+  it("still holds the occupancy invariant at every density", () => {
+    for (const density of COVER_DENSITIES) {
+      const board = boardFor(density);
+      const battle = advanceBattle(createSpaceBattle("cover", { density }), stepsFor(20));
+      const inside = battle.units.filter((unit) => isInsideFootprint(board, unit));
+      expect(`${density}: ${inside.map((unit) => unit.id).join(",")}`).toBe(`${density}: `);
+      expect(unitsOnWalkableTiles(board, battle)).toBe(battle.units.length);
+    }
+  });
+
+  it("carries the density through a slice boundary", () => {
+    const boundary = advanceBattle(createSpaceBattle("cover", { density: "sparse" }), stepsFor(2));
+    const shipped = JSON.parse(JSON.stringify(boundary)) as SimState;
+    expect(shipped.coverDensity).toBe(2);
+    expect(advanceBattle(shipped, stepsFor(2)))
+      .toEqual(advanceBattle(createSpaceBattle("cover", { density: "sparse" }), stepsFor(4)));
+  });
+
+  it("produces a different fight at each density", () => {
+    const seen = COVER_DENSITIES.map((density) => {
+      const battle = advanceBattle(createSpaceBattle("cover", { density }), stepsFor(8));
+      return battle.units.map((unit) => `${unit.x.toFixed(3)},${unit.z.toFixed(3)}`).join("|");
+    });
+    expect(new Set(seen).size).toBe(COVER_DENSITIES.length);
+  });
+});
+
+describe("round 2 — rosters", () => {
+  const rosters: RosterMode[] = ["mixed", "ranged", "split"];
+
+  it("changes who is on the field without moving anyone", () => {
+    // The claim the whole ranged comparison rests on: three rosters, one
+    // deployment. If a roster moved a body, "ranged does worse here" could be
+    // an artefact of where the shooters happened to start.
+    const base = createSpaceBattle("plaza").units.map((unit) => [unit.x, unit.z]);
+    for (const roster of rosters) {
+      expect(createSpaceBattle("plaza", { roster }).units.map((unit) => [unit.x, unit.z]))
+        .toEqual(base);
+    }
+  });
+
+  it("leaves the per-unit random streams alone", () => {
+    // Archetype is rewritten after `createBattle`, so nothing about the roster
+    // may have shifted a draw — the opening cursors must be identical.
+    const base = createSpaceBattle("plaza").units.map((unit) => unit.randomState);
+    for (const roster of rosters) {
+      expect(createSpaceBattle("plaza", { roster }).units.map((unit) => unit.randomState))
+        .toEqual(base);
+    }
+  });
+
+  it("makes every body a shooter under `ranged`", () => {
+    const battle = createSpaceBattle("cover", { roster: "ranged" });
+    expect(battle.units.every((unit) => unit.archetype === "ranged")).toBe(true);
+  });
+
+  it("puts shooters on one side and swords on the other under `split`", () => {
+    const battle = createSpaceBattle("cover", { roster: "split" });
+    expect(battle.units.filter((unit) => unit.side === 0)
+      .every((unit) => unit.archetype === "ranged")).toBe(true);
+    expect(battle.units.filter((unit) => unit.side === 1)
+      .every((unit) => unit.archetype === "melee")).toBe(true);
+  });
+
+  it("still replays exactly with a roster set", () => {
+    for (const roster of rosters) {
+      expect(advanceBattle(createSpaceBattle("cover", { roster }), stepsFor(4)))
+        .toEqual(advanceBattle(createSpaceBattle("cover", { roster }), stepsFor(4)));
+    }
+  });
+});
+
+describe("round 2 — drawing a shot", () => {
+  /**
+   * A muzzle anchor's world position is all `shotOf` wants from the rig — so
+   * the test needs no renderer and no `three` import to drive it.
+   */
+  const muzzle = new Vector3(0, 1, 0);
+
+  it("only fires for archetypes that hold a standoff", () => {
+    // A sword swing is not a shot. `firesOrdnance` reads the standoff rather
+    // than the archetype name, so a new shooter added at extension point 2
+    // gets a tracer without editing this file.
+    expect(firesOrdnance(4.7)).toBe(true);
+    expect(firesOrdnance(6.2)).toBe(true);
+    expect(firesOrdnance(1.05)).toBe(false);
+    expect(firesOrdnance(0.9)).toBe(false);
+  });
+
+  it("cannot change the fight — it is a renderer, not a behaviour", () => {
+    // Why fire is drawn from `firedAtStep` and nothing else: the gallery's
+    // three fire modes have to be three pictures of ONE battle, or the
+    // comparison between them is worthless.
+    const battle = advanceBattle(createSpaceBattle("cover", { roster: "ranged" }), stepsFor(6));
+    const before = JSON.stringify(battle);
+    const shooter = battle.units[0];
+    const target = battle.units[20];
+    if (shooter === undefined || target === undefined) { return; }
+    shotOf(shooter, target, battle.step, "bolt", muzzle);
+    shotOf(shooter, target, battle.step, "hitscan", muzzle);
+    expect(JSON.stringify(battle)).toBe(before);
+  });
+
+  it("shows a shot only while it is live", () => {
+    const battle = createSpaceBattle("cover", { roster: "ranged" });
+    const shooter = battle.units[0];
+    const target = battle.units[20];
+    if (shooter === undefined || target === undefined) { return; }
+    expect(shotOf(shooter, target, 0, "bolt", muzzle)).toBeUndefined();
+    shooter.firedAtStep = 10;
+    expect(shotOf(shooter, target, 10, "none", muzzle)).toBeUndefined();
+    expect(shotOf(shooter, target, 10, "bolt", muzzle)).toBeDefined();
+    // ...and expires, rather than smearing across the whole cooldown.
+    expect(shotOf(shooter, target, 40, "bolt", muzzle)).toBeUndefined();
+  });
+
+  it("parses the query parameter it is driven by", () => {
+    expect(isFireMode("bolt")).toBe(true);
+    expect(isFireMode("hitscan")).toBe(true);
+    expect(isFireMode("none")).toBe(true);
+    expect(isFireMode("tracer")).toBe(false);
+    expect(isFireMode(null)).toBe(false);
+  });
+});
+
+describe("round 2 — cover once the roster is all shooters", () => {
+  it("suppresses fire at every density", () => {
+    for (const density of COVER_DENSITIES) {
+      const battle = advanceBattle(
+        createSpaceBattle("cover", { density, roster: "ranged" }),
+        stepsFor(20),
+      );
+      expect(`${density}: ${String(suppressed(battle) > 0)}`).toBe(`${density}: true`);
+    }
+  });
+
+  it("suppresses nothing in the plaza, whatever the roster", () => {
+    for (const roster of ["mixed", "ranged", "split"] as RosterMode[]) {
+      const battle = advanceBattle(createSpaceBattle("plaza", { roster }), stepsFor(20));
+      expect(`${roster}: ${String(suppressed(battle))}`).toBe(`${roster}: 0`);
     }
   });
 });

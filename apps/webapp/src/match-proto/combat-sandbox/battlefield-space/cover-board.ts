@@ -20,8 +20,9 @@ import * as THREE from "three";
 import { box, facet, FlatBatch, quad, taper, wedge } from "../flat.ts";
 import {
   type BoardProp,
+  boardFor,
   cellEdge,
-  COVER_PROPS,
+  type CoverDensity,
   GRID,
   RETROFIT_KINDS,
   TILE,
@@ -293,6 +294,8 @@ export interface CoverBoardBuild {
 export interface CoverBoardOptions {
   /** Draw the tile grid and the blocked/roofed cells. Debug overlay. */
   grid?: boolean;
+  /** Which density to draw. Default `dense` — round 1's board. */
+  density?: CoverDensity;
 }
 
 /** Thin bar along the world x axis at a fixed z, hugging the floor. */
@@ -307,24 +310,25 @@ function gridLine(batch: FlatBatch, along: "x" | "z", at: number, y: number): vo
 }
 
 export function buildCoverBoard(options: CoverBoardOptions = {}): CoverBoardBuild {
+  const board = boardFor(options.density ?? "dense");
   const batch = new FlatBatch();
   let drawn = 0;
 
   if (options.grid === true) {
     for (let cy = 0; cy < GRID; cy += 1) {
       for (let cx = 0; cx < GRID; cx += 1) {
-        if (walkable(cx, cy)) { continue; }
+        if (walkable(board, cx, cy)) { continue; }
         batch.add(quad(TILE * 0.96, TILE * 0.96), GRID_BLOCKED, {
           at: [cellEdge(cx) + TILE / 2, 0.028, cellEdge(cy) + TILE / 2],
         });
       }
     }
-    for (const prop of COVER_PROPS) {
+    for (const prop of board.props) {
       const roof = prop.roof;
       if (roof === undefined) { continue; }
       for (let cy = prop.cells.cy0 + roof.oy; cy < prop.cells.cy0 + roof.oy + roof.sy; cy += 1) {
         for (let cx = prop.cells.cx0 + roof.ox; cx < prop.cells.cx0 + roof.ox + roof.sx; cx += 1) {
-          if (!walkable(cx, cy)) { continue; }
+          if (!walkable(board, cx, cy)) { continue; }
           batch.add(quad(TILE * 0.96, TILE * 0.96), GRID_ROOF, {
             at: [cellEdge(cx) + TILE / 2, 0.029, cellEdge(cy) + TILE / 2],
           });
@@ -337,7 +341,7 @@ export function buildCoverBoard(options: CoverBoardOptions = {}): CoverBoardBuil
     }
   }
 
-  for (const prop of COVER_PROPS) {
+  for (const prop of board.props) {
     if (RETROFIT_KINDS.has(prop.kind)) { continue; }
     const build = builders[prop.kind];
     if (build === undefined) { continue; }

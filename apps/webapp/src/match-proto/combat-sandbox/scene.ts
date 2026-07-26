@@ -38,12 +38,21 @@
 import * as THREE from "three";
 
 import { ALL_LAYERS, type LayerFlags, UnitAnimator } from "./animator.ts";
-import { ARCHETYPE_NAMES } from "./archetypes.ts";
+import { ARCHETYPE_NAMES, profileOf } from "./archetypes.ts";
 import { authoredKeyTotal, BASE_KEY_COUNT, type BaseDensity } from "./authored.ts";
 // #100 battlefield space. `space=cover` adds the tile-grid cover layer and
 // turns on the cover behaviours; `space=plaza` (the default) is untouched.
+// Round 2 adds `density` (how much cover), `roster` (who is fighting) and
+// `fire` (whether a shot is drawn at all — see `fire-render.ts`'s header).
 import { buildCoverBoard } from "./battlefield-space/cover-board.ts";
-import { createSpaceBattle, type SpaceMode } from "./battlefield-space/space.ts";
+import type { CoverDensity } from "./battlefield-space/cover-model.ts";
+import {
+  type FireMode,
+  FireField,
+  firesOrdnance,
+  shotOf,
+} from "./battlefield-space/fire-render.ts";
+import { createSpaceBattle, type RosterMode, type SpaceMode } from "./battlefield-space/space.ts";
 import { buildBoard } from "./board.ts";
 import { buildUnit, HERO_HEIGHT, LEG_LENGTH, type UnitRig } from "./figure.ts";
 import { flatLights, INK, MARK_LAYER } from "./flat.ts";
@@ -134,6 +143,12 @@ export interface CostReport {
   coverProps: number;
   /** #100: which battlefield-space variant this frame is. */
   space: SpaceMode;
+  /** #100 round 2: the prop density the cover board was built at. */
+  density: CoverDensity;
+  /** #100 round 2: the composition on the field. */
+  roster: RosterMode;
+  /** #100 round 2: how a ranged attack is drawn. `none` is every lane today. */
+  fire: FireMode;
   meshesPerHero: number;
   meshesPerFodder: number;
   /** Extra draw calls the hero marking shell costs, per marked hero. */
@@ -183,6 +198,21 @@ export interface MountOptions {
   space?: SpaceMode;
   /** #100. Draw the tile grid and blocked/roofed cells. Debug overlay. */
   grid?: boolean;
+  /**
+   * #100 round 2. How much cover the board carries: `"dense"` (default) is
+   * round 1's 32-prop board, `"spread"` and `"sparse"` thin it. Ignored in the
+   * plaza, which has no board to thin.
+   */
+  density?: CoverDensity;
+  /** #100 round 2. Composition: the mixed roster, all shooters, or ranged vs melee. */
+  roster?: RosterMode;
+  /**
+   * #100 round 2. Whether a ranged attack draws anything. `"none"` (default) is
+   * the status quo across every lane on #64. **A prototype stand-in, not an art
+   * proposal** — read `fire-render.ts`'s header before using a capture of it
+   * as evidence about a look.
+   */
+  fire?: FireMode;
 }
 
 /**
@@ -479,6 +509,9 @@ export function mountCombatSandbox(host: HTMLElement, options: MountOptions = {}
   host.append(renderer.domElement);
 
   const space: SpaceMode = options.space ?? "plaza";
+  const density: CoverDensity = options.density ?? "dense";
+  const roster: RosterMode = options.roster ?? "mixed";
+  const fire: FireMode = options.fire ?? "none";
   const scene = new THREE.Scene();
   scene.add(...flatLights());
   const board = buildBoard();
@@ -486,7 +519,7 @@ export function mountCombatSandbox(host: HTMLElement, options: MountOptions = {}
   // The cover layer is variant B only, and its cost folds into the board's so
   // the report keeps saying "what does the environment cost" in one number.
   const cover = space === "cover"
-    ? buildCoverBoard({ grid: options.grid ?? false })
+    ? buildCoverBoard({ density, grid: options.grid ?? false })
     : undefined;
   if (cover !== undefined) { scene.add(cover.group); }
 
@@ -495,8 +528,10 @@ export function mountCombatSandbox(host: HTMLElement, options: MountOptions = {}
 
   if (view === "crowd") {
     battle = createSpaceBattle(space, {
+      density,
       fodderPerSide: options.fodderPerSide ?? 18,
       heroesPerSide: options.heroesPerSide ?? 2,
+      roster,
       ...(options.seed === undefined ? {} : { seed: options.seed }),
     });
     drives = battle.units;
@@ -546,6 +581,11 @@ export function mountCombatSandbox(host: HTMLElement, options: MountOptions = {}
   scene.add(shadows.mesh);
   const shadowSlots = drives.length;
 
+  // #100 round 2. Only allocated when fire is actually being drawn, so the
+  // `fire=none` capture is the same scene graph round 1 shot.
+  const fires = fire === "none" ? undefined : new FireField(drives.length);
+  if (fires !== undefined) { scene.add(fires.mesh); }
+
   // Framing. At or below the shared combat zoom the hero view reproduces the
   // bake-off's controlled still. Above it the camera re-centres on the unit,
   // because a loupe that keeps the board framing pushes the subject off frame.
@@ -594,6 +634,8 @@ export function mountCombatSandbox(host: HTMLElement, options: MountOptions = {}
   }
 
   const pan = new THREE.Vector3();
+  /** Scratch for the muzzle world position. Reused so a frame allocates none. */
+  const muzzleAt = new THREE.Vector3();
   const frames: number[] = [];
   let sceneCalls = 0;
   let sceneTriangles = 0;
@@ -625,7 +667,9 @@ export function mountCombatSandbox(host: HTMLElement, options: MountOptions = {}
     boardMeshes: board.cost.meshes + (cover?.cost.meshes ?? 0),
     boardTriangles: Math.round(board.cost.triangles + (cover?.cost.triangles ?? 0)),
     coverProps: cover?.drawn ?? 0,
+    density,
     drawCalls: 0,
+    fire,
     fodder: fodderCount,
     fps: 0,
     frameMs: { max: 0, mean: 0, p95: 0, samples: 0 },
@@ -636,6 +680,7 @@ export function mountCombatSandbox(host: HTMLElement, options: MountOptions = {}
     meshesPerFodder: fodderMeshes,
     meshesPerHero: heroMeshes,
     programs: 0,
+    roster,
     simTime: 0,
     space,
     stage: { height, pixelRatio: 1, width, zoom },
@@ -755,9 +800,40 @@ export function mountCombatSandbox(host: HTMLElement, options: MountOptions = {}
     shadows.commit();
   };
 
+  /**
+   * Tracers, from `firedAtStep` alone — see `fire-render.ts`. `updateMatrixWorld`
+   * is called per firing unit because the muzzle anchor hangs off an IK-solved
+   * arm whose world matrix Three would not otherwise refresh until render, and
+   * a one-frame-stale muzzle puts the streak visibly off the barrel.
+   */
+  const syncFire = (): void => {
+    if (fires === undefined || battle === undefined) { return; }
+    fires.clear();
+    const byId = new Map(battle.units.map((unit) => [unit.id, unit]));
+    let slot = 0;
+    for (const drive of drives) {
+      if (!firesOrdnance(profileOf(drive.archetype, drive.tier).standoff)) { continue; }
+      const rig = bodies.get(drive.id)?.rig;
+      if (rig === undefined) { continue; }
+      rig.root.updateMatrixWorld(true);
+      const shot = shotOf(
+        drive,
+        drive.targetId < 0 ? undefined : byId.get(drive.targetId),
+        battle.step,
+        fire,
+        rig.muzzle.getWorldPosition(muzzleAt),
+      );
+      if (shot === undefined) { continue; }
+      fires.set(slot, shot, fire);
+      slot += 1;
+    }
+    fires.commit();
+  };
+
   const renderAt = (t: number): void => {
     advanceTo(t);
     syncShadows();
+    syncFire();
     if (options.motion === true) {
       const cycle = (t % 8) / 8;
       const sweep = Math.sin(cycle * Math.PI * 2) * 2.6;

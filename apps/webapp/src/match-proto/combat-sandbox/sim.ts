@@ -186,6 +186,7 @@ export function createBattle(options: BattleOptions = {}): SimState {
   const fodderArchetypeAt = options.fodderArchetypeAt ?? defaultFodderArchetype;
 
   const state: SimState = {
+    coverDensity: options.coverDensity ?? 0,
     coverMode: options.coverMode === true ? 1 : 0,
     randomState: seedRandom(seed),
     retargetAtStep: 0,

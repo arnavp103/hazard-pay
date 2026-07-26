@@ -29,6 +29,16 @@
  * protected but always shoot) is the cheaper, more familiar auto-battler model
  * and it produces a visibly different fight.
  *
+ * ## Round 2: the board is a parameter
+ *
+ * Every one of these reads its board from `state.coverDensity` rather than
+ * from a module constant, so the *same* behaviours run at all three densities
+ * and a difference between two runs is a difference in the board and not in
+ * the AI. Not one constant below was retuned for round 2 — the appetite curve,
+ * the seek range and the sweet spot are round 1's, deliberately, because
+ * retuning them would have made "does the plateau survive lower density"
+ * unanswerable.
+ *
  * ## Determinism
  *
  * Per the rules at the top of `behaviours.ts`: draws come from
@@ -55,11 +65,13 @@ import { heightOf } from "../units.ts";
 import {
   blockedAt,
   bodyRadius,
+  boardFor,
   cellCentre,
   cellEdge,
   cellIndexAt,
-  COVER_PROPS,
+  type CoverBoard,
   coverFaceCells,
+  densityAt,
   eyeHeightOf,
   GRID,
   isUsableCover,
@@ -102,6 +114,17 @@ function isOn(ctx: BehaviourContext): boolean {
   return ctx.state.coverMode === 1;
 }
 
+/**
+ * The board this battle is fighting on.
+ *
+ * Read off the state every step rather than captured in a module global: two
+ * densities are simulated in the same process by `measure.ts`, and `boardFor`
+ * memoises, so this is a `Map` lookup and not a rebuild.
+ */
+function boardOf(ctx: BehaviourContext): CoverBoard {
+  return boardFor(densityAt(ctx.state.coverDensity));
+}
+
 /** The target this unit is fighting, read fresh (acquire may have moved it). */
 function targetOf(unit: SimUnit, ctx: BehaviourContext): SimUnit | undefined {
   return unit.targetId < 0 ? undefined : ctx.byId.get(unit.targetId);
@@ -133,18 +156,19 @@ export const seekCoverCell: Behaviour = {
       unit.coverCell = -1;
       return;
     }
+    const board = boardOf(ctx);
     const height = heightOf(unit.tier);
     const threatEye = eyeHeightOf(target.tier);
     let bestScore = Infinity;
     let bestCell = -1;
-    for (let index = 0; index < COVER_PROPS.length; index += 1) {
-      const prop = COVER_PROPS[index];
+    for (let index = 0; index < board.props.length; index += 1) {
+      const prop = board.props[index];
       if (prop === undefined || !isUsableCover(prop.cover)) { continue; }
       // A slot along the prop's far face rather than one tile behind it: two
       // dozen shooters all wanting the same tile is how the first build turned
       // the fight into a queue. Slots are picked by unit id, so a barrier
       // fills along its length and stays deterministic.
-      const face = coverFaceCells(prop, target.x, target.z);
+      const face = coverFaceCells(board, prop, target.x, target.z);
       const post = face[unit.id % Math.max(1, face.length)];
       if (post === undefined) { continue; }
       const at = cellCentre(post.cx, post.cy);
@@ -153,7 +177,7 @@ export const seekCoverCell: Behaviour = {
       // Cover a unit cannot shoot from is a hiding place, not a firing
       // position. Without this the shooters walk backwards out of the fight.
       if (Math.hypot(at.x - target.x, at.z - target.z) > ctx.profile.attackRange) { continue; }
-      const sight = sightBetween(target.x, target.z, threatEye, at.x, at.z, height);
+      const sight = sightBetween(board, target.x, target.z, threatEye, at.x, at.z, height);
       if (sight.occlusion < 0.2) { continue; }
       const value = Math.max(0, 1 - Math.abs(sight.occlusion - COVER_SWEET) / COVER_SWEET);
       const score = walk - value * COVER_PULL;
@@ -184,7 +208,9 @@ export const readSightline: Behaviour = {
       unit.sightOcclusion = 0;
       return;
     }
+    const board = boardOf(ctx);
     const sight = sightBetween(
+      board,
       unit.x,
       unit.z,
       eyeHeightOf(unit.tier),
@@ -197,7 +223,7 @@ export const readSightline: Behaviour = {
     // side is the short way round, from the sign of the cross product — no
     // extra sightline evaluation and no per-unit coin to remember.
     if (sight.by >= 0 && sight.occlusion > FLANK_AT) {
-      const prop = COVER_PROPS[sight.by];
+      const prop = board.props[sight.by];
       if (prop !== undefined) {
         const rect = worldRectOf(prop.cells);
         const toX = target.x - unit.x;
@@ -252,13 +278,14 @@ export const avoidFootprints: Behaviour = {
     // strong repulsion field here is what stopped melee closing in the first
     // build, because two bodies either side of a one-tile crate were each held
     // 0.6 units off it and could never come within a 1.1-unit reach.
+    const board = boardOf(ctx);
     const margin = bodyRadius(unit.tier) + 0.14;
     const target = targetOf(unit, ctx);
     const atCx = cellIndexAt(unit.x);
     const atCy = cellIndexAt(unit.z);
     for (let cy = atCy - 1; cy <= atCy + 1; cy += 1) {
       for (let cx = atCx - 1; cx <= atCx + 1; cx += 1) {
-        if (!blockedAt(cx, cy)) { continue; }
+        if (!blockedAt(board, cx, cy)) { continue; }
         const x0 = cellEdge(cx);
         const x1 = cellEdge(cx + 1);
         const z0 = cellEdge(cy);
@@ -333,7 +360,7 @@ export const clampToFootprints: Behaviour = {
   phase: "act",
   step(unit, ctx) {
     if (!isOn(ctx)) { return; }
-    clampUnitOutOfProps(unit);
+    clampUnitOutOfProps(boardOf(ctx), unit);
   },
 };
 
@@ -352,18 +379,18 @@ const ESCAPE_RINGS = 4;
  * clearance from each blocked neighbour, which is possible for both axes at
  * once because `bodyRadius` is comfortably under half a tile.
  */
-export function clampUnitOutOfProps(unit: SimUnit): boolean {
+export function clampUnitOutOfProps(board: CoverBoard, unit: SimUnit): boolean {
   const radius = bodyRadius(unit.tier);
   let cx = cellIndexAt(unit.x);
   let cy = cellIndexAt(unit.z);
   let moved = false;
 
-  if (blockedAt(cx, cy)) {
+  if (blockedAt(board, cx, cy)) {
     const exits: { cx: number; cy: number; cost: number }[] = [];
     for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]] as const) {
       const nx = cx + dx;
       const ny = cy + dy;
-      if (blockedAt(nx, ny) || !onBoard(nx, ny)) { continue; }
+      if (blockedAt(board, nx, ny) || !onBoard(nx, ny)) { continue; }
       const edge = dx !== 0
         ? Math.abs(unit.x - cellEdge(dx < 0 ? cx : cx + 1))
         : Math.abs(unit.z - cellEdge(dy < 0 ? cy : cy + 1));
@@ -371,7 +398,7 @@ export function clampUnitOutOfProps(unit: SimUnit): boolean {
     }
     const exit = exits.sort((a, b) => (a.cost - b.cost) || (a.cy - b.cy) || (a.cx - b.cx))[0];
     if (exit === undefined) {
-      const home = nearestOpenCell(cx, cy);
+      const home = nearestOpenCell(board, cx, cy);
       if (home === undefined) { return false; }
       const centre = cellCentre(home.cx, home.cy);
       unit.x = centre.x;
@@ -398,22 +425,22 @@ export function clampUnitOutOfProps(unit: SimUnit): boolean {
   const x1 = cellEdge(cx + 1);
   const z0 = cellEdge(cy);
   const z1 = cellEdge(cy + 1);
-  if (blockedAt(cx - 1, cy) && unit.x < x0 + radius) {
+  if (blockedAt(board, cx - 1, cy) && unit.x < x0 + radius) {
     unit.x = x0 + radius;
     unit.vx = Math.max(0, unit.vx);
     moved = true;
   }
-  if (blockedAt(cx + 1, cy) && unit.x > x1 - radius) {
+  if (blockedAt(board, cx + 1, cy) && unit.x > x1 - radius) {
     unit.x = x1 - radius;
     unit.vx = Math.min(0, unit.vx);
     moved = true;
   }
-  if (blockedAt(cx, cy - 1) && unit.z < z0 + radius) {
+  if (blockedAt(board, cx, cy - 1) && unit.z < z0 + radius) {
     unit.z = z0 + radius;
     unit.vz = Math.max(0, unit.vz);
     moved = true;
   }
-  if (blockedAt(cx, cy + 1) && unit.z > z1 - radius) {
+  if (blockedAt(board, cx, cy + 1) && unit.z > z1 - radius) {
     unit.z = z1 - radius;
     unit.vz = Math.min(0, unit.vz);
     moved = true;
@@ -427,12 +454,16 @@ function onBoard(cx: number, cy: number): boolean {
 }
 
 /** Nearest walkable tile by expanding ring, in a fixed scan order. */
-function nearestOpenCell(cx: number, cy: number): { cx: number; cy: number } | undefined {
+function nearestOpenCell(
+  board: CoverBoard,
+  cx: number,
+  cy: number,
+): { cx: number; cy: number } | undefined {
   for (let ring = 1; ring <= ESCAPE_RINGS; ring += 1) {
     for (let dy = -ring; dy <= ring; dy += 1) {
       for (let dx = -ring; dx <= ring; dx += 1) {
         if (Math.max(Math.abs(dx), Math.abs(dy)) !== ring) { continue; }
-        if (walkable(cx + dx, cy + dy)) { return { cx: cx + dx, cy: cy + dy }; }
+        if (walkable(board, cx + dx, cy + dy)) { return { cx: cx + dx, cy: cy + dy }; }
       }
     }
   }
@@ -440,8 +471,8 @@ function nearestOpenCell(cx: number, cy: number): { cx: number; cy: number } | u
 }
 
 /** Is this body standing on a tile a prop claims? The invariant, testable. */
-export function isInsideFootprint(unit: SimUnit): boolean {
-  return blockedAt(cellIndexAt(unit.x), cellIndexAt(unit.z));
+export function isInsideFootprint(board: CoverBoard, unit: SimUnit): boolean {
+  return blockedAt(board, cellIndexAt(unit.x), cellIndexAt(unit.z));
 }
 
 /**
