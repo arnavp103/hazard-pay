@@ -706,10 +706,80 @@ choice). Note that resume then *replays* the current slice from its chunk
 boundary, so the client's animation layer must be idempotent about re-seeing a
 chunk — worth a note wherever that hook is written.
 
-Two SSE facts constrain the design and are worth writing down: the wire is
-UTF-8 text, so binary must be base64'd (§5); and `EventSource` cannot send
-custom headers, so the resume cursor must travel in `Last-Event-ID` or the URL —
-which the existing route already assumes.
+### SSE facts that constrain the design
+
+From the [WHATWG HTML Living Standard, Server-sent events](https://html.spec.whatwg.org/multipage/server-sent-events.html):
+
+- **Text only, UTF-8 only.** "Event streams in this format must always be
+  encoded as UTF-8." There is no binary framing; `MessageEvent.data` is a
+  string. This is what forces base64 on any packed track (§5).
+- **The spec guarantees resume of the *cursor*, not of the *data*.** The client
+  side is normative — "Set (`Last-Event-ID`, lastEventIDValue) in request's
+  header list", and "The buffer does not get reset, so the last event ID string
+  of the event source remains set to this value until the next time it is set
+  by the server." But there is no normative requirement anywhere in the section
+  that a server replay anything. **Replay is entirely the application's job.**
+  ADR 0004 §5's "the table is the truth" is precisely the right answer to this,
+  and the existing route already implements it.
+- **An event with `id:` but no `data:` advances the cursor without dispatching
+  a message.** Dispatch sets the last event ID *first*, then returns early if
+  the data buffer is empty. That is a free checkpoint primitive — useful if
+  slice chunks are ever large enough that you want finer-grained resume points
+  than actual payloads.
+- **Anything pending at end-of-stream is discarded.** A partially transmitted
+  match event is lost in full; there is no partial resume *within* an event.
+  This is a second, independent argument against very large single events, and
+  it bounds how big a slice chunk should be.
+- **A non-200 status or a wrong `Content-Type` kills the stream permanently.**
+  "fail the connection" sets `readyState` to CLOSED and fires `error`, and the
+  UA "does not attempt to reconnect". A 502 from a proxy during a deploy is a
+  dead `EventSource` that will not come back on its own — **the client hook
+  needs app-level re-instantiation on `error`, not just the browser's automatic
+  retry.** The current `use-tick-stream.ts` sets status to `"reconnecting"` on
+  `onerror` but never re-creates the `EventSource`; for a transient network
+  drop the browser handles it, but for a failed connection it will sit in
+  `"reconnecting"` forever. Worth fixing when the match stream is written.
+- **`EventSource` cannot send custom headers.** The constructor takes only
+  `EventSourceInit { withCredentials }`. Auth must be a cookie or a query
+  parameter, and the resume cursor must travel in `Last-Event-ID` — which the
+  existing route already assumes.
+- **HTTP/1.1 caps ~6 connections per origin.** The spec itself warns about it;
+  the number is not in any RFC (RFC 9112 §9.4 deliberately removed a fixed
+  ceiling) but is a browser constant — Chromium's
+  `client_socket_pool_manager.cc` sets `g_max_sockets_per_group = {6}` for
+  normal connections, with WebSocket exempted at 255 and **SSE not exempted**.
+  HTTP/2 removes the problem (RFC 9113 recommends `SETTINGS_MAX_CONCURRENT_STREAMS`
+  ≥ 100), but only if HTTP/2 runs end-to-end including the reverse proxy hop.
+  A player with the game open in several tabs is a realistic way to hit this.
+- **Keepalive cadence matters and 60 s is too slow.** nginx `proxy_read_timeout`
+  defaults to **60 s** and closes the connection if the upstream "does not
+  transmit anything within this time"; AWS ALB's idle timeout also defaults to
+  60 s; Cloudflare's proxy read timeout is 125 s (error 524). The HTML spec's
+  own advice is a comment line "every 15 seconds or so". **The existing route's
+  `:hb\n\n` fires on the 60-second safety re-poll — exactly at nginx's and
+  ALB's default limit, which is a race.** Recommend dropping the heartbeat to
+  15–30 s (it can stay decoupled from the 60 s re-poll). Note also that ALB's
+  `client_keep_alive` defaults to 1 hour and terminates even perfectly active
+  streams, so periodic forced reconnects must be treated as normal operation.
+- **`proxy_buffering` is on by default in nginx** and breaks SSE; the fix is
+  either `proxy_buffering off` or the `X-Accel-Buffering: no` response header.
+  The existing route already sends the header — good, and worth keeping when
+  the match stream is written.
+- **Compression works and is transparent.** `Content-Encoding` is a property of
+  the representation, orthogonal to `Transfer-Encoding: chunked`
+  ([RFC 9110 §8.4](https://www.rfc-editor.org/rfc/rfc9110#section-8.4)), and
+  `Accept-Encoding` is a forbidden request header, so the browser negotiates
+  and decodes without any client code. The catch is flushing: a compressor
+  buffers, so each match event needs an explicit `Z_SYNC_FLUSH` /
+  `BROTLI_OPERATION_FLUSH` or it sits in the deflate window. Measured cost of
+  flushing per event rather than once: **+16.7%**. At 11 KiB per slice that is
+  ~1.8 KiB — pay it.
+- **There is no spec-imposed message size limit.** Stated as an argument from
+  absence: the parsing algorithm appends to an unbounded data buffer and
+  dispatches on a blank line, with no bound on field, event or stream size. The
+  real limit is client-side — the whole event is buffered as one JS string and
+  `JSON.parse`d on the main thread. Another vote for per-second chunks over
+  one-blob-per-slice.
 
 ---
 
@@ -758,6 +828,27 @@ and it is a boundary worth drawing deliberately rather than by copy-paste. It is
 *much* smaller than Option B's requirement (the entire sim, bit-identical), but
 it is not zero.
 
+### Finding 4 — two latent bugs in the existing transport seam
+
+Not caused by this research, but found while reading `tick-stream.ts` and
+`use-tick-stream.ts` against the spec, and both will bite harder on a match
+stream than on a tick stream:
+
+- **The heartbeat cadence races the default proxy timeouts.** The `:hb\n\n`
+  comment frame is emitted on the 60-second safety re-poll, and nginx's
+  `proxy_read_timeout` and AWS ALB's idle timeout both default to exactly 60 s.
+  The HTML spec recommends ~15 s. Decouple the heartbeat from the re-poll and
+  send it every 15–30 s.
+- **A failed connection is never re-established.** Per spec, a non-200 or a
+  wrong `Content-Type` makes the UA "fail the connection" and *not* retry.
+  `useTickStream` sets status to `"reconnecting"` on `onerror` but never
+  re-creates the `EventSource`, so a 502 during a deploy leaves the tab
+  permanently dark with a hopeful-looking status. Needs an explicit
+  re-instantiation with backoff.
+
+These are worth their own small ticket rather than being folded into the match
+work.
+
 ### Non-finding, recorded deliberately
 
 The ticket's premise that "enumerated as match events that is potentially
@@ -772,8 +863,9 @@ was an unstated assumption about record granularity.**
 
 ## 9. Recommendation, and what it costs
 
-**Adopt Option A at 10 Hz, packed, batched into ~1-second match events, with
-discrete outcomes at full time resolution.**
+**Adopt Option A at 10 Hz, as quantised-integer JSON, batched into ~1-second
+match events, with discrete outcomes at full time resolution.** 11.1 KiB per
+slice on the wire, 5 rows per slice in Postgres, 18 kbit/s per viewer.
 
 ### Consequences for the sim's architecture
 
@@ -831,4 +923,59 @@ discrete outcomes at full time resolution.**
 
 ## 10. Sources
 
-*Collected below; each claim in §6.1 references one of these.*
+Primary sources only — specifications, engine source, and first-party engine
+team statements. Every claim in §6.1 and §7 links to one of these inline.
+
+### Specifications
+
+- [ECMA-262 (ES2025), Number type — IEEE 754-2019 binary64](https://262.ecma-international.org/16.0/index.html#sec-ecmascript-language-types-number-type) — §6.1.6.1; also the implementation-defined NaN bit-pattern note.
+- [ECMA-262, Number::add / multiply / divide](https://262.ecma-international.org/16.0/index.html#sec-numeric-types-number-add) — "according to the rules of IEEE 754-2019 binary double-precision arithmetic".
+- [ECMA-262, Number::exponentiate](https://262.ecma-international.org/16.0/index.html#sec-numeric-types-number-exponentiate) — §6.1.6.1.3, "implementation-approximated"; backs both `Math.pow` and the `**` operator.
+- [ECMA-262, Number::toString](https://262.ecma-international.org/16.0/index.html#sec-numeric-types-number-tostring) — shortest round-tripping representation; `-0` renders as `"0"`.
+- [ECMA-262, Function properties of the Math object](https://262.ecma-international.org/16.0/index.html#sec-function-properties-of-the-math-object) — §21.3.2 Note, the definitive list of 23 approximated functions and the fdlibm recommendation.
+- [ECMA-262, Math.sqrt](https://262.ecma-international.org/16.0/index.html#sec-math.sqrt) · [Math.hypot](https://262.ecma-international.org/16.0/index.html#sec-math.hypot) · [Math.random](https://262.ecma-international.org/16.0/index.html#sec-math.random) · [Math.fround](https://262.ecma-international.org/16.0/index.html#sec-math.fround)
+- [ECMA-262, "implementation-approximated" (definition)](https://262.ecma-international.org/16.0/index.html#sec-terms-and-definitions-implementation-approximated) — §4.4.1.
+- [ECMA-262, OrdinaryOwnPropertyKeys](https://262.ecma-international.org/16.0/index.html#sec-ordinaryownpropertykeys) · [EnumerateObjectProperties (`for...in`, unspecified order)](https://262.ecma-international.org/16.0/index.html#sec-enumerate-object-properties) · [Map.prototype.forEach (insertion order)](https://262.ecma-international.org/16.0/index.html#sec-map.prototype.foreach)
+- [ECMA-262, SortIndexedProperties](https://262.ecma-international.org/16.0/index.html#sec-sortindexedproperties) — stability, and the consistent-comparator precondition.
+- [ECMA-262, Date.now](https://262.ecma-international.org/16.0/index.html#sec-date.now) · [String.prototype.localeCompare](https://262.ecma-international.org/16.0/index.html#sec-string.prototype.localecompare)
+- [WHATWG HTML Living Standard — Server-sent events](https://html.spec.whatwg.org/multipage/server-sent-events.html) — wire format, `Last-Event-ID`, `retry:`, fail-the-connection, EOF discard, the ~15 s comment-frame advice, and the per-origin connection warning.
+- [WHATWG HTML — Structured data](https://html.spec.whatwg.org/multipage/structured-data.html) — `structuredClone` preserves `-0` where JSON does not.
+- [WHATWG Fetch Standard](https://fetch.spec.whatwg.org/) — `Accept-Encoding` is a forbidden request header; content-coding decode is automatic.
+- [RFC 9110 §8.4 — Content-Encoding](https://www.rfc-editor.org/rfc/rfc9110#section-8.4) — orthogonal to `Transfer-Encoding`, so compressed SSE is well-formed.
+- [RFC 9112 §9.4 — Concurrency](https://www.rfc-editor.org/rfc/rfc9112#section-9.4) — no normative per-origin connection ceiling.
+- [RFC 9113 §5.1.2 — HTTP/2 stream concurrency](https://www.rfc-editor.org/rfc/rfc9113#section-5.1.2) — recommended ≥ 100 concurrent streams.
+- [RFC 4648 — base64](https://www.rfc-editor.org/rfc/rfc4648) — 24-bit groups to 4 characters; exactly 4/3.
+
+### Engine source and engine-team statements
+
+- [V8 `src/base/ieee754.cc`](https://chromium.googlesource.com/v8/v8/+/refs/heads/main/src/base/ieee754.cc) — V8's fdlibm port, covering `sin/cos/tan/atan2/exp/log/pow/cbrt` and more.
+- [V8 commit c1486295ae5 — "[math] Replace custom tanh with std::tanh"](https://chromium.googlesource.com/v8/v8/+/c1486295ae5) — a transcendental delegated to the host libm, making the same V8 OS-dependent.
+- [v8.dev — "There's Math.random(), and then there's Math.random()"](https://v8.dev/blog/math-random) — the MWC1616 → xorshift128+ switch.
+- [v8.dev — "Getting things sorted in V8"](https://v8.dev/blog/array-sort) — unstable QuickSort → TimSort in V8 v7.0 / Chrome 70.
+- [Mozilla dev-platform — Intent to implement: fdlibm for Math functions](https://groups.google.com/a/mozilla.org/g/dev-platform/c/0dxAO-JsoXI/m/eEhjM9VsAgAJ) — Firefox does **not** use fdlibm for `sin`/`cos`/`tan` by default; V8 does. The clearest single statement that two shipping engines disagree.
+- [SpiderMonkey newsletter, Firefox 92/93](https://spidermonkey.dev/blog/2021/09/10/newsletter-firefox-92-93.html) — fdlibm added as an *option* for cross-platform consistency.
+- [Chromium `net/socket/client_socket_pool_manager.cc`](https://chromium.googlesource.com/chromium/src/+/refs/heads/main/net/socket/client_socket_pool_manager.cc) — `g_max_sockets_per_group = {6 /* kNormal */, 255 /* kWebSocket */}`.
+
+### Infrastructure documentation
+
+- [nginx `ngx_http_proxy_module`](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_buffering) — `proxy_buffering` default on, `X-Accel-Buffering`, `proxy_read_timeout` default 60 s.
+- [AWS — Application Load Balancer attributes](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/edit-load-balancer-attributes.html) — 60 s idle timeout default, 1 h `client_keep_alive`, HTTP/2 PING frames do not reset the idle timer.
+- [Cloudflare — connection limits](https://developers.cloudflare.com/fundamentals/reference/connection-limits/) — 125 s proxy read timeout, error 524.
+- [Node.js `zlib` documentation](https://nodejs.org/api/zlib.html) — buffering behaviour and `Z_SYNC_FLUSH` / `BROTLI_OPERATION_FLUSH`.
+
+### Repository sources
+
+- [`docs/adr/0004-match-transport-and-tick-architecture.md`](../adr/0004-match-transport-and-tick-architecture.md) — the committed transport model.
+- [`CONTEXT.md`](../../CONTEXT.md) — ratified vocabulary (**match event**, **resolution**, **phase**, **move**).
+- `apps/api/src/routes/tick-stream.ts`, `apps/webapp/src/lib/use-tick-stream.ts` — the existing SSE seam.
+- `apps/webapp/src/match-proto/flat-procedural/sim.ts` on `prototype/flat-procedural-lane` ([PR #90](https://github.com/arnavp103/hazard-pay/pull/90)) — the sim measured throughout.
+
+### Reproducing the measurements
+
+Every number in §5 and §6.2 came from running the real `sim.ts` under
+`node --experimental-strip-types` (Node 22.23.1, V8, x86-64 Linux), with
+`node:zlib` at gzip level 9 and brotli quality 11. The harnesses are small and
+were deliberately not committed — they are throwaway measurement scripts
+against a throwaway prototype. What they do is described precisely enough in
+each section to rebuild in an hour, and the conformance harness proposed in
+§6.3 is the version worth actually committing.
