@@ -199,9 +199,12 @@ Environment facts agents keep rediscovering; brief them or fix them:
 - The scratchpad directory is shared across agent sessions of one conversation:
   stage files under a per-task subdirectory (`stage-issue-<n>/`), never at the
   scratchpad root, or you'll clobber another agent's staging tree.
-- The Skill tool serves `.claude/skills/*` symlinked skills fine despite the
-  file-tool read-deny on that tree — the deny applies to Read/Edit/Write, not
-  skill invocation.
+- The Skill tool serves `.claude/skills/*` symlinked skills fine even though
+  Read/Edit/Write on that specific symlink path fails — a narrower,
+  separate restriction from the (corrected, see above) claim that all of
+  `.claude/` is file-tool-denied. Read the real file at
+  `.agents/skills/<name>/SKILL.md` instead when you need Read/Edit/Write on
+  it directly.
 - lint-staged autofixes at commit time make committed files drift from any
   scratchpad staging copies; after committing, treat the worktree (via
   `git show`/`git diff`), not your staging copies, as truth.
