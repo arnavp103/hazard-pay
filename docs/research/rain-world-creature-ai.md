@@ -9,7 +9,7 @@ what it adds that those did not.
 
 ## Recommendation
 
-Take **three** mechanisms and leave the rest.
+Take **four** mechanisms and leave the rest.
 
 1. **Cost-field coordination.** Let each unit price the space it is considering moving
    through, and let fear, packmates and threat all enter as *resistance* rather than as
@@ -24,11 +24,23 @@ Take **three** mechanisms and leave the rest.
    Costs a seeded hash, buys visible individuality, and stays deterministic — which the
    slice model requires.
 
+4. **Causal visibility.** Whichever channels stay legible at our scale — gait, tempo,
+   facing, spacing — must be driven by the AI's own state, not by a decorative layer
+   parameterised separately. A committed unit should *move* committed. This is the whole
+   of what Rain World's legibility reduces to at 28px, and it costs nothing beyond wiring
+   the right variables together.
+
 Leave the AI map, the belief system, social memory, and the entire
 abstraction/LOD apparatus. Each is load-bearing on something Hazard Pay does not have.
 
 **The framing worth stealing wholesale**, from the GDC 2016 talk: *"AI is animation in
-Rain World. You cannot really draw a line between the two."*
+Rain World. You cannot really draw a line between the two."* Its necessary counterpart,
+from the 2024 post-mortem: *"the AI very rarely — I tried to make it never — queries the
+actual physics simulation."* Locomotion fused to AI; deliberation firewalled from the
+body.
+
+**One thing to get the right way round:** Rain World's famous clumsiness is a *tolerated
+byproduct*, not an authored effect. Do not budget for expressive failure as a feature.
 
 ## How it actually works
 
@@ -198,6 +210,149 @@ independent (sympathy, energy, bravery), three derived (nervous, aggression, dom
 Zero storage. The same seed drives cosmetics: *"Dominance has an impact on antler size
 and general body size."* The dominant scavenger is *shaped* like one.
 
+## Procedural animation, and how it couples to the AI
+
+### The coupling runs one way, and there is a firewall
+
+Two statements from Jakobsson, taken together, define the architecture.
+
+Locomotion and AI are the same thing:
+
+> "**AI is animation in Rain World. You cannot really draw a line between the two.**
+> Basically the AI has like the overarching unit which will make decisions… where should
+> I go, where should I move to. But then you also have the locomotion AI, and **the
+> locomotion AI is equally animation as it is AI**… where to put my limbs, how to orient
+> myself, how to basically move through the world, and **that entire thing is informed by
+> the environment around the creature.**" — GDC 2016, ~13:34
+
+Deliberation, however, is sealed off from the body:
+
+> "**the AI very rarely — I tried to make it never — queries the actual physics
+> simulation.** The AI is not able to just reach into the game code and grab your
+> position; instead the AI is able to ask its internal model about where it believes you
+> to be." — AI and Games Conference 2024, ~10:56
+
+So: **locomotion fused to AI, deliberation firewalled from physics.** Position is
+believed (via the ghosts), never read.
+
+The same one-way rule governs the visual layer:
+
+> "**These two systems have a one-way dependence. The complex cosmetics are dependent on
+> the simple physics simulation but not the other way around.**… the dangly bits on the
+> right hand side, those are fairly processor intensive… but they don't need to happen
+> unless you're actually viewing it, because **they don't inform anything that has to do
+> with how it interacts with other objects.**" — GDC 2016, ~09:36
+
+Grip and contact logic are sim-side; tails, feathers and scales are the cullable layer.
+
+### What the animation buys the AI: causal visibility
+
+This is the load-bearing argument, and it is Therrien's:
+
+> "With procedural animation we can create a scenario where **the AI behavior equals the
+> behavior that you're seeing in the game.**… The player will say 'oh, this creature is
+> mad at me.' Now that's not really the case, but because we have all of the ingredients
+> visible, it makes this kind of effect of personality… It's different than if you were
+> to have a blackbox scenario. **With procedural animation you have a visible cause and
+> effect.**" — GDC 2016, ~06:34
+
+Jakobsson's shorter version, from the 2024 post-mortem: *"Is the lizard angry, or is the
+A\* flipping out?"*
+
+The strongest evidence that this produces projection rather than perception:
+
+> "Many people have mentioned seeing the slugcat claw at a ledge to get up — **a behavior
+> I have in fact never specifically implemented.**" — devlog p.072, 2015-10-22
+
+### The clumsiness is tolerated, not designed
+
+Worth stating plainly, because it is easy to get backwards. The famous awkwardness is an
+accepted byproduct, not an authored effect:
+
+> "It's difficult to get the creatures to move… gracefully. **The reason is that the
+> animation isn't animated frame-by-frame, instead it's all AI driven, and I can only
+> make those AI behaviors so good.** My animation technique could probably hardly be
+> applied to a horse, dog or human for this reason." — devlog p.077, 2016-01-19
+
+The dragging-limb look often cited as characterful was a bug fought over several devlog
+updates. The one imperfection claimed as a positive is narrow — randomness in the grip
+search: *"you might not always get the absolute ideal position, but you will get a
+goodish one. And I actually think that that little bit of randomness to it adds some
+character."* The rest is covered by a fiction dodge: *"No one has seen them in real life.
+So you don't know what they are supposed to move like… you have to give them the benefit
+of the doubt."*
+
+**Do not budget for expressive failure as a feature.** It is what you tolerate, plus a
+licence bought with creature design.
+
+### Limbs and terrain
+
+`Limb.FindGrip` probes room geometry directly, but the animation/navigation boundary is
+drawn **per species**, not once. Daddy Long Legs tentacles use two layers, the outer one
+in tile space:
+
+> "Those tentacles are composed of two main components, the semi-transparent 'ghost
+> tentacles' which **work in tile space and make sure that they never overlap terrain**,
+> and the jointed physics tentacles on top… The creature **ray-traces from its body
+> downwards** trying to find a good grip position, and when it does so **path-finds a way
+> to it in tile space**… **The elbow bends are accomplished with a simple inverse
+> kinematic formula.**" — devlog p.066, 2015-07-28
+
+The grip search itself is **random-sample hill-climbing on a scored position field**:
+
+> "I have a method that can assign a score for each position in the room… **Each frame the
+> leg locomotion algorithm picks a random position in the room. If the random position
+> has a higher score than the current temp position the temp position is moved to the
+> random position.**" — devlog p.080, 2016-03-21
+
+> "Why not just check every position and then pick the best one? Because that's very
+> intense on the processor." — GDC 2016, ~19:38
+
+**One RNG draw per limb per frame, by design.** Note this directly for our purposes.
+
+And the payoff is admitted illusion:
+
+> "the fewer tentacles that are contacting terrain, the more the body is affected by
+> gravity… the more tentacles, the faster the body is allowed to move towards its goal…
+> It actually looks like this creature is supporting itself by the tentacles, **which is
+> not at all the case. It's just floating through the air.**" — GDC 2016, ~21:38
+
+### What this means at 28px
+
+The mechanism is **not fidelity, it is causal visibility**: the state the AI acts on is
+the state the body visibly expresses, so attribution is available to the player. At 28px
+a limb is invisible — but **gait, tempo, facing and spacing** are not.
+
+So the transferable rule is one line: **whichever channels stay legible at our scale must
+be driven by the AI's own state, not by a decorative layer parameterised separately.** A
+unit that is committed should *move* committed; a unit whose stuck-counter is climbing
+should *move* like it. Cheap, and it is the whole of what Rain World's legibility reduces
+to at our scale.
+
+Two constraints to carry:
+
+- **The grip search's per-limb-per-frame RNG draw is a determinism hazard.** Our slice
+  model requires bit-reproducibility across a boundary. Any Rain-World-style stochastic
+  solver must draw from a per-unit seeded stream (`(seed, unitId, purpose)`), never a
+  shared generator, or slices will not reproduce.
+- **Physics-driven bodies do not automatically survive the scale drop.** Rain World spends
+  its budget on a body that reads at a zoom we do not have; we already have a procedural
+  layer stack (`bind → cycle → attack → aim → lean → reactions → root → weapon IK`), and
+  the finding here is not "add physics" but "make sure the channels that survive are
+  wired to AI state."
+
+Also worth knowing: the coupling is tight enough to be a design constraint in itself —
+*"No other creatures than the slugcat will be playable. The locomotion is intimately
+connected to the AI, so it's not easy to just turn the AI off and hook it up to an
+input."* (devlog p.076). And the camera trade was deliberate: *"I decided that a lot of
+games had moving cameras, but few had procedural animation and complex AI"* (p.031),
+which is the same trade a fixed dimetric camera already makes.
+
+**No per-creature CPU figure exists** in any developer statement — no ms/frame, no chunk
+counts by species, no profiler output. The physics tick is confirmed at 40 Hz with
+graphics interpolated above it. Their stated posture: *"write the easiest, cleanest
+solution, and then if there is a performance problem optimize it."*
+
 ## What is myth
 
 Rain World's AI has accumulated a lot of folklore. Four corrections, each sourced:
@@ -289,9 +444,20 @@ instantly and structurally: commitment, cost-field spreading, silhouette variati
 - **GDC 2016 quotes are ASR-derived**, not certified verbatim; GDC Vault gates the video.
 - **Lizard resistance numbers** come from a MonoMod patch reproducing vanilla
   `StaticWorld` — high confidence, but secondhand.
+- **All video quotes are ASR-derived** and carry timestamps so they can be checked before
+  being quoted anywhere public. GDC Vault's copy is paywalled, so the free YouTube version
+  cannot be confirmed unedited — though it is on GDC's own channel.
 - **A February 2025 Dublin talk** billed as covering "procedural animation, creature AI,
-  and the intersection between the two" is potentially the best single source. No
-  recording found.
+  and the intersection between the two" could not be confirmed to have happened at all —
+  no recording, no archive, no Wayback capture, and the organiser's event pages 404. The
+  AI and Games 2024 post-mortem is the substitute and is the better source.
+- **The Anifilm 2019 redelivery** reportedly contains lizard-leg material absent from the
+  GDC version, but its auto-captions are unusable; it would need a human transcription
+  pass.
+- **No per-creature CPU cost** is stated anywhere by the developers. The only quantity
+  offered is *"there might be many creatures active at the same time. Sometimes
+  hundreds"* — hedged in the talk itself, and reconcilable with the 1500 budget only if
+  "active" means abstract-space creatures.
 
 ## Sources
 
@@ -305,9 +471,19 @@ Primary, developer:
   `msg1095345` (emotion-weighted travel preference), `msg1104223` (module/utility
   architecture), `msg1131567` (three simulation resolutions), `msg1210078` (personality
   stats), `msg1235841` (social memory and reputation matrix). The live site is
-  Cloudflare-gated; recoverable via the Wayback `printpage` snapshot.
+  Cloudflare-gated; recoverable via the Wayback `printpage` snapshot, or the page mirror
+  at `https://raw.githubusercontent.com/CandleSign/Rain-World-Devlog/main/Pages/NNN.html`
+  (branch `main`, pages 001–096). Animation-relevant pages: **031** (the camera trade),
+  **058** (chunks and `ConnectChunks`, with actual C#), **066** (ghost tentacles and IK),
+  **072** (the never-implemented ledge claw; 40 Hz physics tick), **076** (why only the
+  slugcat is playable), **077** (why graceful motion is hard), **080** (the grip
+  algorithm, written because the GDC video was paywalled).
 - [GDC 2016, "The Rain World Animation Process"](https://www.youtube.com/watch?v=sVntwsrjNe4)
   — Jakobsson and Therrien. ASR captions.
+- [AI and Games Conference 2024, "Rain World: An AI Post-Mortem"](https://www.youtube.com/watch?v=7wZmOEovSdc)
+  — London, November 2024. The source for the AI-never-queries-physics firewall and the
+  "is the lizard angry, or is the A\* flipping out?" framing.
+- [AnimState pre-GDC interview, March 2016](https://www.youtube.com/watch?v=D2r7bfaJmYc)
 - [IGDA Italy "Dev on Air", January 2021](https://www.youtube.com/watch?v=vlMTnuGGNxM)
   — the best spoken account of the utility architecture and the
   they-don't-know-where-you-are design. ASR captions.
