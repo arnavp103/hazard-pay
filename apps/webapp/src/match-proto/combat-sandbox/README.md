@@ -36,6 +36,11 @@ Useful query parameters — the full list is in
 | `anim=idle\|attack\|walk\|march\|turn` | hero/lineup clip |
 | `base=none\|stance\|pair\|quad` | authored-key rung, 0/1/2/4 keys per clip |
 | `layers=none\|all\|phase,stride,aim,ik,lean,react` | procedural layer ablation |
+| `space=plaza\|cover` | #100: continuous space, or the tile grid with footprints and sightlines |
+| `density=dense\|spread\|sparse` | #100 round 2: 32 / 16 / 8 authored cover props. `dense` is round 1's board |
+| `roster=mixed\|ranged\|split` | #100 round 2: the bake-off mix, all shooters, or shooters vs swords |
+| `fire=none\|hitscan\|bolt` | #100 round 2: how a ranged attack is drawn. **A prototype stand-in** — read `battlefield-space/fire-render.ts` first |
+| `grid=1` | #100: debug overlay — tiles, blocked and roofed cells |
 | `zoom=`, `scale=`, `motion=1`, `mark=0` | framing, pixel density, camera pan, hero border |
 | `freeze=<ms>` | one deterministic frame, then stop |
 | `strip=<n>&fps=&from=&cols=` | tile n deterministic frames into a filmstrip |
@@ -166,8 +171,9 @@ emergent behaviour, different float trajectory.
 
 ## Known gaps (owned by the prototype tickets, not by this directory)
 
-Nothing dies (#101). No projectiles, though ranged archetypes hold a real
-4.7–6.2 unit standoff. No HUD, no health bars, no damage numbers. The
+Nothing dies (#101). No projectiles **in the sandbox proper** — `fire=` draws
+one, but that lives in `battlefield-space/` as a #100 prototype stand-in and is
+a renderer over a hitscan sim, not a projectile the sim knows about. No HUD, no health bars, no damage numbers. The
 animation vocabulary is `idle`, `attack`, `turn`, `walk`/`march`. PR #90's own
 retro concedes that *"two contact poses is the point at which the procedural
 layers stop being able to fake an animator"* — a state that needs specific

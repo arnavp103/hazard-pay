@@ -60,11 +60,34 @@ const FLASH_STEPS = 6;
 /** Steps a bolt takes to cross the gap (~0.13 s over a 4.7-unit standoff). */
 const BOLT_STEPS = 8;
 /** Bolt length, world units. Short enough to read as ordnance, not as a beam. */
-const BOLT_LENGTH = 0.6;
-/** Half-thickness of the drawn streak, world units. */
-const HALF_WIDTH = 0.035;
+const BOLT_LENGTH = 0.75;
+/**
+ * Half-thickness of the drawn streak, in **screen** units (world units along
+ * the camera basis, which project 1:1 to `PX_PER_UNIT * zoom` pixels).
+ *
+ * The first build widened the ribbon perpendicular to the shot *on the ground
+ * plane* and every tracer came out under two pixels wide — all three fire modes
+ * captured byte-identical, which is how the bug was found rather than shipped.
+ * A dimetric camera compresses a ground-plane offset by between 0.35 and 0.71
+ * depending on which way the shot points, so a ground-plane ribbon is not only
+ * thin, it is thin by a different amount per direction. Billboarding against
+ * the camera basis is the only thing that gives a streak a constant width.
+ */
+const HALF_WIDTH = 0.06;
 /** Steps the muzzle flash is on screen. */
 const FLASH_HOLD = 4;
+
+/**
+ * Screen-right and screen-up of the fixed 2:1 dimetric camera, in world space.
+ *
+ * Duplicated from `scene.ts` rather than imported, for the same reason
+ * `measure.ts` duplicates them: this file is then testable in node with no
+ * renderer. The camera is #95-canon and never rotates, so there is no drift
+ * risk — if these two ever disagree with `scene.ts`, the camera moved and that
+ * is a much larger conversation than this prototype.
+ */
+const RIGHT = { x: Math.SQRT1_2, y: 0, z: -Math.SQRT1_2 };
+const UP = { x: -0.35355, y: 0.86603, z: -0.35355 };
 
 /**
  * Tracer colour.
@@ -117,6 +140,9 @@ export class FireField {
       new THREE.MeshBasicMaterial({
         blending: THREE.AdditiveBlending,
         depthWrite: false,
+        // A billboarded ribbon has no meaningful winding — which face is front
+        // depends on which way the shot points, and half of them would vanish.
+        side: THREE.DoubleSide,
         transparent: true,
         vertexColors: true,
       }),
@@ -145,11 +171,7 @@ export class FireField {
     const dx = shot.toX - shot.fromX;
     const dy = shot.toY - shot.fromY;
     const dz = shot.toZ - shot.fromZ;
-    const span = Math.hypot(dx, dz) || 1e-4;
-    // Screen-space-ish perpendicular on the ground plane: a streak has to keep
-    // its width under the dimetric camera whatever direction it is fired in.
-    const px = -dz / span;
-    const pz = dx / span;
+    const span = Math.hypot(dx, dy, dz) || 1e-4;
 
     let head = 1;
     let tail = 0;
@@ -162,34 +184,36 @@ export class FireField {
       fade = 1;
     }
 
-    const ax = shot.fromX + dx * tail;
-    const ay = shot.fromY + dy * tail;
-    const az = shot.fromZ + dz * tail;
-    const bx = shot.fromX + dx * head;
-    const by = shot.fromY + dy * head;
-    const bz = shot.fromZ + dz * head;
-
     const base = index * FireField.VERTS;
-    this.quad(base, ax, ay, az, bx, by, bz, px, pz, HALF_WIDTH, fade);
+    this.ribbon(
+      base,
+      shot.fromX + dx * tail, shot.fromY + dy * tail, shot.fromZ + dz * tail,
+      shot.fromX + dx * head, shot.fromY + dy * head, shot.fromZ + dz * head,
+      HALF_WIDTH,
+      fade,
+    );
     // The muzzle flash: a fat, short stub at the barrel that outlives nothing.
     const flash = shot.age < FLASH_HOLD / Math.max(1, BOLT_STEPS) ? 1 - shot.age * 3 : 0;
-    const stub = 0.26;
-    this.quad(
+    const stub = 0.3 / span;
+    this.ribbon(
       base + 6,
-      shot.fromX,
-      shot.fromY,
-      shot.fromZ,
-      shot.fromX + (dx / span) * stub,
-      shot.fromY,
-      shot.fromZ + (dz / span) * stub,
-      px,
-      pz,
-      HALF_WIDTH * 2.4,
+      shot.fromX, shot.fromY, shot.fromZ,
+      shot.fromX + dx * stub, shot.fromY + dy * stub, shot.fromZ + dz * stub,
+      HALF_WIDTH * 2.2,
       Math.max(0, flash),
     );
   }
 
-  private quad(
+  /**
+   * A quad from `a` to `b`, widened perpendicular **in screen space** by
+   * `half` on each side.
+   *
+   * The perpendicular is found by projecting the segment onto the camera's
+   * (RIGHT, UP) basis, rotating the resulting 2D direction by 90 degrees, and
+   * projecting that back into world space. The result has the same apparent
+   * thickness whichever way the shot points — see `HALF_WIDTH`.
+   */
+  private ribbon(
     at: number,
     ax: number,
     ay: number,
@@ -197,20 +221,32 @@ export class FireField {
     bx: number,
     by: number,
     bz: number,
-    px: number,
-    pz: number,
     half: number,
     brightness: number,
   ): void {
+    const dx = bx - ax;
+    const dy = by - ay;
+    const dz = bz - az;
+    const su = dx * RIGHT.x + dy * RIGHT.y + dz * RIGHT.z;
+    const sv = dx * UP.x + dy * UP.y + dz * UP.z;
+    const screen = Math.hypot(su, sv);
+    // A shot pointing straight at or away from the camera has no screen-space
+    // direction to be perpendicular to. Fall back to screen-right, which is
+    // what a dot of ordnance coming at you should look like anyway.
+    const [pu, pv] = screen < 1e-6 ? [1, 0] : [-sv / screen, su / screen];
+    const ox = (pu * RIGHT.x + pv * UP.x) * half;
+    const oy = (pu * RIGHT.y + pv * UP.y) * half;
+    const oz = (pu * RIGHT.z + pv * UP.z) * half;
+
     const pos = this.positions.array as Float32Array;
     const col = this.colors.array as Float32Array;
     const corners = [
-      [ax + px * half, ay, az + pz * half],
-      [ax - px * half, ay, az - pz * half],
-      [bx - px * half, by, bz - pz * half],
-      [ax + px * half, ay, az + pz * half],
-      [bx - px * half, by, bz - pz * half],
-      [bx + px * half, by, bz + pz * half],
+      [ax + ox, ay + oy, az + oz],
+      [ax - ox, ay - oy, az - oz],
+      [bx - ox, by - oy, bz - oz],
+      [ax + ox, ay + oy, az + oz],
+      [bx - ox, by - oy, bz - oz],
+      [bx + ox, by + oy, bz + oz],
     ];
     for (let i = 0; i < 6; i += 1) {
       const corner = corners[i];
