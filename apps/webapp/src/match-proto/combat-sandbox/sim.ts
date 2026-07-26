@@ -66,6 +66,7 @@
  */
 
 import type { Archetype } from "./archetypes.ts";
+import { startingHp } from "./attrition.ts";
 import {
   type Behaviour,
   type BehaviourContext,
@@ -138,12 +139,18 @@ function makeUnit(
     ax: 0,
     az: 0,
     cooldownSteps: 0,
+    // Inert unless an attrition treatment is installed (#101, `attrition.ts`).
+    damagedStep: -1,
+    deathStep: -1,
     facing,
     firedAtStep: -1,
     hitAtStep: -1,
+    hp: startingHp(tier),
     id,
     randomState: mixSeed(seed, id, UNIT_STREAM),
     side,
+    slotX: x,
+    slotZ: z,
     speed: 0,
     targetId: -1,
     tier,

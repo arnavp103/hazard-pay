@@ -20,6 +20,8 @@
  *   mark=0|1                 hero marking; default on
  *   strip=<n>&fps=&from=&cols=  tile n deterministic frames into a filmstrip
  *   capture=1                hide dev chrome (what capture.mjs uses)
+ *   death=none|downed|fade|debris|removed|ranks   #101 attrition treatment
+ *   commit=0|1               #97 target commitment; default on with `death`
  *
  * Nothing here is an art-direction commitment. See `README.md`.
  */
@@ -29,6 +31,7 @@ import { useEffect, useRef, useState } from "react";
 import { StatusChip } from "@hazard-pay/ui";
 
 import { ALL_LAYERS, type LayerFlags, NO_LAYERS } from "./animator.ts";
+import { treatmentOf } from "./attrition.ts";
 import { BASE_DENSITIES, BASE_KEY_COUNT, type BaseDensity } from "./authored.ts";
 import {
   type CostReport,
@@ -146,6 +149,8 @@ export function CombatSandboxPrototype() {
     const handle = mountCombatSandbox(host, {
       anim: readAnim(),
       base: readBase(),
+      commit: params().get("commit") !== "0",
+      death: treatmentOf(params().get("death")).name,
       fodderPerSide: readNumber("fodder", 18, 0, 40),
       heroesPerSide: readNumber("heroes", 2, 0, 6),
       layers: readLayers(),
@@ -208,6 +213,8 @@ export function CombatSandboxPrototype() {
             <dl className="grid max-w-md grid-cols-2 gap-x-6 font-data text-[10px] text-ink-dim uppercase">
               <dt>units</dt>
               <dd>{`${cost.units} — ${cost.heroes} hero / ${cost.fodder} fodder`}</dd>
+              <dt>attrition</dt>
+              <dd>{`${cost.attrition} — ${cost.alive} alive / ${cost.bodies} bodies`}</dd>
               <dt>sim time</dt>
               <dd>{`${cost.simTime.toFixed(2)} s`}</dd>
               <dt>draw calls</dt>

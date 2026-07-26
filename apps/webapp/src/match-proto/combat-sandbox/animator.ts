@@ -169,6 +169,8 @@ export class UnitAnimator {
   private dip = 0;
   private lunge = 0;
   private squash = 1;
+  private tiltPitch = 0;
+  private tiltRoll = 0;
   private readonly recoil = new Spring(190, 17);
   private readonly flinch = new Spring(120, 12);
   private lastFiredStep = -1;
@@ -195,10 +197,19 @@ export class UnitAnimator {
       this.jitter.amplitude = 1;
       this.jitter.postureBias = 0;
     }
+    // Intrinsic Y-then-X-then-Z, so a state's pitch is applied in the frame the
+    // facing yaw already established — i.e. a body topples FORWARD rather than
+    // along a fixed world axis. With zero tilt this is identical to the default
+    // XYZ order, so nothing that does not tilt changes.
+    rig.root.rotation.order = "YXZ";
     this.context = {
       addDip: (amount) => { this.dip += amount; },
       addLunge: (amount) => { this.lunge += amount; },
       addRotation: (joint, delta) => { addTriple(this.deltas, joint, delta); },
+      addTilt: (pitch, roll) => {
+        this.tiltPitch += pitch;
+        this.tiltRoll += roll;
+      },
       authored: this.authoredMode,
       dt: 0,
       rig,
@@ -224,6 +235,8 @@ export class UnitAnimator {
     this.dip = 0;
     this.lunge = 0;
     this.squash = 1;
+    this.tiltPitch = 0;
+    this.tiltRoll = 0;
     const phaseT = t * jitter.rate + jitter.phase;
     const blend = stride.blend;
     // A state that suppresses "cycle" owns the whole body: no locomotion, no
@@ -339,7 +352,7 @@ export class UnitAnimator {
       -this.dip,
       unit.z + Math.cos(facing) * this.lunge,
     );
-    rig.root.rotation.set(0, facing, 0);
+    rig.root.rotation.set(this.tiltPitch, facing, this.tiltRoll);
     const spread = 1 + (1 - this.squash) * 0.6;
     rig.root.scale.set(spread, this.squash, spread);
 
