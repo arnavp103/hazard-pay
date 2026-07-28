@@ -20,6 +20,9 @@
  *   mark=0|1                 hero marking; default on
  *   strip=<n>&fps=&from=&cols=  tile n deterministic frames into a filmstrip
  *   capture=1                hide dev chrome (what capture.mjs uses)
+ *   space=plaza|cover        #100 battlefield space: open plaza (default) or
+ *                            the tile grid with footprints and sightlines
+ *   grid=1                   #100 debug overlay: tiles, blocked and roofed cells
  *
  * Nothing here is an art-direction commitment. See `README.md`.
  */
@@ -30,6 +33,7 @@ import { StatusChip } from "@hazard-pay/ui";
 
 import { ALL_LAYERS, type LayerFlags, NO_LAYERS } from "./animator.ts";
 import { BASE_DENSITIES, BASE_KEY_COUNT, type BaseDensity } from "./authored.ts";
+import { isSpaceMode, type SpaceMode } from "./battlefield-space/space.ts";
 import {
   type CostReport,
   defaultZoom,
@@ -87,6 +91,11 @@ function readAnim(): HeroAnim {
     : "idle";
 }
 
+function readSpace(): SpaceMode {
+  const raw = params().get("space");
+  return isSpaceMode(raw) ? raw : "plaza";
+}
+
 function readBase(): BaseDensity {
   const candidate = params().get("base");
   return BASE_DENSITIES.includes(candidate as BaseDensity)
@@ -131,6 +140,7 @@ export function CombatSandboxPrototype() {
   const [view] = useState<SceneView>(readView);
   const [anim] = useState<HeroAnim>(readAnim);
   const [base] = useState<BaseDensity>(readBase);
+  const [space] = useState<SpaceMode>(readSpace);
   const capture = isCaptureMode();
   const animInfo = heroAnimations.find((item) => item.key === anim) ?? heroAnimations[0];
 
@@ -147,11 +157,13 @@ export function CombatSandboxPrototype() {
       anim: readAnim(),
       base: readBase(),
       fodderPerSide: readNumber("fodder", 18, 0, 40),
+      grid: params().get("grid") === "1",
       heroesPerSide: readNumber("heroes", 2, 0, 6),
       layers: readLayers(),
       mark: params().get("mark") !== "0",
       motion: params().get("motion") === "1",
       scale: readNumber("scale", 1, 1, 3),
+      space: readSpace(),
       view: currentView,
       zoom: readNumber("zoom", defaultZoom(currentView), 0.2, 4),
       ...(freeze === undefined ? {} : { freezeMs: freeze }),
@@ -187,6 +199,11 @@ export function CombatSandboxPrototype() {
           <StatusChip tone="acid">
             {`base=${base} · ${BASE_KEY_COUNT[base]} keys/clip`}
           </StatusChip>
+          {view === "crowd" && (
+            <StatusChip tone="neutral">
+              {space === "cover" ? "space=cover — tiles + footprints" : "space=plaza — open"}
+            </StatusChip>
+          )}
         </header>
       )}
 
@@ -218,6 +235,8 @@ export function CombatSandboxPrototype() {
               <dd>{`${cost.frameMs.mean} / ${cost.frameMs.p95}`}</dd>
               <dt>authored keys total</dt>
               <dd>{cost.authoredKeysTotal}</dd>
+              <dt>cover props</dt>
+              <dd>{cost.coverProps}</dd>
             </dl>
           )}
         </div>

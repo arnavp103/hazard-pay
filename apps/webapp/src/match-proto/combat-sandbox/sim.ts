@@ -66,6 +66,12 @@
  */
 
 import type { Archetype } from "./archetypes.ts";
+// #100 battlefield space: installs the tiles-and-cover behaviours into
+// BEHAVIOURS at module scope, per the registry pattern. Every one of them
+// returns immediately unless `state.coverMode` is 1, so the default fight is
+// unchanged. Imported here rather than from `behaviours.ts` so the dependency
+// runs one way only.
+import "./battlefield-space/cover-behaviours.ts";
 import {
   type Behaviour,
   type BehaviourContext,
@@ -138,13 +144,16 @@ function makeUnit(
     ax: 0,
     az: 0,
     cooldownSteps: 0,
+    coverCell: -1,
     facing,
     firedAtStep: -1,
     hitAtStep: -1,
     id,
     randomState: mixSeed(seed, id, UNIT_STREAM),
     side,
+    sightOcclusion: 0,
     speed: 0,
+    suppressedShots: 0,
     targetId: -1,
     tier,
     vx: 0,
@@ -177,6 +186,7 @@ export function createBattle(options: BattleOptions = {}): SimState {
   const fodderArchetypeAt = options.fodderArchetypeAt ?? defaultFodderArchetype;
 
   const state: SimState = {
+    coverMode: options.coverMode === true ? 1 : 0,
     randomState: seedRandom(seed),
     retargetAtStep: 0,
     step: 0,
