@@ -1,0 +1,75 @@
+### ROUND 4 (baseline, same harness)
+
+=== VALUE BUDGET, config small, marked=true ===
+side  | unit px | quiet | accent | emis | warm | cool | livery-role | mean L
+rust  |    3101 |  80.4 |  13.6 |   6.0 |  17.4 |   0.0 |  13.4       | 60.0
+slate |    3099 |  83.0 |  15.7 |   1.4 |   0.0 |  15.2 |  11.1       | 53.7
+livery-share asymmetry (|rust-slate| pts): 2.35
+own-hue accent asymmetry (warm_rust vs cool_slate, pts): 2.25
+frame budget: quiet  86.7 / accent  13.1 / emission   0.2  peak L 195
+
+=== FACTION RAMPS (grayscale separation, canon #68) ===
+  l: rust #ad5638 L=102.3 S=0.68  |  slate #3f5268 L=79.5 S=0.39  |  dL=22.8  dS=0.28
+  L: rust #63332a L=60.6 S=0.58  |  slate #232f3f L=45.6 S=0.44  |  dL=15.0  dS=0.13
+  i: rust #e0a06f L=170.1 S=0.50  |  slate #5c7ea8 L=121.8 S=0.45  |  dL=48.3  dS=0.05
+
+=== AUTHORED CELLS ===
+breaker-small    filled  220  livery  36 (16.4 %)
+stinger-small    filled  154  livery  18 (11.7 %)
+mara-small       filled  326  livery  19 (5.8 %)
+
+### ROUND 5
+
+=== VALUE BUDGET, config small, marked=true ===
+side  | unit px | quiet | accent | emis | warm | cool | livery-role | mean L
+rust  |    3076 |  78.1 |  15.3 |   6.6 |  19.3 |   0.0 |  15.4       | 61.6
+slate |    3060 |  79.5 |  18.8 |   1.8 |   0.0 |  18.3 |  14.2       | 54.2
+livery-share asymmetry (|rust-slate| pts): 1.13
+own-hue accent asymmetry (warm_rust vs cool_slate, pts): 0.98
+frame budget: quiet  86.6 / accent  13.2 / emission   0.2  peak L 195
+
+=== FACTION RAMPS (grayscale separation, canon #68) ===
+  l: rust #aa5e38 L=107.4 S=0.67  |  slate #1d4468 L=62.3 S=0.72  |  dL=45.1  dS=-0.05
+  L: rust #67382b L=65.1 S=0.58  |  slate #12293f L=37.7 S=0.71  |  dL=27.4  dS=-0.13
+  i: rust #e5a366 L=172.6 S=0.55  |  slate #4a7ba6 L=115.7 S=0.55  |  dL=56.9  dS=0.00
+
+=== AUTHORED CELLS ===
+breaker-small    filled  220  livery  38 (17.3 %)
+stinger-small    filled  154  livery  21 (13.6 %)
+mara-small       filled  326  livery  19 (5.8 %)
+
+### ROUND 4 motion
+
+=== DISTINCT POSES, config small, 48 samples over 1600 ms ===
+  breaker-small     21 distinct posed frames
+  mara-small        13 distinct posed frames
+  stinger-small     21 distinct posed frames
+  TOTAL                55 distinct posed frames across the roster
+  per unit: min 2 / median 13 / max 15
+
+max units on an IDENTICAL posed frame at one instant: 6 of 36  (at 100 ms, breaker-small|false|.......)
+  rust: 6 of 18
+  slate: 5 of 18
+
+crown excursion per unit over the program (px): min 1 median 1 max 1 mean 1.00
+  histogram 1px x36
+
+### ROUND 5 motion
+
+=== DISTINCT POSES, config small, 48 samples over 4800 ms ===
+  breaker-small    117 distinct posed frames
+  mara-small        42 distinct posed frames
+  stinger-small    129 distinct posed frames
+  TOTAL                288 distinct posed frames across the roster
+  per unit: min 5 / median 16 / max 21
+
+max units on an IDENTICAL posed frame at one instant: 4 of 36  (at 1000 ms, stinger-small|false|.......)
+  rust: 4 of 18
+  slate: 3 of 18
+
+beat inventory: gear-adjust=20  settle=16  look=20  weight-shift=16
+distinct beat start times: 36 across 36 units
+smallest gap between two beat starts: 133 ms (beat runs 760 ms)
+
+crown excursion per unit over the program (px): min 1 median 1 max 3 mean 1.81
+  histogram 1px x20  2px x3  3px x13
