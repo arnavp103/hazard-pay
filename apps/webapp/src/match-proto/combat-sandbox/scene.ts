@@ -39,6 +39,8 @@ import * as THREE from "three";
 
 import { ALL_LAYERS, type LayerFlags, UnitAnimator } from "./animator.ts";
 import { ARCHETYPE_NAMES } from "./archetypes.ts";
+import { attritionView } from "./attrition-render.ts";
+import { type AttritionName, installAttrition, isDead, treatmentOf } from "./attrition.ts";
 import { authoredKeyTotal, BASE_KEY_COUNT, type BaseDensity } from "./authored.ts";
 import { buildBoard } from "./board.ts";
 import { buildUnit, HERO_HEIGHT, LEG_LENGTH, type UnitRig } from "./figure.ts";
@@ -139,6 +141,12 @@ export interface CostReport {
   fps: number;
   /** Where the fixed-step clock is, in sim seconds. */
   simTime: number;
+  /** #101: the attrition treatment in force, and the body count under it. */
+  attrition: AttritionName;
+  /** Units still standing. Equals `units` under the no-attrition control. */
+  alive: number;
+  /** Bodies still in the roster — the living plus whatever corpses linger. */
+  bodies: number;
 }
 
 export interface MountOptions {
@@ -169,6 +177,17 @@ export interface MountOptions {
   mark?: boolean;
   /** Tile N deterministic frames into one contact sheet instead of animating. */
   strip?: { frames: number; fps: number; from: number; columns: number };
+  /**
+   * #101 attrition treatment. Default `"none"` — the control, in which nothing
+   * dies and the fight is the one this sandbox shipped with, step for step.
+   */
+  death?: AttritionName;
+  /**
+   * Install #97's target-commitment rule alongside the treatment. Default true.
+   * `false` keeps the shipped nearest-enemy targeting, which is what makes the
+   * 12.4 % mid-swing flip visible instead of merely quoted.
+   */
+  commit?: boolean;
 }
 
 /**
@@ -455,6 +474,12 @@ export function mountCombatSandbox(host: HTMLElement, options: MountOptions = {}
   const height = Math.round(STAGE_HEIGHT * scale);
   const pxPerUnit = PX_PER_UNIT * scale;
 
+  // #101. Installed before the battle exists and before it takes a step: a
+  // pipeline that changes mid-run is not reproducible from (seed, options).
+  const treatment = treatmentOf(options.death);
+  const uninstallAttrition = installAttrition(treatment, { commit: options.commit ?? true });
+  const corpses = attritionView(treatment);
+
   // preserveDrawingBuffer so a filmstrip can copy each rendered frame out of
   // the WebGL canvas; without it the buffer is cleared on composite and the
   // contact sheet comes out blank.
@@ -598,7 +623,10 @@ export function mountCombatSandbox(host: HTMLElement, options: MountOptions = {}
   }
 
   let report: CostReport = {
+    alive: drives.length,
+    attrition: treatment.name,
     authoredKeysPerClip: BASE_KEY_COUNT[base],
+    bodies: drives.length,
     authoredKeysTotal: authoredKeyTotal(base),
     base,
     boardMeshes: board.cost.meshes,
@@ -642,6 +670,8 @@ export function mountCombatSandbox(host: HTMLElement, options: MountOptions = {}
     const p95 = sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * 0.95))] ?? 0;
     report = {
       ...report,
+      alive: drives.reduce((count, drive) => count + (isDead(drive) ? 0 : 1), 0),
+      bodies: drives.length,
       drawCalls: sceneCalls,
       fps: mean > 0 ? Math.round(1000 / mean) : 0,
       frameMs: {
@@ -673,6 +703,9 @@ export function mountCombatSandbox(host: HTMLElement, options: MountOptions = {}
     for (const drive of drives) {
       bodies.get(drive.id)?.animator.update(drive, at, dt);
     }
+    // After the animators, so a corpse is hidden or tinted in the pose it died
+    // in rather than one step later.
+    corpses?.sync(bodies, drives, battle?.step ?? 0);
   };
 
   // `stepsFor`, not a local rounding rule: after `renderAt(t)` the battle must
@@ -818,6 +851,8 @@ export function mountCombatSandbox(host: HTMLElement, options: MountOptions = {}
     cost: () => report,
     destroy: () => {
       cancelAnimationFrame(frame);
+      uninstallAttrition();
+      corpses?.dispose();
       if ((globalThis as { __combatSandbox?: CaptureBridge }).__combatSandbox === bridge) {
         delete (globalThis as { __combatSandbox?: CaptureBridge }).__combatSandbox;
       }

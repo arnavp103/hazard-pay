@@ -1,0 +1,38 @@
+{
+  "alive": 40,
+  "attrition": "none",
+  "authoredKeysPerClip": 4,
+  "authoredKeysTotal": 12,
+  "base": "quad",
+  "boardMeshes": 2,
+  "boardTriangles": 1148,
+  "bodies": 40,
+  "drawCalls": 489,
+  "fodder": 36,
+  "fps": 19,
+  "frameMs": {
+    "max": 52.9,
+    "mean": 52.9,
+    "p95": 52.9,
+    "samples": 1
+  },
+  "heroes": 4,
+  "markDrawCalls": 49,
+  "markMeshesPerHero": 12,
+  "marking": true,
+  "meshesPerFodder": 12,
+  "meshesPerHero": 14,
+  "programs": 6,
+  "simTime": 9,
+  "stage": {
+    "height": 270,
+    "pixelRatio": 1,
+    "width": 480,
+    "zoom": 0.55
+  },
+  "triangles": 20128,
+  "trianglesPerFodder": 448,
+  "trianglesPerHero": 688,
+  "units": 40,
+  "view": "crowd"
+}

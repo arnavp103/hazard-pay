@@ -69,6 +69,38 @@ export interface SimUnit {
    * so one unit's draws cannot shift another's — see `mixSeed`.
    */
   randomState: number;
+
+  // --- attrition (#101) ------------------------------------------------------
+  //
+  // These five are inert unless an attrition treatment is installed
+  // (`attrition.ts`). With no treatment the fight is bit-identical to the one
+  // this sandbox shipped with: nothing reads them.
+
+  /**
+   * Prototype stand-in only. A hit stamp costs 1; fodder start at 3, heroes at
+   * 6. **This is not a damage model** — HP, damage formulas and lethality are
+   * explicitly out of scope on map #95. It is the crudest rule that makes
+   * bodies fall on a believable curve, and it is the same one #97's research
+   * measured its death numbers against, so the two are comparable.
+   */
+  hp: number;
+  /** Step the unit died on, or -1 while alive. The death clock. */
+  deathStep: number;
+  /**
+   * Highest `hitAtStep` already converted into damage. Units act in id order,
+   * so an attacker with a higher id stamps its victim *after* the victim's own
+   * `act` ran; comparing against this instead of `state.step` makes damage
+   * resolution independent of who moved first, which is the same reason the
+   * steering pass is double-buffered.
+   */
+  damagedStep: number;
+  /**
+   * Formation slot this unit is assigned to, in world space. Only the
+   * `ranks` treatment writes it; -0 elsewhere. Recomputed on retarget steps so
+   * the block re-forms at the same cadence the targeting does.
+   */
+  slotX: number;
+  slotZ: number;
 }
 
 export interface SimState {

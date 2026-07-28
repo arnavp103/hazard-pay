@@ -40,6 +40,8 @@ Useful query parameters — the full list is in
 | `freeze=<ms>` | one deterministic frame, then stop |
 | `strip=<n>&fps=&from=&cols=` | tile n deterministic frames into a filmstrip |
 | `capture=1` | hide dev chrome |
+| `death=none\|downed\|fade\|debris\|removed\|ranks` | #101 attrition treatment |
+| `commit=0` | ablate #97's target commitment (only with `death=`) |
 
 ## Capture (per [#67][loop])
 
@@ -164,9 +166,33 @@ Because of the double buffering and the integer clock, this sandbox does
 **not** reproduce PR #90's captures frame-for-frame. Same fight, same
 emergent behaviour, different float trajectory.
 
+## The attrition layer (#101) — opt-in, and not yet ruled on
+
+`attrition.ts` adds units dying and leaving the field, behind `?death=`. It is
+**off by default**: with no treatment installed the fight is bit-identical to
+the one this sandbox shipped with, which `attrition.test.ts` asserts.
+
+- Six treatments — `none`, `downed`, `fade`, `debris`, `removed`, `ranks` —
+  installed into `BEHAVIOURS` and `ANIMATION_STATES` by `installAttrition`,
+  which returns its own undo. Each declares how long a body lingers, what the
+  renderer does with it, and the **animation states it obliges**.
+- It carries #97's target commitment, because commitment and corpse persistence
+  are one decision: commitment takes mid-swing target flips to 0 % and takes
+  time spent aimed at a corpse *up*. `?commit=0` ablates it.
+- `attrition-render.ts` is the renderer half: hide a rig whose unit was spliced,
+  per-corpse alpha, per-corpse tint.
+- `attrition-metrics.ts` measures a treatment in Node with no renderer;
+  `attrition-report.mts` prints the JSON the gallery ships.
+- `capture-attrition.sh` and `capture-closeup.sh` are the exact shot lists
+  behind `apps/webapp/screenshots/combat-sandbox-attrition/`.
+
+The hit points here are a **labelled prototype stand-in** (one hit stamp = 1,
+fodder 3, hero 6 — the same rule #97 measured against). HP, damage formulas and
+lethality are out of scope on map #95 and nothing here is a ruling on them.
+
 ## Known gaps (owned by the prototype tickets, not by this directory)
 
-Nothing dies (#101). No projectiles, though ranged archetypes hold a real
+Deaths exist but only as an opt-in prototype layer awaiting a ruling (#101). No projectiles, though ranged archetypes hold a real
 4.7–6.2 unit standoff. No HUD, no health bars, no damage numbers. The
 animation vocabulary is `idle`, `attack`, `turn`, `walk`/`march`. PR #90's own
 retro concedes that *"two contact poses is the point at which the procedural
@@ -190,6 +216,9 @@ contact timing wants authored keys in `authored.ts`, not more sine waves.
 | `board.ts` | the environment, 2 draw calls |
 | `scene.ts` | mount/teardown, the fixed camera, the cost meter, the capture hook |
 | `capture.mjs` | the #67 capture path |
+| `attrition.ts` | #101 — the opt-in death layer: treatments, behaviours, states |
+| `attrition-render.ts` | #101 — hiding, fading and tinting a body in the scene |
+| `attrition-metrics.ts` | #101 — a treatment measured in Node, no renderer |
 
 [map]: https://github.com/arnavp103/hazard-pay/issues/95
 [lane]: https://github.com/arnavp103/hazard-pay/pull/90

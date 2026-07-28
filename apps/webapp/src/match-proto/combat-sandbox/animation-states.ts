@@ -71,6 +71,18 @@ export interface AnimationStateContext {
   addRotation: (joint: JointName, delta: Triple) => void;
   /** Positive lowers the root. */
   addDip: (amount: number) => void;
+  /**
+   * Pitch and roll the whole body about its feet, in radians, in the unit's
+   * own frame (pitch is forward along the facing).
+   *
+   * Added for #101: the layer stack could rotate every joint but not the root,
+   * which is fixed to `(0, facing, 0)` — so a body could crumple but could
+   * never go over. A death is the first state that needs the root itself to
+   * leave upright, and toppling about the feet is what separates "fell down"
+   * from "sank into the floor". Zero for every other state, so the stack is
+   * unchanged wherever it is not used.
+   */
+  addTilt: (pitch: number, roll: number) => void;
   /** Root travel along the facing. */
   addLunge: (amount: number) => void;
   /** Vertical squash; below 1 squashes and XZ compensates. */
