@@ -49,13 +49,17 @@ describe("pixel noir animation timing", () => {
   });
 
   it("stages every patrol clear of fixed barricades across its complete nine-second loop", () => {
+    const collisions: { unit: number; frame: number; barrier: number }[] = [];
     for (let frame = 0; frame < 108; frame++) {
       for (const unit of crowdAt(frame / 12)) {
-        for (const [x, y] of [[-211, 152], [186, 166], [-9, 370]]) {
+        for (const [barrier, [x, y]] of [[-211, 152], [186, 166], [-9, 370]].entries()) {
           const inside = unit.x > x! - 6 && unit.x < x! + 59 && unit.y > y! - 6 && unit.y < y! + 24;
-          expect(inside, `unit ${unit.id}, frame ${frame}`).toBe(false);
+          if (inside) { collisions.push({ unit: unit.id, frame, barrier }); }
         }
       }
     }
+    // Keep full-cycle coverage without constructing 12,960 matcher stacks while
+    // the existing simulation stress tests share a small CI runner.
+    expect(collisions).toEqual([]);
   });
 });
