@@ -1,0 +1,35 @@
+{
+  "method": "SHA-256 of art pixels only (0,82,800,443), excludes header timestamp and footer",
+  "clips": [
+    {
+      "clip": "idle",
+      "frames": 18,
+      "distinctArtFrames": 18
+    },
+    {
+      "clip": "walk",
+      "frames": 13,
+      "distinctArtFrames": 13
+    },
+    {
+      "clip": "attack",
+      "frames": 20,
+      "distinctArtFrames": 20
+    },
+    {
+      "clip": "turn",
+      "frames": 41,
+      "distinctArtFrames": 41
+    },
+    {
+      "clip": "stagger",
+      "frames": 17,
+      "distinctArtFrames": 17
+    },
+    {
+      "clip": "crowd choreography",
+      "frames": 24,
+      "distinctArtFrames": 24
+    }
+  ]
+}

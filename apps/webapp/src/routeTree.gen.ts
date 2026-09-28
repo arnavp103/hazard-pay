@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as CombatSandboxRouteImport } from './routes/combat-sandbox'
+import { Route as InkFoundryPrototypeRouteImport } from './routes/ink-foundry-prototype'
 import { Route as MatchProtoRouteImport } from './routes/match-proto'
 
 const IndexRoute = IndexRouteImport.update({
@@ -23,6 +24,11 @@ const CombatSandboxRoute = CombatSandboxRouteImport.update({
   path: '/combat-sandbox',
   getParentRoute: () => rootRouteImport,
 } as any)
+const InkFoundryPrototypeRoute = InkFoundryPrototypeRouteImport.update({
+  id: '/ink-foundry-prototype',
+  path: '/ink-foundry-prototype',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MatchProtoRoute = MatchProtoRouteImport.update({
   id: '/match-proto',
   path: '/match-proto',
@@ -32,30 +38,39 @@ const MatchProtoRoute = MatchProtoRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/combat-sandbox': typeof CombatSandboxRoute
+  '/ink-foundry-prototype': typeof InkFoundryPrototypeRoute
   '/match-proto': typeof MatchProtoRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/combat-sandbox': typeof CombatSandboxRoute
+  '/ink-foundry-prototype': typeof InkFoundryPrototypeRoute
   '/match-proto': typeof MatchProtoRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/combat-sandbox': typeof CombatSandboxRoute
+  '/ink-foundry-prototype': typeof InkFoundryPrototypeRoute
   '/match-proto': typeof MatchProtoRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/combat-sandbox' | '/match-proto'
+  fullPaths: '/' | '/combat-sandbox' | '/ink-foundry-prototype' | '/match-proto'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/combat-sandbox' | '/match-proto'
-  id: '__root__' | '/' | '/combat-sandbox' | '/match-proto'
+  to: '/' | '/combat-sandbox' | '/ink-foundry-prototype' | '/match-proto'
+  id:
+    | '__root__'
+    | '/'
+    | '/combat-sandbox'
+    | '/ink-foundry-prototype'
+    | '/match-proto'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CombatSandboxRoute: typeof CombatSandboxRoute
+  InkFoundryPrototypeRoute: typeof InkFoundryPrototypeRoute
   MatchProtoRoute: typeof MatchProtoRoute
 }
 
@@ -75,6 +90,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CombatSandboxRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/ink-foundry-prototype': {
+      id: '/ink-foundry-prototype'
+      path: '/ink-foundry-prototype'
+      fullPath: '/ink-foundry-prototype'
+      preLoaderRoute: typeof InkFoundryPrototypeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/match-proto': {
       id: '/match-proto'
       path: '/match-proto'
@@ -88,6 +110,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CombatSandboxRoute: CombatSandboxRoute,
+  InkFoundryPrototypeRoute: InkFoundryPrototypeRoute,
   MatchProtoRoute: MatchProtoRoute,
 }
 export const routeTree = rootRouteImport
