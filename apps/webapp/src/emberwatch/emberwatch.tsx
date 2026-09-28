@@ -24,6 +24,10 @@ export function Emberwatch() {
     let animation = 0;
     let previous = 0;
     let lastUi = 0;
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+      running.current = false;
+      setPlaying(false);
+    }
     const load = (url: string) => new Promise<HTMLImageElement>((resolve, reject) => {
       const image = new Image();
       image.onload = () => resolve(image);
