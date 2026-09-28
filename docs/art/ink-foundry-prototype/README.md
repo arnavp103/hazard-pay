@@ -20,6 +20,9 @@ zoom, retaining the same fixed 30°/45° camera angle.
 The reel covers idle, walk, attack, turn and stagger at 1.6× zoom. Poses and shot
 effects are sampled analytically, including the cloth tails and ejected casing.
 The crowd remains a choreographed pose field, not simulated combat.
+Every GIF frame has an explicit 80 or 90 ms encoded delay, distributed to preserve
+12 fps: 109 hero frames run for 9,080 ms; 24 crowd frames run for 2,000 ms. The
+capture script reads back and validates every encoded delay before succeeding.
 
 ## Forty bodies and role lineup
 

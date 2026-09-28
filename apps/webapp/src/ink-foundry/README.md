@@ -118,3 +118,6 @@ point `CODEX_PRIMARY_RUNTIME_NODE_MODULES` at its `node_modules`.
 `motion-evidence.json` hashes only the art viewport, excluding both the changing
 timestamp and the footer. It records distinct rendered frames for all five hero
 clips and a two-second crowd animation. No intermediate frame dumps are committed.
+The capture also reads back each encoded GIF frame's delay and asserts a 12 fps
+timeline using explicit 80/90 ms centisecond timing. Encoded totals are 9,080 ms
+for the 109-frame hero reel and 2,000 ms for the 24-frame crowd loop.

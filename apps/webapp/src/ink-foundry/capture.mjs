@@ -28,6 +28,19 @@ const vertex = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];
 const world = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];
 const edge = (a, b, x, y) => (b.x - a.x) * (y - a.y) - (b.y - a.y) * (x - a.x);
 
+// GIF stores centiseconds: distribute 80/90 ms delays to retain a 12 fps clock.
+// A scalar sharp delay only populated the first frame in this raw-page path.
+const frameDelays = (count) => Array.from({ length: count }, (_, frame) => (Math.round((frame + 1) * 100 / 12) - Math.round(frame * 100 / 12)) * 10);
+async function verifyGifTiming(filename, count) {
+  const metadata = await sharp(path.join(output, filename), { animated: true }).metadata();
+  const delays = metadata.delay ?? [];
+  const durationMs = delays.reduce((total, delay) => total + delay, 0);
+  if (metadata.pages !== count || delays.length !== count || delays.some((delay) => delay < 80 || delay > 90) || Math.abs(durationMs - count * 1000 / 12) > 5) {
+    throw new Error(`${filename}: encoded GIF timing does not match ${count} frames at 12 fps`);
+  }
+  return { filename, frames: count, durationMs, frameDelaysMs: delays };
+}
+
 function renderMeshFrame(stage, width, height) {
   const pixels = new Uint8ClampedArray(width * height * 4);
   const depth = new Float32Array(width * height).fill(Infinity);
@@ -142,7 +155,8 @@ for (const clip of ["idle", "walk", "attack", "turn", "stagger"]) {
   motionEvidence.push({ clip, frames: Math.ceil(duration * 12), distinctArtFrames: hashes.size });
 }
 await sharp(Buffer.concat(frames), { raw: { width: 800, height: 590 * frames.length, channels: 4, pageHeight: 590 } })
-  .gif({ loop: 0, delay: 83, effort: 3 }).toFile(path.join(output, "motion-study.gif"));
+  .gif({ loop: 0, delay: frameDelays(frames.length), effort: 3 }).toFile(path.join(output, "motion-study.gif"));
+const heroTiming = await verifyGifTiming("motion-study.gif", frames.length);
 process.stdout.write(`motion-study.gif (${frames.length} frames)\n`);
 const crowd = stills.at(-1)[0];
 const crowdFrames = [];
@@ -154,7 +168,8 @@ for (let frame = 0; frame < 24; frame++) {
   crowdFrames.push(Buffer.from(context.getImageData(0, 0, 800, 590).data));
 }
 await sharp(Buffer.concat(crowdFrames), { raw: { width: 800, height: 590 * crowdFrames.length, channels: 4, pageHeight: 590 } })
-  .gif({ loop: 0, delay: 83, effort: 3 }).toFile(path.join(output, "crowd-motion.gif"));
+  .gif({ loop: 0, delay: frameDelays(crowdFrames.length), effort: 3 }).toFile(path.join(output, "crowd-motion.gif"));
+const crowdTiming = await verifyGifTiming("crowd-motion.gif", crowdFrames.length);
 motionEvidence.push({ clip: "crowd choreography", frames: 24, distinctArtFrames: crowdHashes.size });
-await writeFile(path.join(output, "motion-evidence.json"), JSON.stringify({ method: "SHA-256 of art pixels only (0,82,800,443), excludes header timestamp and footer", clips: motionEvidence }, null, 2) + "\n");
+await writeFile(path.join(output, "motion-evidence.json"), JSON.stringify({ method: "SHA-256 of art pixels only (0,82,800,443), excludes header timestamp and footer", clips: motionEvidence, encodedTiming: [heroTiming, crowdTiming] }, null, 2) + "\n");
 process.stdout.write("crowd-motion.gif (24 frames)\n");
