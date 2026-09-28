@@ -10,7 +10,7 @@ p=argparse.ArgumentParser();p.add_argument('--output',default='/tmp/porcelain-fr
 os.makedirs(a.output,exist_ok=True)
 bpy.ops.object.select_all(action='SELECT');bpy.ops.object.delete(use_global=False)
 S=bpy.context.scene;S.render.engine='BLENDER_EEVEE_NEXT';S.render.resolution_x=960;S.render.resolution_y=540;S.render.resolution_percentage=100;S.render.fps=24;S.frame_start=1;S.frame_end=864;S.frame_step=2
-S.render.image_settings.file_format='PNG';S.render.filepath=os.path.join(a.output,'frames','frame_');S.render.threads_mode='FIXED';S.render.threads=4;S.eevee.taa_render_samples=4
+S.render.image_settings.file_format='PNG';S.render.filepath=os.path.join(a.output,'frames','frame_');S.render.threads_mode='FIXED';S.render.threads=4;S.eevee.taa_render_samples=16
 S.world.color=(.16,.20,.26);S.world.use_nodes=True;S.world.node_tree.nodes['Background'].inputs[0].default_value=(.12,.19,.25,1);S.world.node_tree.nodes['Background'].inputs[1].default_value=.35
 S.view_settings.view_transform='AgX';S.view_settings.look='AgX - Medium High Contrast';S.render.film_transparent=False
 
