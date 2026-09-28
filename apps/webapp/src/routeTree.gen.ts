@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as CombatSandboxRouteImport } from './routes/combat-sandbox'
 import { Route as MatchProtoRouteImport } from './routes/match-proto'
+import { Route as PrototypeMoonwakeRouteImport } from './routes/prototype-moonwake'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -28,35 +29,49 @@ const MatchProtoRoute = MatchProtoRouteImport.update({
   path: '/match-proto',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PrototypeMoonwakeRoute = PrototypeMoonwakeRouteImport.update({
+  id: '/prototype-moonwake',
+  path: '/prototype-moonwake',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/combat-sandbox': typeof CombatSandboxRoute
   '/match-proto': typeof MatchProtoRoute
+  '/prototype-moonwake': typeof PrototypeMoonwakeRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/combat-sandbox': typeof CombatSandboxRoute
   '/match-proto': typeof MatchProtoRoute
+  '/prototype-moonwake': typeof PrototypeMoonwakeRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/combat-sandbox': typeof CombatSandboxRoute
   '/match-proto': typeof MatchProtoRoute
+  '/prototype-moonwake': typeof PrototypeMoonwakeRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/combat-sandbox' | '/match-proto'
+  fullPaths: '/' | '/combat-sandbox' | '/match-proto' | '/prototype-moonwake'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/combat-sandbox' | '/match-proto'
-  id: '__root__' | '/' | '/combat-sandbox' | '/match-proto'
+  to: '/' | '/combat-sandbox' | '/match-proto' | '/prototype-moonwake'
+  id:
+    | '__root__'
+    | '/'
+    | '/combat-sandbox'
+    | '/match-proto'
+    | '/prototype-moonwake'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CombatSandboxRoute: typeof CombatSandboxRoute
   MatchProtoRoute: typeof MatchProtoRoute
+  PrototypeMoonwakeRoute: typeof PrototypeMoonwakeRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -82,6 +97,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MatchProtoRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/prototype-moonwake': {
+      id: '/prototype-moonwake'
+      path: '/prototype-moonwake'
+      fullPath: '/prototype-moonwake'
+      preLoaderRoute: typeof PrototypeMoonwakeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -89,6 +111,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CombatSandboxRoute: CombatSandboxRoute,
   MatchProtoRoute: MatchProtoRoute,
+  PrototypeMoonwakeRoute: PrototypeMoonwakeRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
