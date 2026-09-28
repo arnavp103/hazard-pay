@@ -1,0 +1,49 @@
+.signal-print {
+  --sp-paper: #e8e0cb;
+  --sp-ink: #252d2d;
+  --sp-teal: #467a77;
+  --sp-red: #c44d35;
+  min-height: 100vh;
+  background: var(--sp-paper);
+  color: var(--sp-ink);
+  padding: 30px 40px 22px;
+  font-family: Arial, Helvetica, sans-serif;
+}
+.signal-print * { box-sizing: border-box; }
+.signal-print-header { display: flex; align-items: center; justify-content: space-between; max-width: 1500px; margin: 0 auto 28px; }
+.signal-print-wordmark { font-weight: 900; font-size: clamp(24px, 3.1vw, 46px); letter-spacing: -2.2px; line-height: 1; }
+.signal-print-wordmark > span:first-child { color: var(--sp-red); margin: 0 4px; }
+.signal-print-edition { font: 10px ui-monospace, monospace; letter-spacing: 1px; display: block; margin-top: 11px; }
+.signal-print-intro { font: 12px/1.7 ui-monospace, monospace; text-align: right; }
+.signal-print-workspace { max-width: 1500px; margin: auto; border: 1px solid var(--sp-ink); }
+.signal-print-toolbar { display: flex; min-height: 48px; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--sp-ink); }
+.signal-print-tabs { display: flex; align-self: stretch; }
+.signal-print button { font: 11px ui-monospace, monospace; background: transparent; cursor: pointer; color: var(--sp-ink); border: 0; padding: 13px 18px; }
+.signal-print button:hover { background: #252d2d12; }
+.signal-print button:focus-visible, .signal-print input:focus-visible { outline: 3px solid var(--sp-red); outline-offset: -3px; }
+.signal-print-tabs button { border-right: 1px solid var(--sp-ink); text-transform: uppercase; letter-spacing: 0.5px; }
+.signal-print-tabs button[aria-pressed="true"] { background: var(--sp-ink); color: var(--sp-paper); }
+.signal-print-material { font: 9px ui-monospace, monospace; letter-spacing: 1px; margin-right: 18px; }
+.signal-print canvas { display: block; width: 100%; height: auto; }
+.signal-print-controls { display: flex; align-items: center; gap: 14px; min-height: 54px; border-top: 1px solid var(--sp-ink); padding-right: 20px; }
+.signal-print-controls .signal-print-play { background: var(--sp-teal); color: #f5eedc; min-width: 86px; align-self: stretch; }
+.signal-print-controls > button:nth-child(2) { border-right: 1px solid #252d2d40; padding-left: 0; }
+.signal-print-scrub { display: flex; flex: 1; gap: 18px; align-items: center; font: 10px ui-monospace, monospace; text-transform: uppercase; }
+.signal-print-scrub input { flex: 1; width: 100%; accent-color: var(--sp-red); cursor: pointer; }
+.signal-print-controls output { font: 10px ui-monospace, monospace; min-width: 101px; }
+.signal-print-phase { font: 10px ui-monospace, monospace; color: var(--sp-red); min-width: 65px; text-align: right; }
+.signal-print-footer { max-width: 1500px; margin: 20px auto 0; display: flex; align-items: center; justify-content: space-between; gap: 20px; font: 10px/1.7 ui-monospace, monospace; }
+.signal-print-footer strong { display: block; letter-spacing: 1px; margin-bottom: 3px; }
+.signal-print-footer > span { font-size: 9px; text-align: right; }
+.signal-print-capture { padding: 0; }
+.signal-print-capture .signal-print-header, .signal-print-capture .signal-print-footer { display: none; }
+.signal-print-capture .signal-print-workspace { max-width: none; border: 0; }
+@media (max-width: 800px) {
+  .signal-print { padding: 16px; }
+  .signal-print-header { margin-bottom: 16px; }
+  .signal-print-material, .signal-print-intro, .signal-print-footer > span { display: none; }
+  .signal-print-controls { gap: 7px; padding-right: 7px; flex-wrap: wrap; }
+  .signal-print-scrub { min-width: 180px; gap: 5px; }
+  .signal-print-controls output { min-width: 90px; }
+  .signal-print-capture { padding: 0; }
+}

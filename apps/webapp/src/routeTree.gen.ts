@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as CombatSandboxRouteImport } from './routes/combat-sandbox'
 import { Route as MatchProtoRouteImport } from './routes/match-proto'
+import { Route as SignalPrintPrototypeRouteImport } from './routes/signal-print-prototype'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -28,35 +29,50 @@ const MatchProtoRoute = MatchProtoRouteImport.update({
   path: '/match-proto',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SignalPrintPrototypeRoute = SignalPrintPrototypeRouteImport.update({
+  id: '/signal-print-prototype',
+  path: '/signal-print-prototype',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/combat-sandbox': typeof CombatSandboxRoute
   '/match-proto': typeof MatchProtoRoute
+  '/signal-print-prototype': typeof SignalPrintPrototypeRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/combat-sandbox': typeof CombatSandboxRoute
   '/match-proto': typeof MatchProtoRoute
+  '/signal-print-prototype': typeof SignalPrintPrototypeRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/combat-sandbox': typeof CombatSandboxRoute
   '/match-proto': typeof MatchProtoRoute
+  '/signal-print-prototype': typeof SignalPrintPrototypeRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/combat-sandbox' | '/match-proto'
+  fullPaths:
+    '/' | '/combat-sandbox' | '/match-proto' | '/signal-print-prototype'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/combat-sandbox' | '/match-proto'
-  id: '__root__' | '/' | '/combat-sandbox' | '/match-proto'
+  to: '/' | '/combat-sandbox' | '/match-proto' | '/signal-print-prototype'
+  id:
+    | '__root__'
+    | '/'
+    | '/combat-sandbox'
+    | '/match-proto'
+    | '/signal-print-prototype'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CombatSandboxRoute: typeof CombatSandboxRoute
   MatchProtoRoute: typeof MatchProtoRoute
+  SignalPrintPrototypeRoute: typeof SignalPrintPrototypeRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -82,6 +98,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MatchProtoRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/signal-print-prototype': {
+      id: '/signal-print-prototype'
+      path: '/signal-print-prototype'
+      fullPath: '/signal-print-prototype'
+      preLoaderRoute: typeof SignalPrintPrototypeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -89,6 +112,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CombatSandboxRoute: CombatSandboxRoute,
   MatchProtoRoute: MatchProtoRoute,
+  SignalPrintPrototypeRoute: SignalPrintPrototypeRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

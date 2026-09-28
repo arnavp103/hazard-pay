@@ -1,0 +1,140 @@
+{
+  "source": "renderer.ts render() + makeBackdrop(), unmodified production Canvas painter",
+  "runtime": "@napi-rs/canvas native offline rasterization; not browser screenshots",
+  "runtimeVersion": "0.1.100",
+  "size": [
+    1400,
+    800
+  ],
+  "stills": {
+    "gather": 1750,
+    "strike": 2250,
+    "followThrough": 2667,
+    "crowd": 4500
+  },
+  "animation": {
+    "view": "hero",
+    "frames": 48,
+    "fps": 12,
+    "startMs": 1250,
+    "endMs": 5166.666666666666,
+    "gifSize": [
+      840,
+      480
+    ],
+    "pixelProof": {
+      "actorCrop": [
+        150,
+        180,
+        600,
+        630
+      ],
+      "excludes": "All captions and time labels",
+      "uniqueArtFrames": 48,
+      "adjacentPairs": 47,
+      "minimumChangedPixels": 326,
+      "maximumChangedPixels": 34607,
+      "sha256": [
+        "21541bee902daf2a18f2a29e81bc01e6c54b446ed06f1395fb4894286ebd4c85",
+        "50156566ddea3b9c7600c298b2dd6657bfb9b1011b9563c52f5803856e88a9b8",
+        "13a07c2293c8a0cad2af7133308617b5c963079c13c8309701b6f0e5d97f9f46",
+        "4034b121b6ec99d8eed597c23e19990703da73dd2ac8f9007b7a1b02a9320dde",
+        "3236c8290d6e890c5549ff21b9a53fb3f550a9dfe0e54a970fe6192199117bb4",
+        "a4e1d2d29c95dfab3fde82259bfaa7501718fb08191e584d160af0bad8dc3be8",
+        "0867069ac0e3678c2f4c06c799cb06ded6ef7fa7c2a9fd67aae38d3f3530f615",
+        "d9caf7364f23758ed9962a4a37048eb7a455aa61e2bd9b1095a753756757ba65",
+        "5a1f8303e4ed6b1ba9d74128c88bb9d5442101081c5ff02b7df7c8175a6f7786",
+        "c6c60f849f4e473d2ec2b38fbd4af30059e246a3aa7fdef74b14041a5adaf359",
+        "e4fa9e4df14e2c06368848282c436c988f819c2b70892f18bc3a273f66d01ee8",
+        "939d8121aebc5a19982c5381cc3fb8b3dbbe98b9dabcf7308627a8485a134bd2",
+        "65230897436b33d1bcfefece2ad8aedf84001a5159d243fd41715b5402d5cce3",
+        "b5237b449d0364c1d260c507b936f24228699a7dbbb6ba4647f5cdde66b97033",
+        "82cc0da432a096e8ec980be06ae5ae248fb9465931aba7e81475591be427cd48",
+        "ff120014bdb879e21be9742e5970e70eb06590486910235dfe98317e1a8da9e1",
+        "985d8f221e778f7991c8348e72b7b8a1899b4dbbde2f0b12f767598a9e07d579",
+        "631bd4dad33bbca4cfa690ab59b0a333ec1a7e20ed751c8486af1e9d07fb0193",
+        "e5d02b208171a82566cbdb79829d788cd4ecb13f6823baf137ff9aa636bc17a0",
+        "29f6c5003d809e8b1cc1c696e6428b88daaeeb39fb6d1e6e6f86f028128f332f",
+        "b23ed5a328473f04abba3d42e9a894c161ffe4b92867a87f8c4217d1dfc56d05",
+        "e2d4c65e4e997e943a2a0d85c58fcaa1cdf7b7aca4220c29fb82d9ffdf42bf03",
+        "fc4de3feff581e79bd94c63f18d091f119346ca6e25e117f6caead5874b42dcd",
+        "d0fcbfd6636301e314f07537eb89e0c81c048c5bedc38b56e4dc5d337a30a0f1",
+        "a053fa5e3882e7bcd45e0d3dbc302b8b856c020bb7a9ebc3c0b0d36c6f8d33aa",
+        "a720e2912062fa0e64359d542970f50f31950e38751784aea42f2dfe5c787e4c",
+        "412dccf2eb0d925cb7ad3feebed0fbe52eddf01c5739d7c6b6a4bc3553952bb0",
+        "419f3d7c233c8c7b4300ea382ca9d899426bcee0317d41e641d93d0e874cd27e",
+        "3f2463e81a91105c9c5a92bfd08d89c7eb72ecb16ea1a51cd1db0bf1e7969083",
+        "2dd1e5b3a98fecfe14c99add7872c5d74f68d7f3df19116592d17359e86f6044",
+        "8d29ea97a73dc716cb27764866bda590e0fe5c221c25f8e688f68a46c06deba0",
+        "118c0d399479ce182bf5be346cea6916c302061a8f697b2d6134a1f823e2a553",
+        "27d8d99d10dd81c4f80431744f5f3c6e89e5fe51a0ea1cbc7514020f33c7b3b8",
+        "2b13af5bcd04c0b2ad67ec341e33f11fa6c9a3f65ffeb99b4b0ccbd9c006a3fa",
+        "8336348c94b15f34e403a52769e29fcfca0696e2ec82285f0609e668428b9d19",
+        "c75a44eebe4da22228a9a286fd083dee4e605becb8806244442ef8ab9ee65ccd",
+        "0ba0d0786e053b80d025edf3db4eca5c99c55652893701a0bac7272364d59a69",
+        "26a2367844a3b342103327d538b1590cb624977e000c5f3edf341fe9f8ca74ac",
+        "4ac9073f8943972ff3f2b4a3b4f2f3cd8d8255dcaf6e7f84267a1614081f1042",
+        "342b21968bc1733db11094c47e9cd651238f4b6ee9f72300679895e894fee788",
+        "92cee4f6eea8681f1998a68644d840d62f7df4667f30e0e98d3d6f9b2402a9ae",
+        "d3bcdacc5b4d87b35e7e902e1c064d48605d517f790303dc9436831dd96a0662",
+        "a685156d6fcbe284b2e3ea2e17954267e6e659908fb0ea06aa458db6cc72234d",
+        "9f69b127cb8b1673a66b0c7b360b5006c3fc5e6b7ef4251532f3dd516c8b19c0",
+        "4d73d5e870068d1250d094e81c6c5bcb4196d585d75a453b9f6f7415df34d99d",
+        "b1df8030b334ce8ba6041daeb18adca7a04864a99022acc872afb82601366b2d",
+        "e72fb6388df18fa7680925056cf111346bd05dddcc5cd9511884ab0172b7f647",
+        "f40018fc68087b6e7e6fb77f8faf3bc5275551df6a9cd3e0da33d4e81bc7a3be"
+      ]
+    }
+  },
+  "crowdAnimation": {
+    "view": "crowd",
+    "frames": 24,
+    "fps": 12,
+    "startMs": 3800,
+    "endMs": 5716.666666666667,
+    "gifSize": [
+      840,
+      480
+    ],
+    "pixelProof": {
+      "actorCrop": [
+        170,
+        220,
+        1140,
+        720
+      ],
+      "excludes": "All captions and time labels",
+      "uniqueArtFrames": 24,
+      "adjacentPairs": 23,
+      "minimumChangedPixels": 29147,
+      "maximumChangedPixels": 31480,
+      "sha256": [
+        "9b944c91fd4c91220f7c12f31b26039edb16165c392172d4de59a2ce867b73c7",
+        "07934973374f92c25c32bf452c9ba49aac8929a0336bca260f55789107587edf",
+        "4a90cd0538c267ac80d337e48058c10a667d0ef04c840cb0e35fc9ae6e461afe",
+        "55db1222f8affebf31f291a3e96e09bda9f42d6425cb557b02f6ce2342c701d0",
+        "e780439f399b4b1a029ef043106bd0544468a14fe6661d654dedaa3243c0a4f4",
+        "13ac9144dd87f20c9eb5bee7f4f984006d3d7fc5c9f6c1ab81d0073434ed6ec1",
+        "2328a5fc55d8d8cbe774f7a61d8af29b5d13d6b9b740d7a3dd9ff6fd39d12608",
+        "4aa8f6f4fde29b5b1db7a029d86f23099a0554f749c0dd1acfe5932a7e349df1",
+        "3ba695e82d65c68657cac2faee43e88d097b31a8059c81bd512fe1bb5b766f2f",
+        "a26afb2aea7ea9252c54b9c3ffdf9655fe5f10ec913fd5db73fea737d67de2a4",
+        "2ca173ea5dff563ad4c5a6e07ea19cc4e88033df6bc068c4c6a51d312d2ddc53",
+        "b4141ec41dd67a7da8d87d87062ce5e626fbb2954355ae847a58f80f45ed814c",
+        "b884256e81c1b84e78b89ad3214447bb5c3dc1039f48f0741bdc850c7ae282da",
+        "58bb0860ff69813f89cfd02f4d4b9fb3ee35b6815e0b93b9da36d639279db810",
+        "b1e34ebf53dc6ff70447d724c6d922a17c88f6fbf0d64fe3f201a06afec2005d",
+        "4626f6e91331537544a1f9e691030c61110048ec42f858514fc69c6f822ad608",
+        "c8079631ae2538c3897fae22c972fbe72a4903849c50e2fdf607098f8c431228",
+        "04f4ac0ff8343ab44dccd674773a7066df08b9bd4bdd05761b96fdc1f376de7d",
+        "62462e7072822ced5fa9ef0b0f9460c90f1f08ca049b4b000d03875f3681c8c5",
+        "62441ac9eb5976867c36ae4ee8e0c01de89e4f6513001b51a6604529c5535235",
+        "85479ca942f3a2e71f4a3a8dec7bf32ec26214d9c2db5b2103eea87e5246ccd4",
+        "b10b406c180d23e2847029153ad4028ab76e3d6d67abc412aa81ea87ddae777d",
+        "007ec155f48257296bb8794653c896fea436d1787586de9034df0e4b6e7e0cea",
+        "9770602fe5848eaa575a9be53aa214eab4045c3973498870e84f13fba0faf152"
+      ]
+    }
+  },
+  "caveat": "Canvas artwork reviewed offline. DOM layout, input handling and browser lifecycle remain unverified in this environment."
+}
