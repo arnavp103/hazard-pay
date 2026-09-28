@@ -6,13 +6,16 @@ Violet lacquered insect engines attack an ivory fleet of swan, halo and ray mach
 
 ## Review files
 
-- `velvet-siege-full.mp4`: complete 36-second sequence, 1600 × 900, H.264, 24 fps, 864 frames, no audio.
-- `velvet-siege-teaser.gif`: seven seconds of the Regent's approach, deployment, strike and recovery, beginning at 12 seconds; 800 × 450, 12 fps.
-- `screenshot.png`: full-size battlefield frame.
-- `contact-sheet.png`: six battle chapters, including the final outcome.
-- `regent-keyposes.png`: anticipation, deployment, strike, follow-through and recovery sampled at 12.5, 14, 14.75, 15.2, 16.7 and 18.8 seconds.
-- `role-lineup.png`: actual runtime drawings of the eight role/commander silhouettes.
-- `render.mts`: reproducible offline export entry point.
+- `battle.webp`: battlefield frame during the Regent strike.
+- `setpiece.webp`: anticipation, deployment, strike, follow-through and recovery sampled at 12.5, 14, 14.75, 15.2, 16.7 and 18.8 seconds.
+- `roles.webp`: actual runtime drawings of the eight role/commander silhouettes.
+- `render.mts`: reproducible offline export entry point. It generates full-resolution PNG plates and frame sequences; the command below encodes the complete 36-second, 1600 × 900, 24-fps film. Generated PNG/MP4 files are local outputs, not checked into this branch.
+
+![Battlefield during the Regent strike](battle.webp)
+
+![Eight original role silhouettes](roles.webp)
+
+![The Regent's attack poses](setpiece.webp)
 
 The images and film are **offline renders of the same painter used by the route**, not browser screenshots or recorded browser performance. No generated raster assets, external asset packs, old prototype art, or licensed game art are used.
 
@@ -45,19 +48,17 @@ The renderer uses Node 24's native TypeScript support and the execution runtime'
 ```sh
 node docs/art-direction/velvet-siege/render.mts --film
 ffmpeg -y -framerate 24 -i docs/art-direction/velvet-siege/frames/%04d.png -t 36 -c:v libx264 -preset medium -crf 21 -pix_fmt yuv420p -movflags +faststart docs/art-direction/velvet-siege/velvet-siege-full.mp4
-ffmpeg -y -ss 12 -t 7 -i docs/art-direction/velvet-siege/velvet-siege-full.mp4 -vf 'fps=12,scale=800:-1:flags=lanczos,split[s0][s1];[s0]palettegen=max_colors=128[p];[s1][p]paletteuse=dither=bayer:bayer_scale=4' docs/art-direction/velvet-siege/velvet-siege-teaser.gif
 ```
 
 The intermediate `frames/` directory is excluded from git. Running without `--film` regenerates only the PNG review plates.
 
 ## Verification and limits
 
-- Root type-check and lint passed.
+- Root type-check, lint and the full test suite passed in [GitHub CI](https://github.com/arnavp103/hazard-pay/actions/runs/36452023727).
 - Webapp tests passed: 12 files, 137 tests, including finite movement, fixed wreck positions and final battle outcome.
 - Webapp production build and SPA prerender passed; Vite generated the route tree.
 - The full MP4 was decoded and its 36-second / 864-frame / 24-fps metadata checked.
 - The existing combat-sandbox attack-bound test retains its checks and aggregates failures, avoiding tens of thousands of individual assertion calls.
 
-Local browser interaction and browser frame rate have not been verified. The local Vite dev server encountered an environment `networkInterfaces` error. Full root database-backed integration tests were not run locally because the database is unavailable. The geometry and motion are deliberately reviewable prototype work; finished art quality and animation direction still require human judgment.
+Local browser interaction and browser frame rate have not been verified. The local Vite dev server encountered an environment `networkInterfaces` error. Database-backed integration tests were verified in CI. The geometry and motion are deliberately reviewable prototype work; finished art quality and animation direction still require human judgment.
 
-Recovery note: after the execution workspace was reset, the reviewed paths and timeline were reconstructed from retained source-writing tool inputs, and captures were regenerated. The reconstructed contact sheet was visually checked against the reviewed design.
