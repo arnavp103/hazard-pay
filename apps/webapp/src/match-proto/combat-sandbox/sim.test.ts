@@ -225,13 +225,19 @@ describe("engagement", () => {
     // The float version of this comparison had a 1.67e-15 margin. The integer
     // version cannot miss.
     const state = createBattle();
+    const violations: { step: number; id: number; attackStep: number; phase: number }[] = [];
     for (let i = 0; i < stepsFor(20); i += 1) {
       stepBattle(state);
       for (const unit of state.units) {
-        expect(unit.attackStep).toBeLessThan(ATTACK_STEPS);
-        expect(attackPhaseOf(unit)).toBeLessThan(1);
+        const phase = attackPhaseOf(unit);
+        if (!(unit.attackStep < ATTACK_STEPS) || !(phase < 1)) {
+          violations.push({ step: i, id: unit.id, attackStep: unit.attackStep, phase });
+        }
       }
     }
+    // Preserve every bound check (including NaN failures) without creating
+    // 96,000 matcher stacks that can exhaust the five-second CI budget.
+    expect(violations).toEqual([]);
   });
 
   it("faces units at what they are aiming at once they stop", () => {

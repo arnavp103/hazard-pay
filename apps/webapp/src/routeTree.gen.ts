@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as CombatSandboxRouteImport } from './routes/combat-sandbox'
 import { Route as MatchProtoRouteImport } from './routes/match-proto'
+import { Route as PixelNoirPrototypeRouteImport } from './routes/pixel-noir-prototype'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -28,35 +29,49 @@ const MatchProtoRoute = MatchProtoRouteImport.update({
   path: '/match-proto',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PixelNoirPrototypeRoute = PixelNoirPrototypeRouteImport.update({
+  id: '/pixel-noir-prototype',
+  path: '/pixel-noir-prototype',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/combat-sandbox': typeof CombatSandboxRoute
   '/match-proto': typeof MatchProtoRoute
+  '/pixel-noir-prototype': typeof PixelNoirPrototypeRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/combat-sandbox': typeof CombatSandboxRoute
   '/match-proto': typeof MatchProtoRoute
+  '/pixel-noir-prototype': typeof PixelNoirPrototypeRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/combat-sandbox': typeof CombatSandboxRoute
   '/match-proto': typeof MatchProtoRoute
+  '/pixel-noir-prototype': typeof PixelNoirPrototypeRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/combat-sandbox' | '/match-proto'
+  fullPaths: '/' | '/combat-sandbox' | '/match-proto' | '/pixel-noir-prototype'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/combat-sandbox' | '/match-proto'
-  id: '__root__' | '/' | '/combat-sandbox' | '/match-proto'
+  to: '/' | '/combat-sandbox' | '/match-proto' | '/pixel-noir-prototype'
+  id:
+    | '__root__'
+    | '/'
+    | '/combat-sandbox'
+    | '/match-proto'
+    | '/pixel-noir-prototype'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CombatSandboxRoute: typeof CombatSandboxRoute
   MatchProtoRoute: typeof MatchProtoRoute
+  PixelNoirPrototypeRoute: typeof PixelNoirPrototypeRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -82,6 +97,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MatchProtoRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/pixel-noir-prototype': {
+      id: '/pixel-noir-prototype'
+      path: '/pixel-noir-prototype'
+      fullPath: '/pixel-noir-prototype'
+      preLoaderRoute: typeof PixelNoirPrototypeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -89,6 +111,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CombatSandboxRoute: CombatSandboxRoute,
   MatchProtoRoute: MatchProtoRoute,
+  PixelNoirPrototypeRoute: PixelNoirPrototypeRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
