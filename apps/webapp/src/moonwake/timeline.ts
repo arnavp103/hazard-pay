@@ -10,9 +10,14 @@ export const chapters = [
   { at: 29, name: "The last toll", detail: "A crescent cut silences the bell. The water gives them back." },
 ] as const;
 export const clamp = (n: number, a = 0, b = 1) => Math.max(a, Math.min(b, n));
-export const ease = (n: number) => { const v = clamp(n); return v * v * (3 - 2 * v); };
+export const ease = (n: number) => {
+  const v = clamp(n);
+  return v * v * (3 - 2 * v);
+};
 export const ramp = (time: number, from: number, to: number) => ease((time - from) / (to - from));
-export function chapterAt(time: number) { return chapters.findLast((chapter) => time >= chapter.at) ?? chapters[0]; }
+export function chapterAt(time: number) {
+  return chapters.findLast((chapter) => time >= chapter.at) ?? chapters[0];
+}
 export interface Soldier { id: number; side: "ivory" | "tide"; kind: number; x: number; y: number; scale: number }
 export const soldiers: Soldier[] = Array.from({ length: 56 }, (_, id) => {
   const side = id < 28 ? "ivory" : "tide";

@@ -124,7 +124,9 @@ function gauntlet(c: C, x: number, y: number, angle: number) {
 function glaive(c: C) {
   shape(c, "M-48 -2 L79 -2 L84 0 L79 3 L-48 3 L-57 0Z", grad(c, -30, -3, 20, 4, "#d2ac67", "#715940", "#243c45"), INK, 1);
   line(c, "M-46 -1 L75 -1", "#e2c384", 0.9);
-  for (let i = 0; i < 9; i++) { line(c, `M${-13 + i * 4} -2 L${-16 + i * 4} 3`, "#152d37", 1.1); }
+  for (let i = 0; i < 9; i++) {
+    line(c, `M${-13 + i * 4} -2 L${-16 + i * 4} 3`, "#152d37", 1.1);
+  }
   shape(c, "M61 -4 L70 -10 L74 -4 L80 -5 L84 0 L79 6 L71 5 L68 12 L62 5Z", GOLD, INK, 1.2);
   // Deep concave hook and long tapered outer edge are one forged crescent.
   shape(c, "M77 -4 C60 -28 69 -59 99 -71 C119 -80 136 -77 144 -72 C109 -70 96 -52 99 -33 C102 -17 117 -12 131 -13 C121 4 101 12 86 7 C82 5 78 0 77 -4Z", grad(c, 88, -70, 119, 7, "#fff5d6", "#c4d9d0", "#547b84"), INK, 2);
@@ -156,7 +158,9 @@ export function drawCaptain(c: C, params: FigurePose = {}) {
   // Rib cage is drawn in its own local coordinates while the pelvis remains
   // anchored between planted legs. The waist is a flexible, visible join.
   limb(c, [hx, hy - 4], [tx, ty + 20], 14, "#203744");
-  for (let i = 0; i < 3; i++) { line(c, `M${hx - 13} ${hy - 12 - i * 5} Q${hx} ${hy - 8 - i * 5} ${hx + 13} ${hy - 15 - i * 5}`, "#637e80", 1.4); }
+  for (let i = 0; i < 3; i++) {
+    line(c, `M${hx - 13} ${hy - 12 - i * 5} Q${hx} ${hy - 8 - i * 5} ${hx + 13} ${hy - 15 - i * 5}`, "#637e80", 1.4);
+  }
   at(c, hx, hy - 8, tilt * 0.4, () => {
     shape(c, "M-18 -1 Q-1 3 19 -3 L24 18 L12 26 L3 18 L-5 26 L-22 18Z", grad(c, -19, 0, 20, 23, "#f1e5c6", "#c5c4aa", "#496574"), INK, 1.8);
     shape(c, "M-6 3 L2 4 L8 29 L-3 34 L-12 25Z", "#264957", GOLD, 1);
@@ -262,7 +266,9 @@ function keeperArm(c: C, shoulder: Point, elbow: Point, hand: Point, major: bool
     line(c, "M-18 -23 Q-1 -32 14 -23 M-17 -16 Q-2 -24 14 -16 M-18 23 Q-2 32 12 23", "#b5bc97", 1.6);
     shape(c, "M-5 -19 Q-16 -1 -5 13 Q8 3 4 -8 Q0 -2 -5 -1Z", "#234d55", "#779788", 1.2);
     line(c, "M8 -22 L3 -10 L10 0 L4 10 L9 18", "#193e49", 2);
-    if (major) { barnacles(c, -16, -26, 1.2); }
+    if (major) {
+      barnacles(c, -16, -26, 1.2);
+    }
   });
   at(c, hand[0], hand[1], angle, () => {
     shape(c, "M-21 -10 Q-2 -19 18 -9 L24 4 L18 14 L12 5 L10 23 L1 27 L-3 9 L-7 28 L-17 23 L-17 6 L-25 17 L-31 11Z", grad(c, -23, -12, 21, 24, "#b2bca0", "#74968b", "#315b65"), INK, 2.5);
@@ -343,7 +349,9 @@ export function drawBellKeeper(c: C, params: FigurePose = {}) {
       line(c, "M-15 -39 L-8 -37 M9 -37 L16 -40", "#f2c770", 2);
       shape(c, "M-3 -40 L3 -44 L5 -22 L0 -19 L-6 -23Z", "#c0bea0", "#54776d", 1);
       shape(c, "M-12 -15 Q0 -9 11 -17 L6 -3 L-1 1 L-8 -4Z", "#1e4046", "", 0);
-      for (let i = 0; i < 4; i++) { line(c, `M${-8 + i * 5} -13 L${-7 + i * 4} -7`, "#c5c1a0", 1.4); }
+      for (let i = 0; i < 4; i++) {
+        line(c, `M${-8 + i * 5} -13 L${-7 + i * 4} -7`, "#c5c1a0", 1.4);
+      }
       line(c, "M-20 -57 Q-3 -64 12 -56 M-18 -25 L-11 -21 M12 -22 L19 -28", "#e2d5ae", 1.1);
       shape(c, "M-27 -40 C-55 -48 -64 -74 -49 -94 Q-54 -69 -27 -66 L-17 -79 L-7 -73 L-17 -55Z", grad(c, -54, -89, -18, -39, "#c2c1a0", "#769689", "#335b63"), INK, 2.5);
       shape(c, "M24 -45 Q50 -70 36 -100 Q66 -77 52 -49 L39 -29 L31 -28Z", grad(c, 36, -98, 51, -29, "#bac1a1", "#61877f", "#264f5c"), INK, 2.5);

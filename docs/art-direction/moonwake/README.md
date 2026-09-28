@@ -43,7 +43,7 @@ The renderer resolves Canvas via `CODEX_PRIMARY_RUNTIME_NODE_MODULES`, adding no
 
 ## Validation and limits
 
-Before workspace recovery, root typecheck/lint, production Vite build and all140 webapp tests passed. The recovered source is revalidated before publication. Six timeline tests cover roster, backwards scrubbing, tidal displacement, targeted arrow recoil, aftermath and chapter boundaries. The existing combat-sandbox test adjustment retains every bounds check while aggregating failures instead of executing tens of thousands of costly assertions; no runtime art or behavior changes.
+The recovered source passes root typecheck/lint, production Vite build and all 140 webapp tests. Six timeline tests cover roster, backwards scrubbing, tidal displacement, targeted arrow recoil, aftermath and chapter boundaries. The existing combat-sandbox test adjustment retains every bounds check while aggregating failures instead of executing tens of thousands of costly assertions; no runtime art or behavior changes.
 
 This is authored choreography, not emergent combat AI. It does not integrate persistence, damage rules, networking or audio. Minor troops share role anatomy. Narrow-phone readability and browser performance need live review. Crowded aftermath and a short airborne hang remain prototype limitations.
 

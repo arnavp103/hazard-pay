@@ -17,11 +17,17 @@ describe("Moonwake authored encounter", () => {
     expect(soldierAt(front, 16).brace).toBeGreaterThan(0.9);
     expect(soldierAt(front, 25).brace).toBe(0);
   });
-  it("links the first arrow impact to a strong target reaction", () => { expect(soldierAt(soldiers[28]!, 7.96).recoil).toBeGreaterThan(0.95); });
+  it("links the first arrow impact to a strong target reaction", () => {
+    expect(soldierAt(soldiers[28]!, 7.96).recoil).toBeGreaterThan(0.95);
+  });
   it("leaves persistent casualties and changes formation after the final charge", () => {
     const fallen = soldiers.filter((unit) => soldierAt(unit, DURATION).fallen === 1);
     expect(fallen.length).toBeGreaterThan(15);
     expect(soldierAt(soldiers[6]!, 27).x).toBeGreaterThan(soldierAt(soldiers[6]!, 10).x + 150);
   });
-  it("selects exactly the appropriate chapter at the authored transitions", () => { expect(chapterAt(12.99).at).toBe(6); expect(chapterAt(13).at).toBe(13); expect(chapterAt(29).name).toBe("The last toll"); });
+  it("selects exactly the appropriate chapter at the authored transitions", () => {
+    expect(chapterAt(12.99).at).toBe(6);
+    expect(chapterAt(13).at).toBe(13);
+    expect(chapterAt(29).name).toBe("The last toll");
+  });
 });
