@@ -2,7 +2,7 @@
 
 A self-contained, throwaway art and motion direction for Hazard Pay. Route:
 `/pixel-noir-prototype`. No external service, asset downloads, or game simulation
-are required. The existing combat sandbox is untouched.
+are required. The existing combat sandbox runtime is untouched.
 
 ## Offline gallery
 
@@ -136,6 +136,12 @@ art exposures across 48 frames; the idle/walk/turn/stagger reel has 52 across 96
 the crowd has 24 across 24. Held exposures are intentional.
 
 ## Validation
+
+CI repeatedly exceeded the unchanged five-second budget in the existing sandbox
+attack-bound stress test. Its 20-second simulation and every per-unit bound check
+remain intact; violations are collected and asserted once instead of constructing
+96,000 matcher objects. No simulation behavior or timeout changed. The new patrol
+coverage test uses the same aggregation approach.
 
 Six pure motion tests verify stepped exposure stability, anticipation/contact/recovery,
 alternating walking contact, the fixed dimetric camera, forty stable moving
