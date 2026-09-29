@@ -19,16 +19,16 @@ Open `/prototype-moonwake`. The isolated prototype has pause, replay, timeline s
 
 ## Reproduce the film
 
-`render.mjs` calls the exact runtime painter and deterministic timeline with `@napi-rs/canvas`. In this workspace that package is supplied by `CODEX_PRIMARY_RUNTIME_NODE_MODULES`; it is not a new game dependency. Node 24 can run the TypeScript imports directly. FFmpeg encodes the full 1280×720, 24 fps, 1008-frame film:
+`render.mjs` calls the exact runtime painter and deterministic timeline with `@napi-rs/canvas`. In this workspace that package is supplied by `CODEX_PRIMARY_RUNTIME_NODE_MODULES`; it is not a new game dependency. Node 24 can run the TypeScript imports directly. FFmpeg encodes the full 1280×720, 24 fps, 1008-frame film. Six sequential seven-second chunks bound native Canvas memory, then concatenate without re-encoding:
 
 ```sh
-node docs/art-direction/moonwake/render.mjs --video
+node --expose-gc docs/art-direction/moonwake/render.mjs --video
 ```
 
 The generated MP4 and full-resolution PNG captures are review artifacts, not tracked game assets. The compact WebP gallery is tracked. This is an offline capture of the runtime painter, not browser interaction or performance validation.
 
 ## Validation and limits
 
-Timeline tests check all 88 footprints at 307 interpolated times, visibility-graph segment clearance around a ruin, world-height projection, substantial motion along both axes, deterministic backwards scrubbing and persistent casualties. Root typecheck, root lint, webapp tests and production build are run for the revision. Full monorepo tests need the repository's database service and optional integration dependencies.
+Timeline tests check all 88 footprints at 307 interpolated times, visibility-graph segment clearance around a ruin, world-height projection, substantial motion along both axes, deterministic backwards scrubbing and persistent casualties. Root typecheck, root lint, webapp tests and production build are run for the revision. Full monorepo tests were attempted and stop because Postgres on localhost:5433 is unavailable.
 
 The battle is a deterministic authored study with local pursuit, separation and timed setpieces. It is not production combat AI. Vector silhouettes remain thin at very small display sizes, and the deliberately muted terrain is a taste question. Sound and interactive orders are outside this prototype.
