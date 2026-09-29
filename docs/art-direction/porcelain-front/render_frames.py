@@ -13,7 +13,9 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--output', required=True)
 parser.add_argument('--start', type=int, default=1)
 parser.add_argument('--end', type=int, default=863)
-parser.add_argument('--samples', type=int, default=16)
+parser.add_argument('--samples', type=int, default=8)
+parser.add_argument('--width', type=int, default=768)
+parser.add_argument('--height', type=int, default=432)
 args = parser.parse_args(sys.argv[sys.argv.index('--') + 1:])
 os.makedirs(args.output, exist_ok=True)
 scene = bpy.context.scene
@@ -22,6 +24,8 @@ scene.render.threads_mode = 'FIXED'
 scene.render.threads = 4
 scene.render.image_settings.file_format = 'PNG'
 scene.render.resolution_percentage = 100
+scene.render.resolution_x = args.width
+scene.render.resolution_y = args.height
 scene.frame_start = args.start
 scene.frame_end = args.end
 scene.frame_step = 2
