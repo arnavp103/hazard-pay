@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as CombatSandboxRouteImport } from './routes/combat-sandbox'
 import { Route as MatchProtoRouteImport } from './routes/match-proto'
+import { Route as PrototypeEmberwatchRouteImport } from './routes/prototype-emberwatch'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -28,35 +29,49 @@ const MatchProtoRoute = MatchProtoRouteImport.update({
   path: '/match-proto',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PrototypeEmberwatchRoute = PrototypeEmberwatchRouteImport.update({
+  id: '/prototype-emberwatch',
+  path: '/prototype-emberwatch',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/combat-sandbox': typeof CombatSandboxRoute
   '/match-proto': typeof MatchProtoRoute
+  '/prototype-emberwatch': typeof PrototypeEmberwatchRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/combat-sandbox': typeof CombatSandboxRoute
   '/match-proto': typeof MatchProtoRoute
+  '/prototype-emberwatch': typeof PrototypeEmberwatchRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/combat-sandbox': typeof CombatSandboxRoute
   '/match-proto': typeof MatchProtoRoute
+  '/prototype-emberwatch': typeof PrototypeEmberwatchRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/combat-sandbox' | '/match-proto'
+  fullPaths: '/' | '/combat-sandbox' | '/match-proto' | '/prototype-emberwatch'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/combat-sandbox' | '/match-proto'
-  id: '__root__' | '/' | '/combat-sandbox' | '/match-proto'
+  to: '/' | '/combat-sandbox' | '/match-proto' | '/prototype-emberwatch'
+  id:
+    | '__root__'
+    | '/'
+    | '/combat-sandbox'
+    | '/match-proto'
+    | '/prototype-emberwatch'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CombatSandboxRoute: typeof CombatSandboxRoute
   MatchProtoRoute: typeof MatchProtoRoute
+  PrototypeEmberwatchRoute: typeof PrototypeEmberwatchRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -82,6 +97,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MatchProtoRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/prototype-emberwatch': {
+      id: '/prototype-emberwatch'
+      path: '/prototype-emberwatch'
+      fullPath: '/prototype-emberwatch'
+      preLoaderRoute: typeof PrototypeEmberwatchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -89,6 +111,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CombatSandboxRoute: CombatSandboxRoute,
   MatchProtoRoute: MatchProtoRoute,
+  PrototypeEmberwatchRoute: PrototypeEmberwatchRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
