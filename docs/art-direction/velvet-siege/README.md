@@ -40,4 +40,4 @@ This writes review plates and `velvet-siege-25d-full.mp4`: 42 seconds, 1280×720
 
 ## Validation
 
-The revised webapp suite passes: 12 files, 139 tests. Final lint, root type-check, production build and remote CI results are recorded on the PR after verification. Browser interaction and runtime frame rate have not been measured. The production match and combat sandbox renderers remain unchanged.
+Root type-check and zero-warning lint pass. The revised webapp suite passes: 12 files, 139 tests. The full encoded film was decoded and its 42-second / 1008-frame / 24-fps metadata verified. The production build and SPA prerender pass. The full local test command is blocked by the absent PostgreSQL service at localhost:5433; database-backed integration results are checked separately in remote CI. Browser interaction and runtime frame rate have not been measured. The production match and combat sandbox renderers remain unchanged.
