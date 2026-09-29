@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as CombatSandboxRouteImport } from './routes/combat-sandbox'
 import { Route as MatchProtoRouteImport } from './routes/match-proto'
+import { Route as PrototypePorcelainFrontRouteImport } from './routes/prototype-porcelain-front'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -28,35 +29,50 @@ const MatchProtoRoute = MatchProtoRouteImport.update({
   path: '/match-proto',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PrototypePorcelainFrontRoute = PrototypePorcelainFrontRouteImport.update({
+  id: '/prototype-porcelain-front',
+  path: '/prototype-porcelain-front',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/combat-sandbox': typeof CombatSandboxRoute
   '/match-proto': typeof MatchProtoRoute
+  '/prototype-porcelain-front': typeof PrototypePorcelainFrontRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/combat-sandbox': typeof CombatSandboxRoute
   '/match-proto': typeof MatchProtoRoute
+  '/prototype-porcelain-front': typeof PrototypePorcelainFrontRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/combat-sandbox': typeof CombatSandboxRoute
   '/match-proto': typeof MatchProtoRoute
+  '/prototype-porcelain-front': typeof PrototypePorcelainFrontRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/combat-sandbox' | '/match-proto'
+  fullPaths:
+    '/' | '/combat-sandbox' | '/match-proto' | '/prototype-porcelain-front'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/combat-sandbox' | '/match-proto'
-  id: '__root__' | '/' | '/combat-sandbox' | '/match-proto'
+  to: '/' | '/combat-sandbox' | '/match-proto' | '/prototype-porcelain-front'
+  id:
+    | '__root__'
+    | '/'
+    | '/combat-sandbox'
+    | '/match-proto'
+    | '/prototype-porcelain-front'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CombatSandboxRoute: typeof CombatSandboxRoute
   MatchProtoRoute: typeof MatchProtoRoute
+  PrototypePorcelainFrontRoute: typeof PrototypePorcelainFrontRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -82,6 +98,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MatchProtoRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/prototype-porcelain-front': {
+      id: '/prototype-porcelain-front'
+      path: '/prototype-porcelain-front'
+      fullPath: '/prototype-porcelain-front'
+      preLoaderRoute: typeof PrototypePorcelainFrontRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -89,6 +112,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CombatSandboxRoute: CombatSandboxRoute,
   MatchProtoRoute: MatchProtoRoute,
+  PrototypePorcelainFrontRoute: PrototypePorcelainFrontRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
