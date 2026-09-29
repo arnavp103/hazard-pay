@@ -1,64 +1,43 @@
-# Velvet Siege
+# Velvet Siege — the divided garden
 
-An independent, original **vector art and authored animation prototype** for Hazard Pay. Route: `/prototype-velvet-siege`.
+An original **2.5D battlefield** for Hazard Pay at `/prototype-velvet-siege`: 84 small upright violet insect and ivory swan engines move across an elevated courtyard. This replaces the previous side-on staging. The camera stays fixed; commanders remain part of their armies.
 
-Violet lacquered insect engines attack an ivory fleet of swan, halo and ray machines on the Eclipse Causeway. The factions have separate silhouettes and original Canvas path drawings. There are 48 regular engines, three roles per faction, and two larger commanders. This is a deterministic, 36-second choreography study, not combat AI or a live match integration.
+The ground fills the frame. Three separated approaches meet along a diagonal front, and southern detachments turn north around raised gardens to attack the center from both sides. Individual positions are retained through deployment. Ground-space routes detour around solid structure footprints. Units and structures share depth sorting; northbound figures show rear carapaces. Projectile ground positions and airborne height are separate.
 
-## Review files
+![The converging flanks](battle.webp)
 
-- `battle.webp`: battlefield frame during the Regent strike.
-- `setpiece.webp`: anticipation, deployment, strike, follow-through and recovery sampled at 12.5, 14, 14.75, 15.2, 16.7 and 18.8 seconds.
-- `roles.webp`: actual runtime drawings of the eight role/commander silhouettes.
-- `render.mts`: reproducible offline export entry point. It generates full-resolution PNG plates and frame sequences; the command below encodes the complete 36-second, 1600 × 900, 24-fps film. Generated PNG/MP4 files are local outputs, not checked into this branch.
+![Regent preparation, rail sweep and the arriving flanks](setpiece.webp)
 
-![Battlefield during the Regent strike](battle.webp)
+## Battle sequence
 
-![Eight original role silhouettes](roles.webp)
-
-![The Regent's attack poses](setpiece.webp)
-
-The images and film are **offline renders of the same painter used by the route**, not browser screenshots or recorded browser performance. No generated raster assets, external asset packs, old prototype art, or licensed game art are used.
-
-## Choreography
-
-| Time | Physical action and result |
+| Time | Action |
 | --- | --- |
-| 0–5s | Fifty engines deploy in opposing ranks; an opening exchange includes source recoil and target stagger. |
-| 5–10s | Mantle artillery braces and spreads, staggered curved shells strike the first ivory rank, and destroyed units leave broken shells. |
-| 11.8–18.8s | Upper ranks close while the lower flank advances separately. The Regent plants its legs, fans its mantle, extends its split rail mechanism, winds back, swings into contact and recovers. The Matriarch's neck recoils. |
-| 19.4–25s | The Matriarch lifts and whips its neck while the ivory flank unfolds and launches a converging counter-volley; eight Court engines are lost. |
-| 27.5–34s | Court survivors encircle forward positions and converge their fire. Ivory engines collapse into role-specific debris; the Matriarch sheds a wing section and falls. |
-| 34–36s | The Court holds the causeway: 17 survivors, zero opposing survivors. The completed timeline stops. |
+| 0–8s | 84 engines deploy through separate irregular approaches. |
+| 8–13s | Braced mortar engines launch a staggered aerial constellation into the northern ivory detachment; impact markers, bursts and fixed wrecks show results. |
+| 17–22s | The northern Regent opens its rail weapon, winds up, sweeps across the actual target positions and recovers. |
+| 23–32s | Southern formations turn north around opposite sides of the structures, visibly switch to rear silhouettes, and converge on the center. Ivory artillery answers with a staggered barrage. |
+| 34–40s | Surviving violet engines concentrate fire. Ivory machines collapse at their impact locations, including the Matriarch. |
+| 40–42s | Thirty-one violet survivors hold a battlefield of persistent wrecks. |
 
-Casualty times are authored impact beats. Projectile endpoints use actor positions at impact; wreck positions remain fixed after death. Additional authored skirmish beats fill the intervals between the major sequences. Motion is sampled from absolute time, so seeking and replaying reconstruct the same state.
+This is deterministic choreography sampled from absolute time, not combat AI. It deliberately demonstrates ground-space staging, readable small units, occlusion and longer authored setpieces. Original Canvas paths supply every character and environment element; no image models, game assets or external packs are used.
 
 ## Source and controls
 
-- Painter, original art paths, movement and timeline: `apps/webapp/src/velvet-siege/painting.ts`
-- React lifecycle and controls: `apps/webapp/src/velvet-siege/prototype.tsx`
-- Route: `apps/webapp/src/routes/prototype-velvet-siege.tsx`
-- State invariants: `apps/webapp/src/velvet-siege/painting.test.ts`
+- `apps/webapp/src/velvet-siege/painting.ts`: art, orthographic projection, obstacle detours, depth sorting and battle timeline.
+- `apps/webapp/src/velvet-siege/painting.test.ts`: footprint clearance throughout the timeline, unique staging positions, depth-crossing flanks, rear orientation, projectile height and fixed wreck invariants.
+- `apps/webapp/src/velvet-siege/prototype.tsx`: pause, replay, seek, chapter and playback-speed controls. Reduced-motion users start paused.
+- `render.mts`: identical runtime painter exported offline. It is not a browser recording or performance benchmark.
 
-Controls provide pause/play, replay, continuous seeking, chapter selection and three playback speeds. Reduced-motion preferences start the scene paused. The canvas has a text alternative. This study contains no network calls, gameplay controls or match persistence.
+## Reproduce
 
-## Reproduce the exports
-
-The renderer uses Node 24's native TypeScript support and the execution runtime's installed `@napi-rs/canvas`; it does not add project dependencies. Set `CODEX_PRIMARY_RUNTIME_NODE_MODULES` to the directory containing that runtime module.
+Use Node 24, ffmpeg and the execution runtime's `@napi-rs/canvas`; set `CODEX_PRIMARY_RUNTIME_NODE_MODULES` to the directory containing that module. No project dependencies change.
 
 ```sh
 node docs/art-direction/velvet-siege/render.mts --film
-ffmpeg -y -framerate 24 -i docs/art-direction/velvet-siege/frames/%04d.png -t 36 -c:v libx264 -preset medium -crf 21 -pix_fmt yuv420p -movflags +faststart docs/art-direction/velvet-siege/velvet-siege-full.mp4
 ```
 
-The intermediate `frames/` directory is excluded from git. Running without `--film` regenerates only the PNG review plates.
+This writes review plates and `velvet-siege-25d-full.mp4`: 42 seconds, 1280×720, 24 fps, 1008 frames. Omit `--film` to regenerate only plates. Full films and PNG plates are generated review deliverables; the branch keeps compact WebP previews.
 
-## Verification and limits
+## Validation
 
-- Root type-check, lint and the full test suite passed in [GitHub CI](https://github.com/arnavp103/hazard-pay/actions/runs/36452023727).
-- Webapp tests passed: 12 files, 137 tests, including finite movement, fixed wreck positions and final battle outcome.
-- Webapp production build and SPA prerender passed; Vite generated the route tree.
-- The full MP4 was decoded and its 36-second / 864-frame / 24-fps metadata checked.
-- The existing combat-sandbox attack-bound test retains its checks and aggregates failures, avoiding tens of thousands of individual assertion calls.
-
-Local browser interaction and browser frame rate have not been verified. The local Vite dev server encountered an environment `networkInterfaces` error. Database-backed integration tests were verified in CI. The geometry and motion are deliberately reviewable prototype work; finished art quality and animation direction still require human judgment.
-
+The revised webapp suite passes: 12 files, 139 tests. Final lint, root type-check, production build and remote CI results are recorded on the PR after verification. Browser interaction and runtime frame rate have not been measured. The production match and combat sandbox renderers remain unchanged.

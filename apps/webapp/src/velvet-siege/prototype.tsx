@@ -55,7 +55,7 @@ export function VelvetSiegePrototype() {
   return (
     <main className="min-h-screen bg-shell px-3 py-6 text-ink sm:px-8">
       <div className="mx-auto max-w-[1600px]">
-        <canvas ref={canvas} width={WIDTH} height={HEIGHT} className="block h-auto w-full rounded-xl" aria-label="Velvet Siege: fifty sculptural war engines fight a 36 second battle on an eclipse causeway. Violet Vesper Court wins with seventeen survivors." />
+        <canvas ref={canvas} width={WIDTH} height={HEIGHT} className="block h-auto w-full rounded-xl" aria-label="Velvet Siege: eighty-four small war engines fight a 42 second elevated battlefield encounter around raised garden walls. Three approaches and flanking troops cross the ground plane." />
         <div className="mt-4 flex flex-wrap items-center gap-3 font-data text-xs">
           <button type="button" onClick={toggle} className="rounded-full border border-line px-5 py-2 hover:bg-panel-2">{paused ? "Play" : "Pause"}</button>
           <button
@@ -73,7 +73,7 @@ export function VelvetSiegePrototype() {
           <span className="tabular-nums">
             {time.toFixed(1)}
             {" "}
-            / 36s
+            / 42s
           </span>
           <select
             aria-label="Playback speed"
@@ -101,7 +101,7 @@ export function VelvetSiegePrototype() {
             </button>
           ))}
         </nav>
-        <p className="mt-3 text-center font-data text-xs text-ink-dim">Original vector art · 50 war engines · authored battle study · no live match data</p>
+        <p className="mt-3 text-center font-data text-xs text-ink-dim">Original 2.5D vector battlefield · 84 war engines · authored battle study · no live match data</p>
       </div>
     </main>
   );
