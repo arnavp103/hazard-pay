@@ -50,7 +50,8 @@ export function MoonwakePrototype() {
   function toggle() {
     if (clock.current >= DURATION) {
       seek(0);
-    } running.current = !running.current;
+    }
+    running.current = !running.current;
     setPlaying(running.current);
   }
   const active = chapterAt(time);
@@ -58,10 +59,10 @@ export function MoonwakePrototype() {
     <main className="moonwake-page">
       <div className="moonwake-top">
         <a href="/">HAZARD PAY</a>
-        <span>MOONWAKE · ORIGINAL ILLUSTRATED DIRECTION</span>
+        <span>MOONWAKE · ELEVATED SPRITE BATTLEFIELD</span>
         <span>PROTOTYPE / 01</span>
       </div>
-      <section className="moonwake-theater" aria-label="Moonwake cinematic encounter"><canvas ref={canvas} width={1600} height={900} role="img" aria-label="Fifty-six mercenaries and tidal creatures fight on a moonlit drowned causeway. Ivory shields, lantern archers and harpoon companies support Captain Vey against the giant bell-keeper." /></section>
+      <section className="moonwake-theater" aria-label="Moonwake elevated 2.5D encounter"><canvas ref={canvas} width={1600} height={900} role="img" aria-label="Eighty-eight small upright troops fight across three routes in a moonlit ruined cloister. Units flank physical ruins, pass behind pillars and rain lantern arrows across the ground." /></section>
       <div className="moonwake-transport">
         <button onClick={toggle} aria-label={playing ? "Pause encounter" : "Play encounter"}>{playing ? "Ⅱ Pause" : "▶ Play"}</button>
         <button onClick={() => {
@@ -72,11 +73,11 @@ export function MoonwakePrototype() {
         >
           ↺ Replay
         </button>
-        <input type="range" min={0} max={36} step={0.01} value={time} onChange={(e) => seek(Number(e.target.value))} aria-label="Encounter time" />
+        <input type="range" min={0} max={DURATION} step={0.01} value={time} onChange={(e) => seek(Number(e.target.value))} aria-label="Encounter time" />
         <output>
           {time.toFixed(1)}
           {" "}
-          / 36.0s
+          / 42.0s
         </output>
       </div>
       <nav className="moonwake-chapters" aria-label="Encounter chapters">
@@ -100,7 +101,7 @@ export function MoonwakePrototype() {
           {" "}
           Shieldbearers · Lantern bows · Harpooners · Captain Vey
         </p>
-        <p>36-second authored encounter · 56 troops + captain + bell-keeper · Original Canvas illustration · Soundless study</p>
+        <p>42-second authored encounter · 88 independent ground footprints · Elevated 2.5D sprites · Soundless study</p>
       </footer>
     </main>
   );

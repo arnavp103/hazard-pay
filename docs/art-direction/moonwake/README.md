@@ -1,51 +1,34 @@
-# Moonwake — the Ivory Company
+# Moonwake — elevated 2.5D battlefield
 
-An original, throwaway illustrated art and animation direction for **Hazard Pay**. This is an intentionally separate fantasy exploration, not a change to the canonical cyberpunk setting, combat simulation, or existing art.
+The previous side-on illustration missed the intended presentation. This revision replaces its staging and character scale with small upright figures moving across an elevated, fully visible ground plane, in the spatial language of Hero's Hour. It remains original programmatic art: ivory shields, moonlit cloister masonry, lantern bows and drowned bell-keepers.
 
-Run `corepack pnpm --filter @hazard-pay/webapp dev` from the repository root and open `/prototype-moonwake`. The dedicated page has pause, replay, a frame-accurate slider, chapter navigation, and a reduced-motion initial pause. The cinematic canvas scales to the available width.
+Open `/prototype-moonwake`. The isolated prototype has pause, replay, timeline scrubbing and five chapter jumps. Reduced-motion preference starts it paused. There is no backend or production battle dependency.
 
-## Encounter
+## What to review
 
-The 36-second deterministic encounter contains 28 mercenaries, 28 tidal creatures, Captain Vey, and the drowned bell-keeper: **58 illustrated figures**. Three mercenary roles: shieldbearers, lantern archers, harpooners. Creatures have three carapace profiles and individual scale/position variations.
+- 88 units, six irregular engagement pockets and diagonal approaches. The captain is 1.48× troop scale; the bell-keeper is 2.05×. The battle uses one fixed elevated camera throughout.
+- World X/Y positions project to ground footpoints. Units and individual ruin segments share depth sorting. Top helmet planes, front/back equipment visibility, ground shadows, obstacle footprints and independently elevated projectiles establish the 2.5D view.
+- Visibility-graph navigation avoids the physical ruins; local separation keeps individual movement. Wings converge after their local engagements. Deaths remain at ground positions.
+- 42 seconds: scattered advance; shield-company crescents; 32 staggered lantern projectiles; the bell-keeper's expanding tide; final converging attack and captain's overhead cut. Jointed walking, weapon anticipation/release, shield raising, bow draw, flinch and persistent collapse are separate poses.
 
-| Time | Authored action | Reaction / aftermath |
-| --- | --- | --- |
-| 0–6 s | Staggered advance with separate front and support formations | Front ranks meet; sword/claw skirmishes continue |
-| 6–13 s | Three staggered bow flights from actual archer positions | Specific struck creatures recoil; impact crowns mark contact |
-| 13–21 s | Articulated giant windup and downward slam; company braces before a tidal wall | Shieldbearers retreat, one fighter falls, company recovers |
-| 21–29 s | Harpoons wrench the giant; captain plants, draws back, dashes and jumps | Troops advance, keeper holds a bound stagger, camera pushes in |
-| 29–36 s | Crescent physically crosses the chest bell; giant collapses | Debris, fallen creatures, captain landing and recovery, settling ranks |
+![Elevated battle](battle.webp)
 
-`timeline.ts` samples state from absolute time with no random state or forward-only integration. `figure-art.ts` contains anatomical pose tables with separate feet, knees, hips, torso, shoulders, elbows, hands and weapon rotations. Both hands stay on the shaft. Troops use planted feet, separate torso/weapon gestures and targeted recoil.
+![42-second sequence](chapters.webp)
 
-## Source and evidence
+![Captain cut and persistent aftermath](finisher.webp)
 
-- `apps/webapp/src/moonwake/painter.ts`: layered environment, mercenaries, creatures, effects and composition.
-- `apps/webapp/src/moonwake/figure-art.ts`: original captain and keeper illustration and poses.
-- `battle.webp`, `finisher.webp`, `chapters.webp`: compact review plates committed here.
-- `render.mjs`: exports full-resolution PNG plates and optionally the complete 36-second, 1280 × 720, 24-fps film. Generated PNG/MP4 files are local outputs, not checked into this branch.
+## Reproduce the film
 
-![The tidal slam](battle.webp)
-
-![Captain Vey's finishing strike](finisher.webp)
-
-![Six encounter chapters](chapters.webp)
-
-No image-generation model, stock art, inherited prototype figures, or traced assets were used. Every shape is authored in source.
-
-These are **offline native Canvas renders of the exact runtime painter**, not browser screenshots. Browser capture was unavailable. The exported film is silent. Native render timings are not a production browser performance claim.
-
-Recreate with existing runtime `@napi-rs/canvas`, Node and system ffmpeg:
+`render.mjs` calls the exact runtime painter and deterministic timeline with `@napi-rs/canvas`. In this workspace that package is supplied by `CODEX_PRIMARY_RUNTIME_NODE_MODULES`; it is not a new game dependency. Node 24 can run the TypeScript imports directly. FFmpeg encodes the full 1280×720, 24 fps, 1008-frame film:
 
 ```sh
-node --import tsx docs/art-direction/moonwake/render.mjs --video
+node docs/art-direction/moonwake/render.mjs --video
 ```
 
-The renderer resolves Canvas via `CODEX_PRIMARY_RUNTIME_NODE_MODULES`, adding no project dependency.
+The generated MP4 and full-resolution PNG captures are review artifacts, not tracked game assets. The compact WebP gallery is tracked. This is an offline capture of the runtime painter, not browser interaction or performance validation.
 
 ## Validation and limits
 
-Root typecheck, lint and the full test suite passed in [GitHub CI](https://github.com/arnavp103/hazard-pay/actions/runs/36469696511). Local validation also passed the production Vite build and all 140 webapp tests. Six timeline tests cover roster, backwards scrubbing, tidal displacement, targeted arrow recoil, aftermath and chapter boundaries. The existing combat-sandbox test adjustment retains every bounds check while aggregating failures instead of executing tens of thousands of costly assertions; no runtime art or behavior changes.
+Timeline tests check all 88 footprints at 307 interpolated times, visibility-graph segment clearance around a ruin, world-height projection, substantial motion along both axes, deterministic backwards scrubbing and persistent casualties. Root typecheck, root lint, webapp tests and production build are run for the revision. Full monorepo tests need the repository's database service and optional integration dependencies.
 
-This is authored choreography, not emergent combat AI. It does not integrate persistence, damage rules, networking or audio. Minor troops share role anatomy. Narrow-phone readability and browser performance need live review. Crowded aftermath and a short airborne hang remain prototype limitations.
-
+The battle is a deterministic authored study with local pursuit, separation and timed setpieces. It is not production combat AI. Vector silhouettes remain thin at very small display sizes, and the deliberately muted terrain is a taste question. Sound and interactive orders are outside this prototype.

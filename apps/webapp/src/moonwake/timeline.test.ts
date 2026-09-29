@@ -1,33 +1,66 @@
 import { describe, expect, it } from "vitest";
-import { chapterAt, DURATION, soldierAt, soldiers } from "./timeline.ts";
-describe("Moonwake authored encounter", () => {
-  it("contains two 28-unit companies and three distinct mercenary roles", () => {
-    expect(soldiers.filter((unit) => unit.side === "ivory")).toHaveLength(28);
-    expect(soldiers.filter((unit) => unit.side === "tide")).toHaveLength(28);
-    expect(new Set(soldiers.filter((unit) => unit.side === "ivory").map((unit) => unit.kind)).size).toBe(3);
+import { battleAt, chapterAt, DURATION, groundClear, obstacles, project, route, soldiers } from "./timeline.ts";
+
+describe("Moonwake elevated battlefield", () => {
+  it("places 88 small combatants into six irregular approach sectors", () => {
+    expect(soldiers).toHaveLength(88);
+    expect(new Set(soldiers.map((unit) => unit.sector)).size).toBe(6);
+    expect(soldiers.filter((unit) => unit.side === "ivory")).toHaveLength(44);
+    expect(Math.max(...soldiers.map((unit) => unit.scale))).toBeLessThan(2.5);
   });
-  it("can scrub backwards without changing a previously sampled frame", () => {
-    const before = soldiers.map((unit) => soldierAt(unit, 16.7));
-    soldiers.forEach((unit) => soldierAt(unit, DURATION));
-    expect(soldiers.map((unit) => soldierAt(unit, 16.7))).toEqual(before);
+
+  it("projects airborne height independently from a unit's ground position", () => {
+    const foot = { x: 820, y: 680 };
+    expect(project(foot, 100).x).toBe(project(foot).x);
+    expect(project(foot).y - project(foot, 100).y).toBe(100);
+    expect(project({ x: foot.x, y: foot.y + 100 }).y).toBeGreaterThan(project(foot).y);
   });
-  it("backs the shield company away from the advancing tidal strike", () => {
-    const front = soldiers[6]!;
-    expect(soldierAt(front, 17).x).toBeLessThan(soldierAt(front, 13).x - 35);
-    expect(soldierAt(front, 16).brace).toBeGreaterThan(0.9);
-    expect(soldierAt(front, 25).brace).toBe(0);
+
+  it("routes around the entire physical ruin footprint", () => {
+    const ruin = obstacles[0]!;
+    const start = { x: ruin.x - 180, y: ruin.y };
+    const path = [start, ...route(start, { x: ruin.x + 180, y: ruin.y })];
+    expect(path.length).toBeGreaterThan(2);
+    for (let segment = 1; segment < path.length; segment++) {
+      const a = path[segment - 1]!;
+      const b = path[segment]!;
+      for (let step = 0; step <= 100; step++) {
+        const t = step / 100;
+        expect(groundClear({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t })).toBe(true);
+      }
+    }
   });
-  it("links the first arrow impact to a strong target reaction", () => {
-    expect(soldierAt(soldiers[28]!, 7.96).recoil).toBeGreaterThan(0.95);
+
+  it("keeps every troop outside cover throughout the encounter, including interpolated frames", () => {
+    const violations = [];
+    for (let time = 0; time <= DURATION; time += 0.137) {
+      for (const [id, pose] of battleAt(time).units.entries()) {
+        if (!groundClear(pose, 10.8)) {
+          violations.push({ time, id, x: pose.x, y: pose.y });
+        }
+      }
+    }
+    expect(violations).toEqual([]);
   });
-  it("leaves persistent casualties and changes formation after the final charge", () => {
-    const fallen = soldiers.filter((unit) => soldierAt(unit, DURATION).fallen === 1);
-    expect(fallen.length).toBeGreaterThan(15);
-    expect(soldierAt(soldiers[6]!, 27).x).toBeGreaterThan(soldierAt(soldiers[6]!, 10).x + 150);
+
+  it("spreads battle across both world axes and moves flanks in depth", () => {
+    const start = battleAt(0).units;
+    const mid = battleAt(18).units;
+    const movedInDepth = mid.filter((unit, id) => Math.abs(unit.y - start[id]!.y) > 80);
+    expect(movedInDepth.length).toBeGreaterThan(20);
+    expect(Math.max(...mid.map((unit) => unit.x)) - Math.min(...mid.map((unit) => unit.x))).toBeGreaterThan(600);
+    expect(Math.max(...mid.map((unit) => unit.y)) - Math.min(...mid.map((unit) => unit.y))).toBeGreaterThan(800);
   });
-  it("selects exactly the appropriate chapter at the authored transitions", () => {
-    expect(chapterAt(12.99).at).toBe(6);
-    expect(chapterAt(13).at).toBe(13);
-    expect(chapterAt(29).name).toBe("The last toll");
+
+  it("scrubs deterministically and keeps fallen units on their original ground footprints", () => {
+    const before = battleAt(21);
+    const end = battleAt(DURATION);
+    expect(battleAt(21)).toEqual(before);
+    const fallen = end.units.filter((unit) => unit.died >= 0);
+    expect(fallen.length).toBeGreaterThan(10);
+    for (const unit of fallen) {
+      expect(groundClear(unit)).toBe(true);
+    }
+    expect(chapterAt(34).name).toBe("Close the circle");
   });
 });
