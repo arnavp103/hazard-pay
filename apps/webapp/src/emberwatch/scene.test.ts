@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CHAPTERS, DURATION, PROPS, chapterAt, project, queenAt, unitsAt } from "./scene.ts";
+import { CHAPTERS, DURATION, PROPS, chapterAt, project, queenAt, sporeImpact, unitsAt } from "./scene.ts";
 describe("Emberwatch elevated battlefield", () => {
   it("seeks repeatably with 89 individually identified units plus the queen", () => {
     const before = unitsAt(16.7);
@@ -51,5 +51,19 @@ describe("Emberwatch elevated battlefield", () => {
     expect(end.filter((u) => !u.dead).every((u) => u.pose === "idle")).toBe(true);
     expect(queenAt(DURATION).dead).toBe(true);
     expect(chapterAt(DURATION)).toBe(CHAPTERS[5]);
+  });
+  it("connects artillery and charge casualties to the actual impact positions", () => {
+    for (let i = 0; i < 4; i++) {
+      const impact = sporeImpact(i);
+      const casualty = unitsAt(impact.time + 0.001).find((u) => u.id === impact.targetId)!;
+      expect(casualty.dead).toBe(true);
+      expect(Math.hypot(casualty.x - impact.x, casualty.y - impact.y)).toBeLessThan(1);
+    }
+    for (const [id, time] of [[6, 30.3], [30, 30.6]]) {
+      const queen = queenAt(time!);
+      const casualty = unitsAt(time!).find((u) => u.id === id)!;
+      expect(casualty.dead).toBe(true);
+      expect(Math.hypot(casualty.x - queen.x, casualty.y - queen.y)).toBeLessThan(22);
+    }
   });
 });

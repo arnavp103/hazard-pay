@@ -82,6 +82,11 @@ function position(id: number, time: number) {
 function direction(dx: number, dy: number) {
   return Math.abs(dy) > Math.abs(dx) * 0.8 ? dy > 0 ? 1 : 3 : dx > 0 ? 0 : 2;
 }
+export function sporeImpact(index: number) {
+  const targetId = [16, 29, 42, 3, 20, 25, 30][index]!;
+  const time = 16.2 + index * 0.22;
+  return { ...position(targetId, time), time, targetId };
+}
 export function unitsAt(time: number): Unit[] {
   const t = Math.max(0, Math.min(DURATION, time)); const result: Unit[] = [];
   for (let id = 0; id < 88; id++) {
@@ -90,7 +95,7 @@ export function unitsAt(time: number): Unit[] {
     const rank = Math.floor(i / 4);
     const group = i % 4;
     const kind = team ? rank >= 8 ? 5 : 4 : rank < 4 ? 1 : rank >= 9 ? 2 : 0;
-    const deathAt = team ? i % 5 === 0 ? 12.4 + i * 0.11 : group === 2 && rank < 5 ? 23.65 + rank * 0.05 : 34.7 + i * 0.041 : i % 13 === 3 ? 16.2 + group * 0.22 : i === 21 ? 31 : 100;
+    const deathAt = team ? i % 5 === 0 ? 12.4 + i * 0.11 : group === 2 && rank < 5 ? 23.65 + rank * 0.05 : 34.7 + i * 0.041 : i % 13 === 3 ? 16.2 + group * 0.22 : i === 6 ? 30.3 : i === 30 ? 30.6 : 100;
     const dead = t >= deathAt;
     const point = position(id, Math.min(t, deathAt));
     const before = position(id, Math.max(0, Math.min(t, deathAt) - 0.08));
@@ -166,8 +171,8 @@ export function renderBattle(ctx: CanvasRenderingContext2D, assets: Assets, time
   const qp = project(queen.x, queen.y);
   // Ground effects precede all upright geometry; projected shadows anchor every footpoint.
   for (let i = 0; i < 7; i++) {
-    const impact = 16 + i * 0.22; const p = project(225 + i % 3 * 34, 132 + Math.floor(i / 3) * 95);
-    if (t > impact) {
+    const impact = sporeImpact(i); const p = project(impact.x, impact.y);
+    if (t > impact.time) {
       pixelDisc(ctx, p.x, p.y, 10, "#747d62", 0.5); pixelDisc(ctx, p.x, p.y, 6, "#67705c", 0.45);
     }
   }
@@ -219,9 +224,10 @@ export function renderBattle(ctx: CanvasRenderingContext2D, assets: Assets, time
     }
   }
   for (let i = 0; i < 7; i++) {
-    const start = 13.6 + i * 0.22;
-    const end = 16 + i * 0.22;
-    const target = project(225 + i % 3 * 34, 132 + Math.floor(i / 3) * 95);
+    const impact = sporeImpact(i);
+    const start = impact.time - 2.4;
+    const end = impact.time;
+    const target = project(impact.x, impact.y);
     if (t >= start && t < end) {
       const p = (t - start) / (end - start);
       const spitter = unitsAt(start).filter((u) => u.kind === 5)[i]!;
@@ -250,8 +256,9 @@ export function renderBattle(ctx: CanvasRenderingContext2D, assets: Assets, time
     }
   }
   // Three rocketeer teams converge on the moving queen, each on its own arc.
+  const rocketeers = units.filter((u) => u.kind === 2 && !u.dead);
   for (let i = 0; i < 8; i++) {
-    const start = 32.3 + i * 0.18, end = 34.8 + i * 0.1; const source = units.filter((u) => u.kind === 2 && !u.dead)[i % 8];
+    const start = 32.3 + i * 0.18, end = 34.8 + i * 0.1; const source = rocketeers[i % rocketeers.length];
     const impact = queenAt(end); const target = project(impact.x, impact.y, 17);
     if (source && t > start && t < end) {
       const p = (t - start) / (end - start);
