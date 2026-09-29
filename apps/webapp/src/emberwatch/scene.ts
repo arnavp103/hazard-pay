@@ -1,326 +1,275 @@
-/** Emberwatch: a deterministic, seekable 36-second native-pixel encounter. */
-export const DURATION = 36;
+/** Native-pixel sprites on an elevated, continuous two-axis battlefield. */
+export const DURATION = 44;
 export const CHAPTERS = [
-  { time: 0, title: "The green line", note: "The salvage crew enters the abandoned aqueduct." },
-  { time: 6, title: "Contact", note: "Breakers meet the brood while the rifle line opens fire." },
-  { time: 11, title: "Spore rain", note: "The brood artillery fractures the front. The crew falls back." },
-  { time: 17, title: "Hammerfall", note: "Captain Rook clears the breach with a rocket-assisted plunge." },
-  { time: 24, title: "The brood engine", note: "A coordinated rocket volley stops the charging matriarch." },
-  { time: 30, title: "A quiet railway", note: "The surviving crew regroups among the spent shells." },
+  { time: 0, title: "The copper garden", note: "Ninety combatants split around the ruins and railway." },
+  { time: 8, title: "Four breaches", note: "Breakers pin the brood while rifle teams circle the foundations." },
+  { time: 14, title: "Spore rain", note: "Artillery walks across the clearing. The north patrol flanks behind cover." },
+  { time: 21, title: "Hammerfall", note: "Rook vaults into the southern breach; the shock scatters its defenders." },
+  { time: 29, title: "The brood engine", note: "The matriarch charges across the garden into a converging rocket volley." },
+  { time: 37, title: "The field holds", note: "Survivors secure the clearings. Fallen bodies mark the broken encirclement." },
 ] as const;
 export type Pose = "idle" | "run" | "strike" | "stagger" | "death" | "charge";
 const POSES: Pose[] = ["idle", "run", "strike", "stagger", "death", "charge"];
-export type Unit = { id: number;
-  kind: number;
-  x: number;
-  y: number;
-  pose: Pose;
-  frame: number;
-  flip: boolean;
-  dead: boolean; };
-export type Assets = { field: CanvasImageSource;
-  units: CanvasImageSource;
-  brood: CanvasImageSource; };
+export type Unit = { id: number; kind: number; x: number; y: number; z: number; pose: Pose; frame: number; direction: number; dead: boolean };
+export type Assets = { field: CanvasImageSource; units: CanvasImageSource; brood: CanvasImageSource; props: CanvasImageSource };
+export type Prop = { x: number; y: number; kind: number; radius: number };
+export const PROPS: Prop[] = [
+  ...[[22, 32], [58, 46], [13, 113], [22, 177], [10, 330], [36, 404], [12, 476], [80, 470], [145, 482], [571, 108], [618, 113], [626, 208], [602, 315], [632, 390], [605, 463], [562, 492], [493, 493], [207, 27], [389, 22], [348, 10]].map(([x, y]) => ({ x: x!, y: y!, kind: 0, radius: 15 })),
+  ...[[286, 129], [319, 123], [349, 128], [344, 399], [374, 392], [406, 386], [487, 286], [516, 280]].map(([x, y]) => ({ x: x!, y: y!, kind: 1, radius: 18 })),
+  ...[[191, 119], [221, 351], [449, 187], [520, 411], [159, 326], [420, 457], [381, 240]].map(([x, y]) => ({ x: x!, y: y!, kind: 2, radius: 12 })),
+  ...[[154, 68], [167, 80], [465, 456], [483, 449]].map(([x, y]) => ({ x: x!, y: y!, kind: 3, radius: 15 })),
+  { x: 66, y: 275, kind: 4, radius: 20 }, { x: 564, y: 216, kind: 4, radius: 20 },
+];
 const clamp = (v: number) => Math.max(0, Math.min(1, v));
 const ease = (v: number) => {
-  const n = clamp(v);
-  return n * n * (3 - 2 * n);
+  const n = clamp(v); return n * n * (3 - 2 * n);
 };
 const mix = (a: number, b: number, p: number) => a + (b - a) * ease(p);
 const hash = (n: number) => ((n * 127 + 91) % 257) / 257;
+export const project = (x: number, y: number, z = 0) => ({ x: Math.round(x), y: Math.round(12 + y * 0.66 - z) });
 export function chapterAt(time: number) {
   return CHAPTERS.findLast((c) => time >= c.time) ?? CHAPTERS[0];
 }
-export function unitsAt(t: number): Unit[] {
-  const units: Unit[] = [];
-  for (let team = 0;
-    team < 2;
-    team++) {
-    for (let i = 0;
-      i < 23;
-      i++) {
-      const id = team * 23 + i;
-      const lane = i % 3;
-      const rank = Math.floor(i / 3);
-      const kind = team ? (rank >= 5 && rank % 2 ? 5 : 4) : (rank < 2 ? 1 : rank === 6 ? 2 : 0);
-      const y = 164 + lane * 51 + Math.floor(hash(i * 3) * 7) + rank % 2 * 8;
-      const rear = Math.floor(i / 3);
-      const startX = team ? 473 + rear * 21 : 73 + rear * 20;
-      const front = [286, 338, 306][lane]!;
-      const contactX = team ? (kind === 5 ? 474 + rear * 5 : front + 42 + rear * 24) : (kind === 1 ? front - rear % 2 * 20 : kind === 2 ? 112 + rear * 15 : front - 62 - rear * 17);
-      let x = mix(startX, contactX, (t - i * 0.052) / 6);
-      let yy = y;
-      let pose: Pose = t < 5.8 ? "run" : "strike";
-      let frame = Math.floor(t * (kind === 2 ? 7 : 10) + i * 2.7) % 8;
-      const cycle = (t + i * 0.217) % (team ? 1.72 : kind === 2 ? 2.8 : 1.36);
-      if (t > 6 && t < 30) {
-        x += Math.round((cycle < 0.22 ? cycle / 0.22 : Math.max(0, 1 - (cycle - 0.22) / 0.35)) * (team ? -7 : 5));
-        pose = cycle > 0.68 ? "idle" : "strike";
-        frame = Math.min(7, Math.floor(cycle / 0.085));
-        if ((t + i * 0.31) % 3.2 < 0.19) {
-          pose = "stagger";
-          frame = 2;
-        }
+/** Enforce prop footprints in world coordinates, independent from drawing order. */
+function outsideCover(x: number, y: number, clearance = 7) {
+  for (let pass = 0; pass < 8; pass++) {
+    for (const p of PROPS) {
+      const dx = x - p.x;
+      const dy = y - p.y;
+      const distance = Math.hypot(dx, dy);
+      const safe = p.radius + clearance;
+      if (distance < safe) {
+        const angle = distance > 0.01 ? Math.atan2(dy, dx) : 0;
+        x = p.x + Math.cos(angle) * safe;
+        y = p.y + Math.sin(angle) * safe;
       }
-      if (!team && t > 12.4 && t < 17.3) {
-        const retreat = ease((t - 12.4 - lane * 0.11) / 0.5) * (1 - ease((t - 16) / 1.3));
-        x -= retreat * (kind === 1 ? 29 : 17);
-        if (t < 13.3) {
-          pose = "stagger";
-          frame = Math.min(7, Math.floor((t - 12.4) * 9));
-        }
-      }
-      if (team && t > 20.15 && t < 23.5) {
-        const dt = t - 20.15 - rear * 0.035;
-        x += ease(dt / 0.25) * (1 - ease((dt - 1.1) / 2)) * (39 - rear * 3);
-        if (dt < 0.9) {
-          pose = "stagger";
-          frame = Math.min(7, Math.max(0, Math.floor(dt * 8)));
-        }
-      }
-      if (!team && kind === 1 && t > 25 && t < 27) {
-        const p = clamp((t - 25) / 1.5);
-        x -= Math.round(4 * p * (1 - p) * 36);
-        yy -= Math.round(4 * p * (1 - p) * 21);
-        pose = "stagger";
-        frame = Math.min(7, Math.floor(p * 8));
-      }
-      const deathAt = team ? (i % 4 === 0 ? 8.5 + i * 0.14 : i % 3 === 0 ? 20.25 + i * 0.04 : 28.6 + i * 0.06) : (i === 6 ? 12.6 : i === 12 ? 25.6 : 100);
-      const dead = t > deathAt;
-      if (dead) {
-        x = contactX;
-        pose = "death";
-        frame = Math.min(7, Math.floor((t - deathAt) * 10));
-      }
-      if (t > 29.8 && !dead) {
-        x += ease((t - 29.8) / 4) * 82;
-        pose = t < 34.2 ? "run" : "idle";
-      }
-      units.push({ id, kind, x: Math.round(x), y: Math.round(yy), pose, frame, flip: Boolean(team), dead });
     }
   }
-  let hx = mix(112, 243, t / 6);
-  let hy = 267;
-  let pose: Pose = t < 6 ? "run" : "idle";
-  let frame = Math.floor(t * 10) % 8;
-  if (t >= 17 && t < 18) {
-    pose = "strike";
-    frame = Math.min(2, Math.floor((t - 17) * 3));
-  }
-  if (t >= 18 && t < 20.15) {
-    const p = (t - 18) / 2.15;
-    hx = mix(243, 350, p);
-    hy = 267 - 92 * Math.sin(p * Math.PI);
-    pose = "charge";
-  }
-  if (t >= 20.15) {
-    hx = 350;
-    pose = "strike";
-    frame = Math.min(7, Math.floor((t - 20.15) * 7) + 3);
-  }
-  if (t >= 22) {
-    pose = t < 29.8 ? "strike" : t < 33.5 ? "run" : "idle";
-    hx = mix(350, 430, (t - 29.8) / 3.5);
-    frame = Math.floor(t * 7) % 8;
-  }
-  units.push({ id: 46, kind: 3, x: Math.round(hx), y: Math.round(hy), pose, frame, flip: false, dead: false });
-  return units;
+  return { x, y };
 }
-function pixelDisc(ctx: CanvasRenderingContext2D, x: number, y: number, radius: number, color: string) {
-  ctx.fillStyle = color;
-  const r = Math.round(radius);
-  for (let yy = -r;
-    yy <= r;
-    yy++) {
-    const w = Math.floor(Math.sqrt(r * r - yy * yy));
-    ctx.fillRect(Math.round(x - w), Math.round(y + yy), w * 2 + 1, 1);
+const CENTERS = [[333, 79], [282, 220], [377, 333], [306, 443]] as const;
+function position(id: number, time: number) {
+  const team = id >= 44 ? 1 : 0;
+  const i = id % 44;
+  const group = i % 4;
+  const rank = Math.floor(i / 4);
+  const [cx, cy] = CENTERS[group]!;
+  const ranged = team ? rank >= 8 : rank >= 4;
+  const startX = team ? 503 + rank % 3 * 24 : 79 + rank % 3 * 25;
+  const startY = 57 + group * 119 + (rank - 5) * 7;
+  const theta = rank * 2.4 + group * 0.9; const radius = 13 + rank % 4 * 8;
+  let endX = cx + (team ? 1 : -1) * (ranged ? 53 + rank % 4 * 11 : 11) + Math.cos(theta) * radius;
+  let endY = cy + Math.sin(theta) * radius + (rank % 3 - 1) * 13;
+  // Northern rifle squad loops over the wall, then attacks southwards from its rear.
+  if (!team && group === 0 && ranged) {
+    endX += ease((time - 14) / 8) * 83; endY -= ease((time - 14) / 8) * 28;
   }
+  // Southern brood pursues through the eastern gap instead of marching in a row.
+  if (team && group === 2 && !ranged) {
+    endX -= ease((time - 25) / 4) * 42; endY += ease((time - 25) / 4) * 19;
+  }
+  const approach = ease((time - rank * 0.1) / (8 + group * 0.35));
+  let x = startX + (endX - startX) * approach;
+  let y = startY + (endY - startY) * approach + Math.sin(approach * Math.PI) * (group % 2 ? -28 : 24);
+  if (time > 8 && time < 37) {
+    x += Math.cos(time * 0.9 + id * 2) * (ranged ? 3 : 8); y += Math.sin(time * 0.65 + id * 1.3) * (ranged ? 3 : 9);
+  }
+  if (time > 37 && !team) {
+    x += ease((time - 37) / 5) * 57; y += ease((time - 37) / 5) * (240 - cy) * 0.06;
+  }
+  return outsideCover(x, y);
 }
-function burst(ctx: CanvasRenderingContext2D, x: number, y: number, age: number, seed: number, purple = false, big = false) {
-  if (age < 0 || age > 1.6) { return; }
-  const size = big ? 1.8 : 1;
-  for (let i = 0;
-    i < 19;
-    i++) {
-    const a = hash(i + seed) * Math.PI * 2;
-    const speed = (10 + hash(i * 7 + seed) * 25) * size;
-    const px = x + Math.cos(a) * age * speed;
-    const py = y + Math.sin(a) * age * speed - 18 * age + 22 * age * age;
-    const rad = (1 - age / 1.6) * (2 + hash(i * 3) * 4) * size;
-    const color = age < 0.22 ? "#fff2ba" : purple ? (i % 2 ? "#a0abc8" : "#665a8c") : age < 0.55 ? "#e5aa56" : (i % 2 ? "#526151" : "#8e9670");
-    ctx.fillStyle = color;
-    const rr = Math.max(1, Math.round(rad));
-    const xx = Math.round(px);
-    const yy = Math.round(py);
-    ctx.fillRect(xx - rr, yy - rr + 1, rr * 2, rr);
-    ctx.fillRect(xx - rr + 2, yy - rr - 2, rr, rr * 2 + 1);
-    ctx.fillRect(xx - rr - 2, yy, rr + 2, rr);
-    if (age < 0.35) {
-      ctx.fillStyle = "#fff2c3";
-      ctx.fillRect(xx - 1, yy - 2, 3, 3);
+function direction(dx: number, dy: number) {
+  return Math.abs(dy) > Math.abs(dx) * 0.8 ? dy > 0 ? 1 : 3 : dx > 0 ? 0 : 2;
+}
+export function unitsAt(time: number): Unit[] {
+  const t = Math.max(0, Math.min(DURATION, time)); const result: Unit[] = [];
+  for (let id = 0; id < 88; id++) {
+    const team = id >= 44;
+    const i = id % 44;
+    const rank = Math.floor(i / 4);
+    const group = i % 4;
+    const kind = team ? rank >= 8 ? 5 : 4 : rank < 4 ? 1 : rank >= 9 ? 2 : 0;
+    const deathAt = team ? i % 5 === 0 ? 12.4 + i * 0.11 : group === 2 && rank < 5 ? 23.65 + rank * 0.05 : 34.7 + i * 0.041 : i % 13 === 3 ? 16.2 + group * 0.22 : i === 21 ? 31 : 100;
+    const dead = t >= deathAt;
+    const point = position(id, Math.min(t, deathAt));
+    const before = position(id, Math.max(0, Math.min(t, deathAt) - 0.08));
+    const cycle = (t + id * 0.181) % (kind === 2 ? 2.7 : 1.8);
+    let pose: Pose = t < 8.4 || (!team && group === 0 && rank >= 4 && t > 14 && t < 22) || (t > 37 && t < 42 && !team) ? "run" : t >= 42 ? "idle" : cycle < 0.62 ? "strike" : "idle";
+    let frame = pose === "strike" ? Math.min(7, Math.floor(cycle * 13)) : Math.floor(t * 9 + id) % 8;
+    let z = 0;
+    if (!dead && team && group === 2 && t > 23.65 && t < 24.5) {
+      pose = "stagger";
+      frame = Math.min(7, Math.floor((t - 23.65) * 10));
+      point.x += Math.sin((t - 23.65) / 0.85 * Math.PI) * 14;
+      z = Math.sin((t - 23.65) / 0.85 * Math.PI) * 5;
+      Object.assign(point, outsideCover(point.x, point.y));
+    }
+    if (dead) {
+      pose = "death";
+      frame = Math.min(7, Math.floor((t - deathAt) * 10));
+      z = 0;
+    }
+    const moving = pose === "run";
+    const face = moving ? direction(point.x - before.x, point.y - before.y) : direction((team ? -1 : 1) * 45, Math.sin(id * 2.1) * 61);
+    result.push({ id, kind, ...point, z, pose, frame, direction: face, dead });
+  }
+  for (const u of result) {
+    if (u.dead || u.pose === "run") {
+      continue;
+    }
+    const enemies = result.filter((v) => !v.dead && (v.id >= 44) !== (u.id >= 44));
+    const target = enemies.sort((a, b) => Math.hypot(a.x - u.x, a.y - u.y) - Math.hypot(b.x - u.x, b.y - u.y))[0];
+    if (target) {
+      u.direction = direction(target.x - u.x, target.y - u.y);
     }
   }
+  const hero = outsideCover(mix(159, 272, t / 8) + mix(0, 76, (t - 21.8) / 1.85), mix(398, 346, t / 8) + mix(0, -13, (t - 21.8) / 1.85));
+  const flight = clamp((t - 21.8) / 1.85);
+  result.push({ id: 88, kind: 3, ...hero, z: Math.sin(flight * Math.PI) * 43, pose: t < 8 ? "run" : t < 21 ? "idle" : t < 21.8 ? "strike" : t < 23.65 ? "charge" : t < 25 ? "strike" : t < 37 ? "idle" : t < 42 ? "run" : "idle", frame: t >= 21 && t < 21.8 ? Math.floor((t - 21) * 3) : t >= 23.65 && t < 25 ? Math.min(7, 3 + Math.floor((t - 23.65) * 5)) : Math.floor(t * 8) % 8, direction: 0, dead: false });
+  return result;
 }
-function sprite(ctx: CanvasRenderingContext2D, assets: Assets, unit: Unit) {
-  const row = unit.kind * 6 + POSES.indexOf(unit.pose);
-  ctx.save();
-  ctx.translate(unit.x, unit.y);
-  if (unit.flip) { ctx.scale(-1, 1); }
-  ctx.drawImage(assets.units, unit.frame * 64, row * 64, 64, 64, -32, -53, 64, 64);
-  ctx.restore();
+export function queenAt(t: number) {
+  const x = t < 29 ? mix(547, 467, t / 12) : t < 31.1 ? mix(467, 287, (t - 29) / 2.1) : mix(287, 318, (t - 31.1) / 3);
+  const y = t < 29 ? mix(197, 281, t / 12) : mix(281, 325, (t - 29) / 2.1);
+  return { ...outsideCover(x, y, 20), dead: t >= 35.2 };
+}
+function pixelDisc(ctx: CanvasRenderingContext2D, x: number, y: number, radius: number, color: string, ratio = 1) {
+  ctx.fillStyle = color; const r = Math.round(radius);
+  for (let yy = -r; yy <= r; yy++) {
+    const w = Math.floor(Math.sqrt(r * r - yy * yy)); ctx.fillRect(Math.round(x - w), Math.round(y + yy * ratio), w * 2 + 1, 1);
+  }
+}
+function burst(ctx: CanvasRenderingContext2D, x: number, y: number, age: number, seed: number, violet = false) {
+  if (age < 0 || age > 1.4) {
+    return;
+  }
+  for (let i = 0; i < 16; i++) {
+    const a = hash(i * 3 + seed) * Math.PI * 2; const speed = 12 + hash(i * 7 + seed) * 29;
+    const xx = Math.round(x + Math.cos(a) * age * speed); const yy = Math.round(y + Math.sin(a) * age * speed * 0.5 - 20 * age + 22 * age * age);
+    const r = Math.max(1, Math.round((1 - age / 1.4) * (2 + hash(i) * 3)));
+    ctx.fillStyle = age < 0.15 ? "#fff0b1" : violet ? i % 2 ? "#9e9ab8" : "#706982" : age < 0.4 ? "#ddaa62" : i % 2 ? "#a6a887" : "#6e826d";
+    ctx.fillRect(xx - r, yy, r * 2, r); ctx.fillRect(xx - r + 1, yy - 2, r, r * 2);
+  }
+}
+function drawUnit(ctx: CanvasRenderingContext2D, assets: Assets, u: Unit) {
+  const row = (u.kind * 6 + POSES.indexOf(u.pose)) * 4 + u.direction; const p = project(u.x, u.y, u.z);
+  ctx.drawImage(assets.units, u.frame * 32, row * 32, 32, 32, p.x - 16, p.y - 27, 32, 32);
 }
 export function renderBattle(ctx: CanvasRenderingContext2D, assets: Assets, time: number) {
   const t = Math.max(0, Math.min(DURATION, time));
   ctx.imageSmoothingEnabled = false;
   ctx.clearRect(0, 0, 640, 360);
-  ctx.save();
-  const hit = [12.4, 20.15, 25.05, 28.65].find((at) => t >= at && t < at + 0.22);
-  if (hit !== undefined) { ctx.translate(Math.floor(t * 51) % 3 - 1, Math.floor(t * 37) % 3 - 1); }
   ctx.drawImage(assets.field, 0, 0);
-  for (let i = 0;
-    i < 13;
-    i++) {
-    const x = Math.floor((i * 57 + t * (3 + i % 3)) % 680 - 20);
-    const y = Math.floor(61 + (i * 29 + t * (4 + i % 2)) % 193);
-    ctx.fillStyle = i % 3 ? "#a9b970" : "#d4b86c";
-    ctx.fillRect(x, y, 3, 1);
-    ctx.fillRect(x + 1, y - 1, 2, 1);
-  }
-  if (t > 12.4) {
-    for (let i = 0;
-      i < 3;
-      i++) {
-      pixelDisc(ctx, 267 + i * 23, 224 + i * 14, 12, "#5d6c57");
-      ctx.fillStyle = "#3d5148";
-      ctx.fillRect(263 + i * 23, 224 + i * 14, 9, 2);
+  const units = unitsAt(t);
+  const queen = queenAt(t);
+  const qp = project(queen.x, queen.y);
+  // Ground effects precede all upright geometry; projected shadows anchor every footpoint.
+  for (let i = 0; i < 7; i++) {
+    const impact = 16 + i * 0.22; const p = project(225 + i % 3 * 34, 132 + Math.floor(i / 3) * 95);
+    if (t > impact) {
+      pixelDisc(ctx, p.x, p.y, 10, "#747d62", 0.5); pixelDisc(ctx, p.x, p.y, 6, "#67705c", 0.45);
     }
   }
-  if (t > 20.15) {
-    ctx.strokeStyle = "#435747";
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(341, 260);
-    ctx.lineTo(355, 254);
-    ctx.lineTo(374, 256);
-    ctx.lineTo(391, 266);
-    ctx.stroke();
+  if (t > 23.65) {
+    const p = project(348, 333); pixelDisc(ctx, p.x, p.y, 18, "#767c62", 0.5);
   }
-  const units = unitsAt(t);
   for (const u of units) {
-    ctx.fillStyle = u.dead ? "#51684f" : "#596f51";
-    ctx.fillRect(u.x - (u.kind > 3 ? 18 : 9), u.y - 2, u.kind > 3 ? 31 : 19, 3);
+    const p = project(u.x, u.y); pixelDisc(ctx, p.x, p.y, u.kind > 3 ? 8 : 5, u.dead ? "#768264" : "#62775f", 0.35);
   }
-  const queenX = t < 24 ? mix(585, 516, t / 10) : t < 25.1 ? mix(516, 423, (t - 24) / 1.1) : t < 28.65 ? 423 : mix(423, 446, (t - 28.65) / 0.9);
-  const queenY = 247 + (t > 28.65 ? ease((t - 28.65) / 0.8) * 16 : 0);
+  for (const p of PROPS) {
+    const s = project(p.x, p.y); pixelDisc(ctx, s.x + 3, s.y, p.kind === 0 ? 18 : p.radius, "#61765d", 0.4);
+  }
+  pixelDisc(ctx, qp.x, qp.y, 27, "#62705d", 0.4);
+  for (const u of units.filter((u) => u.dead)) {
+    drawUnit(ctx, assets, u);
+  }
   const drawQueen = () => {
     ctx.save();
-    ctx.translate(Math.round(queenX), Math.round(queenY));
-    ctx.scale(-1, 1);
-    if (t > 28.65) {
-      ctx.globalAlpha = 0.75;
-      ctx.scale(1, 0.68);
-    }
-    ctx.drawImage(assets.brood, (t > 28.65 ? 7 : Math.floor(t * 7) % 8) * 128, 0, 128, 128, -64, -99, 128, 128);
-    ctx.restore();
+    ctx.translate(qp.x, qp.y);
+    ctx.scale(-1, queen.dead ? 0.55 : 1);
+    ctx.drawImage(assets.brood, (queen.dead ? 7 : Math.floor(t * (t > 29 && t < 31 ? 12 : 6)) % 8) * 64, 0, 64, 64, -32, -50, 64, 64); ctx.restore();
   };
-  let queenDrawn = false;
-  for (const unit of units.sort((a, b) => a.y - b.y || a.id - b.id)) {
-    if (!queenDrawn && unit.y > queenY - 4) {
-      drawQueen();
-      queenDrawn = true;
-    }
-    sprite(ctx, assets, unit);
+  const ordered = [
+    ...units.filter((u) => !u.dead).map((u) => ({ y: u.y, draw: () => drawUnit(ctx, assets, u) })),
+    ...PROPS.map((p) => ({ y: p.y, draw: () => {
+      const s = project(p.x, p.y); ctx.drawImage(assets.props, p.kind * 64, 0, 64, 80, s.x - 32, s.y - 68, 64, 80);
+    } })),
+    { y: queen.y, draw: drawQueen },
+  ].sort((a, b) => a.y - b.y);
+  for (const item of ordered) {
+    item.draw();
   }
-  if (!queenDrawn) { drawQueen(); }
-  if (t > 6 && t < 29.5) {
-    for (const u of units) {
-      if (u.kind === 0 && !u.dead && u.pose === "strike" && u.frame === 3) {
-        ctx.fillStyle = "#f6df99";
-        ctx.fillRect(u.x + 26, u.y - 19, 30, 1);
-        burst(ctx, 341 + u.id % 4 * 9, u.y - 17, 0.12, u.id);
+  // Bullets connect actual living opposing footpoints rather than arbitrary screen positions.
+  if (t > 8 && t < 35) {
+    for (const u of units.filter((u) => u.kind === 0 && !u.dead && u.pose === "strike" && u.frame === 3)) {
+      const target = units.filter((v) => v.kind >= 4 && !v.dead).sort((a, b) => Math.hypot(a.x - u.x, a.y - u.y) - Math.hypot(b.x - u.x, b.y - u.y))[0];
+      if (!target) {
+        continue;
       }
+      const a = project(u.x, u.y, 10); const b = project(target.x, target.y, 5);
+      ctx.strokeStyle = "#eadcaf";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+      ctx.stroke();
+      ctx.fillStyle = "#fff3c2";
+      ctx.fillRect(b.x - 1, b.y - 1, 3, 2);
     }
   }
-  for (let i = 0;
-    i < 3;
-    i++) {
-    const start = 10.3 + i * 0.15;
-    const end = 12.4 + i * 0.12;
+  for (let i = 0; i < 7; i++) {
+    const start = 13.6 + i * 0.22;
+    const end = 16 + i * 0.22;
+    const target = project(225 + i % 3 * 34, 132 + Math.floor(i / 3) * 95);
     if (t >= start && t < end) {
       const p = (t - start) / (end - start);
-      const x = 482 + (267 + i * 23 - 482) * p;
-      const y = 205 + i * 7 - 102 * Math.sin(p * Math.PI);
-      for (let k = 3;
-        k > 0;
-        k--) { pixelDisc(ctx, x + k * 5, y - k * 2, 2, "#8a8fac"); }
-      pixelDisc(ctx, x, y, 4, "#d9a3a6");
-      pixelDisc(ctx, x - 1, y - 1, 2, "#f3d6bd");
+      const spitter = unitsAt(start).filter((u) => u.kind === 5)[i]!;
+      const source = project(spitter.x, spitter.y, 9);
+      const x = source.x + (target.x - source.x) * p;
+      const y = source.y + (target.y - source.y) * p - Math.sin(p * Math.PI) * 53;
+      pixelDisc(ctx, x + 3, y - 3, 2, "#887e9d");
+      pixelDisc(ctx, x, y, 3, "#d5a6bc");
+      ctx.fillStyle = "#f8dbc7";
+      ctx.fillRect(Math.round(x) - 1, Math.round(y) - 1, 2, 2);
     }
-    burst(ctx, 267 + i * 23, 221 + i * 14, t - end, i + 7, true, true);
+    burst(ctx, target.x, target.y, t - end, i + 10, true);
   }
-  if (t >= 18 && t < 20.15) {
-    const hero = units.find((u) => u.id === 46)!;
-    for (let i = 0;
-      i < 8;
-      i++) {
-      ctx.fillStyle = i < 3 ? "#f9e5a0" : "#b67b49";
-      ctx.fillRect(hero.x - 13 - i * 3, hero.y - 26 + i * 4, Math.max(1, 6 - i), 3);
+  if (t > 21.8 && t < 23.65) {
+    const hero = units[88]!; const p = project(hero.x, hero.y, hero.z);
+    for (let k = 0; k < 5; k++) {
+      ctx.fillStyle = k < 2 ? "#f6d997" : "#b78754"; ctx.fillRect(p.x - 8 - k * 2, p.y - 7 + k * 3, 3, 2);
     }
   }
-  burst(ctx, 377, 252, t - 20.15, 25, false, true);
-  if (t > 20.15 && t < 21.2) {
-    const p = (t - 20.15) / 1.05;
-    for (let i = 0;
-      i < 40;
-      i++) {
-      const a = i / 40 * Math.PI * 2;
-      ctx.fillStyle = i % 2 ? "#d0bd7c" : "#8c9b69";
-      ctx.fillRect(Math.round(369 + Math.cos(a) * p * 67), Math.round(257 + Math.sin(a) * p * 18), 4, 2);
+  const hp = project(348, 333); burst(ctx, hp.x, hp.y, t - 23.65, 39);
+  if (t > 23.65 && t < 24.8) {
+    const p = (t - 23.65) / 1.15; for (let i = 0; i < 32; i++) {
+      const a = i / 32 * Math.PI * 2;
+      ctx.fillStyle = i % 2 ? "#c4bb88" : "#9f9d71";
+      ctx.fillRect(Math.round(hp.x + Math.cos(a) * p * 64), Math.round(hp.y + Math.sin(a) * p * 40), 3, 1);
     }
   }
-  for (let i = 0;
-    i < 6;
-    i++) {
-    const start = 27 + i * 0.1;
-    const end = 28.35 + i * 0.07;
-    if (t >= start && t < end) {
+  // Three rocketeer teams converge on the moving queen, each on its own arc.
+  for (let i = 0; i < 8; i++) {
+    const start = 32.3 + i * 0.18, end = 34.8 + i * 0.1; const source = units.filter((u) => u.kind === 2 && !u.dead)[i % 8];
+    const impact = queenAt(end); const target = project(impact.x, impact.y, 17);
+    if (source && t > start && t < end) {
       const p = (t - start) / (end - start);
-      const x = 145 + p * 269;
-      const y = 212 + i % 3 * 14 - Math.sin(p * Math.PI) * (25 + i * 4);
-      ctx.fillStyle = "#e5c788";
-      ctx.fillRect(Math.round(x), Math.round(y), 7, 2);
-      ctx.fillStyle = "#f1e2b0";
-      ctx.fillRect(Math.round(x - 4), Math.round(y), 4, 2);
-      for (let k = 1;
-        k < 6;
-        k++) {
-        ctx.fillStyle = k % 2 ? "#9f9c78" : "#75866c";
-        ctx.fillRect(Math.round(x - k * 8), Math.round(y + k / 2), 3, 2);
+      const s = project(source.x, source.y, 14);
+      const x = s.x + (target.x - s.x) * p, y = s.y + (target.y - s.y) * p - Math.sin(p * Math.PI) * 29;
+      ctx.fillStyle = "#f4e4b2";
+      ctx.fillRect(Math.round(x) - 3, Math.round(y), 6, 2);
+      for (let k = 1; k < 5; k++) {
+        ctx.fillStyle = "#8f987b"; ctx.fillRect(Math.round(x) - (target.x > s.x ? k * 4 : -k * 4), Math.round(y) + k, 2, 2);
       }
     }
-    burst(ctx, 411 + i * 4, 213 + i % 3 * 13, t - end, i * 9, false, true);
+    burst(ctx, target.x + i % 3 * 4, target.y, t - end, i * 5);
   }
-  if (t > 28.65) {
-    for (let i = 0;
-      i < 9;
-      i++) {
-      const age = Math.min(1.1, t - 28.65);
-      const x = 433 + (hash(i) - 0.5) * 83 * age;
-      const y = 219 - 50 * age + 61 * age * age + i % 3 * 9;
-      ctx.fillStyle = i % 2 ? "#7589b5" : "#404967";
-      ctx.fillRect(Math.round(x), Math.round(y), 6, 3);
+  if (t > 35.2) {
+    for (let i = 0; i < 9; i++) {
+      const age = Math.min(1, t - 35.2), x = qp.x + (hash(i) - 0.5) * 58 * age, y = qp.y - 15 - 31 * age + 45 * age * age + i % 3 * 4;
+      ctx.fillStyle = i % 2 ? "#7187b5" : "#454d77";
+      ctx.fillRect(Math.round(x), Math.round(y), 4, 2);
     }
   }
-  if (t > 32.5) {
-    const height = Math.round(ease((t - 32.5) / 1.5) * 36);
-    ctx.fillStyle = "#d3c498";
-    ctx.fillRect(418, 258 - height, 1, height);
-    if (height > 20) {
-      ctx.fillStyle = "#bd714b";
-      ctx.fillRect(419, 260 - height, 19, 10);
-      ctx.fillStyle = "#ecd49a";
-      ctx.fillRect(422, 263 - height, 4, 4);
-    }
-  }
-  ctx.restore();
 }

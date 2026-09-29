@@ -34,14 +34,14 @@ export function Emberwatch() {
       image.onerror = reject;
       image.src = url;
     });
-    void Promise.all([load("/emberwatch/aqueduct.png"), load("/emberwatch/units.png"), load("/emberwatch/brood.png")]).then(([field, units, brood]) => {
+    void Promise.all([load("/emberwatch/aqueduct.png"), load("/emberwatch/units.png"), load("/emberwatch/brood.png"), load("/emberwatch/props.png")]).then(([field, units, brood, props]) => {
       if (disposed) { return; }
       const context = canvas.current?.getContext("2d");
       if (!context) {
         setError(true);
         return;
       }
-      const assets: Assets = { field, units, brood };
+      const assets: Assets = { field, units, brood, props };
       setReady(true);
       const tick = (now: number) => {
         if (disposed) { return; }
@@ -93,12 +93,12 @@ export function Emberwatch() {
         <div className="emberwatch-edition">
           NATIVE PIXEL EDITION
           <br />
-          <span>48 combatants · 36 seconds</span>
+          <span>90 combatants · 44 seconds</span>
         </div>
       </header>
       <section className="emberwatch-player" aria-label="Emberwatch battle recording">
         <div className="emberwatch-stage" ref={container}>
-          <canvas ref={canvas} width={640} height={360} style={{ width: 640 * scale, height: 360 * scale }} aria-label="Sunlit aqueduct battle between a salvage crew and cobalt chitin creatures" />
+          <canvas ref={canvas} width={640} height={360} style={{ width: 640 * scale, height: 360 * scale }} aria-label="Elevated railway clearing with ninety small pixel soldiers and creatures moving around ruins" />
           {!ready && <p className="emberwatch-loading">{error ? "The field artwork could not be loaded. Reload to try again." : "Opening the field journal…"}</p>}
         </div>
         <div className="emberwatch-transport">
@@ -115,7 +115,7 @@ export function Emberwatch() {
           <output>
             {time.toFixed(1).padStart(4, "0")}
             {" "}
-            <span>/ 36.0</span>
+            <span>/ 44.0</span>
           </output>
         </div>
       </section>
